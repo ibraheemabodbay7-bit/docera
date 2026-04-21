@@ -1,0 +1,1 @@
+export { DaceraLogo } from "./DaceraLogo";

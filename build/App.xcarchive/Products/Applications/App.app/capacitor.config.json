@@ -1,0 +1,30 @@
+{
+	"appId": "com.docera.app",
+	"appName": "Docera",
+	"webDir": "dist/public",
+	"server": {
+		"androidScheme": "https",
+		"cleartext": true
+	},
+	"ios": {
+		"contentInset": "automatic",
+		"limitsNavigationsToAppBoundDomains": false
+	},
+	"android": {
+		"allowMixedContent": true
+	},
+	"plugins": {
+		"Camera": {
+			"presentationStyle": "fullscreen"
+		},
+		"Permissions": {}
+	},
+	"packageClassList": [
+		"AppPlugin",
+		"CAPBrowserPlugin",
+		"CAPCameraPlugin",
+		"FilesystemPlugin",
+		"SharePlugin",
+		"PurchasesPlugin"
+	]
+}
