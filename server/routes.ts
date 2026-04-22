@@ -15,7 +15,7 @@ const GMAIL_WEB_CLIENT_SECRET = process.env.GMAIL_WEB_CLIENT_SECRET ?? "";
 const GMAIL_RAILWAY_REDIRECT = process.env.GMAIL_REDIRECT_URI ?? "https://docera-production.up.railway.app/api/gmail/callback";
 
 // Temporary in-memory store for OAuth tokens (keyed by random token, TTL 5 min)
-const gmailTokenStore = new Map<string, { accessToken: string; expiresAt: number }>();
+const gmailTokenStore = new Map<string, { accessToken: string; refreshToken?: string; expiresAt: number }>();
 setInterval(() => {
   const now = Date.now();
   for (const [k, v] of gmailTokenStore) {
@@ -781,8 +781,9 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       const { tokens } = await oauth2Client.getToken(code);
       const accessToken = tokens.access_token;
       if (!accessToken) throw new Error("No access token returned");
+      const refreshToken = tokens.refresh_token ?? undefined;
       const key = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-      gmailTokenStore.set(key, { accessToken, expiresAt: Date.now() + 5 * 60 * 1000 });
+      gmailTokenStore.set(key, { accessToken, refreshToken, expiresAt: Date.now() + 5 * 60 * 1000 });
       res.redirect(`com.docera.app://gmail-success?token=${key}`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Callback failed";
@@ -802,7 +803,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       return res.status(410).json({ error: "Token expired" });
     }
     gmailTokenStore.delete(key);
-    res.json({ accessToken: entry.accessToken });
+    res.json({ accessToken: entry.accessToken, refreshToken: entry.refreshToken ?? null });
   });
 
   // ── Gmail send: send email with PDF attachment using caller's access token ─
@@ -860,11 +861,22 @@ export async function registerRoutes(httpServer: Server, app: Express) {
 
   // ── Gmail: list ALL messages grouped by contact ───────────────────────────
   app.post("/api/gmail/messages", async (req, res) => {
-    const schema = z.object({ accessToken: z.string().min(1) });
+    const schema = z.object({
+      accessToken: z.string().min(1),
+      refreshToken: z.string().optional().nullable(),
+    });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
 
-    const gmail = makeGmailClient(parsed.data.accessToken);
+    const oauth2Client = new google.auth.OAuth2(GMAIL_WEB_CLIENT_ID, GMAIL_WEB_CLIENT_SECRET, GMAIL_RAILWAY_REDIRECT);
+    oauth2Client.setCredentials({
+      access_token: parsed.data.accessToken,
+      refresh_token: parsed.data.refreshToken ?? undefined,
+    });
+    if (parsed.data.refreshToken) {
+      try { await oauth2Client.refreshAccessToken(); } catch {}
+    }
+    const gmail = google.gmail({ version: "v1", auth: oauth2Client });
     try {
       const profile = await gmail.users.getProfile({ userId: "me" });
       const myEmail = profile.data.emailAddress?.toLowerCase() ?? "";
@@ -877,7 +889,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         ...(inboxList.data.messages ?? []).map(m => m.id!),
         ...(sentList.data.messages ?? []).map(m => m.id!),
       ];
-      const uniqueIds = [...new Set(allIds)].slice(0, 100);
+      const uniqueIds = [...new Set(allIds)].slice(0, 80);
 
       const details = await Promise.all(
         uniqueIds.map(id =>
@@ -888,7 +900,8 @@ export async function registerRoutes(httpServer: Server, app: Express) {
 
       type ContactEntry = {
         email: string; name: string; lastSubject: string; lastDate: string;
-        lastMessage: string; messageCount: number; lastDirection: "sent" | "received"; hasUnread: boolean;
+        lastMessage: string; messageCount: number; lastDirection: "sent" | "received";
+        hasUnread: boolean; hasAttachments: boolean;
       };
       const contactMap = new Map<string, ContactEntry>();
 
@@ -902,7 +915,9 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         const isSent = from.email === myEmail;
         const contact = isSent ? to : from;
         if (!contact.email || contact.email === myEmail) continue;
-        const isUnread = (msg.labelIds ?? []).includes("UNREAD");
+        const labels = msg.labelIds ?? [];
+        const isUnread = labels.includes("UNREAD");
+        const hasAtt = labels.includes("HAS_ATTACHMENT");
         const snippet = msg.snippet ?? "";
 
         const existing = contactMap.get(contact.email);
@@ -917,10 +932,12 @@ export async function registerRoutes(httpServer: Server, app: Express) {
             messageCount: (existing?.messageCount ?? 0) + 1,
             lastDirection: isSent ? "sent" : "received",
             hasUnread: isUnread || (existing?.hasUnread ?? false),
+            hasAttachments: hasAtt || (existing?.hasAttachments ?? false),
           });
         } else {
           existing.messageCount++;
           if (isUnread) existing.hasUnread = true;
+          if (hasAtt) existing.hasAttachments = true;
         }
       }
 
@@ -938,12 +955,25 @@ export async function registerRoutes(httpServer: Server, app: Express) {
 
   // ── Gmail: messages for a specific contact (all emails, with body text) ───
   app.post("/api/gmail/thread-messages", async (req, res) => {
-    const schema = z.object({ accessToken: z.string().min(1), contactEmail: z.string().min(1) });
+    const schema = z.object({
+      accessToken: z.string().min(1),
+      contactEmail: z.string().min(1),
+      refreshToken: z.string().optional().nullable(),
+      olderThan: z.string().optional().nullable(),
+    });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
 
     const { accessToken, contactEmail } = parsed.data;
-    const gmail = makeGmailClient(accessToken);
+    const oauth2Client = new google.auth.OAuth2(GMAIL_WEB_CLIENT_ID, GMAIL_WEB_CLIENT_SECRET, GMAIL_RAILWAY_REDIRECT);
+    oauth2Client.setCredentials({
+      access_token: accessToken,
+      refresh_token: parsed.data.refreshToken ?? undefined,
+    });
+    if (parsed.data.refreshToken) {
+      try { await oauth2Client.refreshAccessToken(); } catch {}
+    }
+    const gmail = google.gmail({ version: "v1", auth: oauth2Client });
     try {
       const profile = await gmail.users.getProfile({ userId: "me" });
       const myEmail = profile.data.emailAddress?.toLowerCase() ?? "";
@@ -951,16 +981,21 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       const list = await gmail.users.messages.list({
         userId: "me",
         q: `from:${contactEmail} OR to:${contactEmail}`,
-        maxResults: 100,
+        maxResults: 30,
       });
       const ids = (list.data.messages ?? []).map(m => m.id!);
 
-      const details = await Promise.all(
-        ids.map(id => gmail.users.messages.get({ userId: "me", id, format: "full" }).then(r => r.data).catch(() => null))
-      );
+      const details: Array<unknown> = [];
+      for (let i = 0; i < ids.length; i += 3) {
+        const chunk = ids.slice(i, i + 3);
+        const chunkResults = await Promise.all(
+          chunk.map(id => gmail.users.messages.get({ userId: "me", id, format: "full" }).then(r => r.data).catch(() => null))
+        );
+        details.push(...chunkResults);
+      }
 
-      const messages = details.filter(Boolean).map(msg => {
-        const h = (msg!.payload?.headers ?? []) as Array<{ name?: string | null; value?: string | null }>;
+      const messages = (details as Array<Record<string, unknown> | null>).filter(Boolean).map(msg => {
+        const h = ((msg!.payload as Record<string, unknown>)?.headers ?? []) as Array<{ name?: string | null; value?: string | null }>;
         const from = parseGmailEmail(getGmailHeader(h, "From"));
         const to = parseGmailEmail(getGmailHeader(h, "To"));
         const date = getGmailHeader(h, "Date");
@@ -969,7 +1004,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         const attachments = extractGmailAttachments(msg!.payload as Record<string, unknown> ?? {});
         const body = extractGmailBody(msg!.payload as Record<string, unknown> ?? {});
         return {
-          id: msg!.id!,
+          id: msg!.id as string,
           direction: isSent ? "sent" : "received",
           fromName: from.name,
           fromEmail: from.email,
@@ -977,12 +1012,23 @@ export async function registerRoutes(httpServer: Server, app: Express) {
           date,
           subject,
           body,
-          snippet: msg!.snippet ?? "",
+          snippet: (msg!.snippet as string) ?? "",
           attachments,
         };
       }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-      res.json({ myEmail, messages });
+      const olderThan = parsed.data.olderThan;
+      let filtered = messages;
+      if (olderThan) {
+        const olderThanTime = new Date(olderThan).getTime();
+        filtered = messages.filter(m => new Date(m.date).getTime() < olderThanTime);
+      }
+      const limit = 30;
+      const total = filtered.length;
+      const hasMore = total > limit;
+      const paginated = filtered.slice(Math.max(0, total - limit));
+
+      res.json({ myEmail, messages: paginated, hasMore, total });
     } catch (err: unknown) {
       const e = err as Record<string, unknown>;
       const status = (e?.response as Record<string, unknown>)?.status as number ?? 500;
