@@ -4,6 +4,8 @@ import {
   Plus, Paperclip, Share2, Loader2, WifiOff, Sun, Moon, ImageOff, Search,
 } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
+import { Share } from "@capacitor/share";
+import { Filesystem, Directory } from "@capacitor/filesystem";
 import { Browser } from "@capacitor/browser";
 import { App as CapApp } from "@capacitor/app";
 import {
@@ -153,21 +155,20 @@ async function generatePdfThumbnail(base64: string): Promise<string> {
 
 // ─── Open PDF via native Quick Look (iOS) ─────────────────────────────────────
 
-async function openPdfNative(base64: string, name: string) {
+async function openPdfNative(base64: string, filename: string) {
   if (Capacitor.isNativePlatform()) {
-    const { Filesystem, Directory } = await import("@capacitor/filesystem");
-    const { FileOpener } = await import("@capacitor-community/file-opener");
-    const safe = name.replace(/[^a-z0-9._-]/gi, "_");
-    const fileName = safe.endsWith(".pdf") ? safe : `${safe}.pdf`;
-    await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache });
-    const { uri } = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
-    await FileOpener.open({ filePath: uri, contentType: "application/pdf" });
+    const result = await Filesystem.writeFile({
+      path: filename,
+      data: base64,
+      directory: Directory.Cache,
+    });
+    await Share.share({
+      title: filename,
+      url: result.uri,
+    });
   } else {
     const blob = await fetch(`data:application/pdf;base64,${base64}`).then(r => r.blob());
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = name; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    window.open(URL.createObjectURL(blob), "_blank");
   }
 }
 
