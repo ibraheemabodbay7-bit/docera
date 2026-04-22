@@ -953,32 +953,60 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       const contacts = Array.from(contactMap.values())
         .sort((a, b) => new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime());
 
+      // Score each contact
+      const scoredContacts = contacts.map(c => {
+        let score = 0;
+        if (c.lastDirection === 'sent') score += 5;
+        if (c.messageCount > 1) score += 5;
+        if ((c as Record<string, unknown>).hasAttachments) score += 4;
+        if (c.messageCount > 2) score += 3;
+        if (c.messageCount > 5) score += 3;
+        const text = ((c.lastSubject ?? '') + ' ' + (c.lastMessage ?? '')).toLowerCase();
+        const emailLower = c.email.toLowerCase();
+        const promoKeywords = ['sale','discount','verify','otp','code','unsubscribe','newsletter','coupon','offer','deal','free','win','prize','shipping','order','receipt','invoice auto','delivery','track','confirm your','click here'];
+        const automatedSenders = ['noreply','no-reply','notification','newsletter','mailer','postmaster','donotreply','do-not-reply','alerts','support@','info@','marketing@'];
+        if (promoKeywords.some(k => text.includes(k))) score -= 3;
+        if (automatedSenders.some(k => emailLower.includes(k))) score -= 5;
+        if (c.messageCount === 1 && !(c as Record<string, unknown>).hasAttachments) score -= 2;
+        const isImportant = score >= 3;
+        return { ...c, isImportant, score };
+      });
+
+      // For borderline contacts (score 0-5), use OpenAI to refine classification
+      const borderline = scoredContacts.filter(c => c.score >= 0 && c.score <= 5);
       const apiKey = process.env.OPENAI_API_KEY;
-      if (apiKey && contacts.length > 0) {
+      if (apiKey && borderline.length > 0) {
         try {
-          const snippets = contacts.map((c, i) => `${i}: from=${c.name}, subject=${c.lastSubject}, snippet=${c.lastMessage?.slice(0, 80)}`).join('\n');
+          const snippets = borderline.map((c, i) =>
+            `${i}: from=${c.name} <${c.email}>, subject="${c.lastSubject}", preview="${c.lastMessage?.slice(0, 60)}", attachments=${(c as Record<string, unknown>).hasAttachments}, messages=${c.messageCount}`
+          ).join('\n');
           const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
               model: 'gpt-4o-mini',
-              max_tokens: 200,
+              max_tokens: 300,
               messages: [{
                 role: 'user',
-                content: `Classify each email contact as "important" or "promo". Important = real person, work, legal, financial, personal. Promo = newsletter, marketing, automated, OTP codes, receipts, shipping.\n\nReturn ONLY a JSON array of strings, one per contact in order: ["important","promo",...]\n\n${snippets}`
+                content: `Classify each email contact as "important" or "other".\n\nImportant = real person, client, work, legal, financial, PDF exchange, back-and-forth conversation.\nOther = newsletter, marketing, automated, OTP codes, receipts, shipping notifications, one-time emails.\n\nReturn ONLY a JSON array of strings in order: ["important","other",...]\n\nContacts:\n${snippets}`
               }]
             })
           });
           const aiData = await aiRes.json() as { choices?: Array<{ message?: { content?: string } }> };
           const raw = aiData.choices?.[0]?.message?.content ?? '[]';
           const labels = JSON.parse(raw.match(/\[[\s\S]*\]/)?.[0] ?? '[]') as string[];
-          contacts.forEach((c, i) => { (c as Record<string, unknown>).isImportant = labels[i] === 'important'; });
+          borderline.forEach((c, i) => {
+            const contact = scoredContacts.find(sc => sc.email === c.email);
+            if (contact && labels[i]) {
+              contact.isImportant = labels[i] === 'important';
+            }
+          });
         } catch {
-          contacts.forEach(c => { (c as Record<string, unknown>).isImportant = true; });
+          // Fall back to score-based classification
         }
       }
 
-      res.json({ myEmail, contacts });
+      res.json({ myEmail, contacts: scoredContacts });
     } catch (err: unknown) {
       const e = err as Record<string, unknown>;
       const status = (e?.response as Record<string, unknown>)?.status as number ?? 500;
