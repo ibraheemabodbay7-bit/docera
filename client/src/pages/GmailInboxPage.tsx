@@ -111,6 +111,12 @@ type DocItem = { id: string; name: string; type: string; dataUrl: string };
 
 const thumbCache = new Map<string, string>();
 
+// ─── PDF base64 cache (reused by viewer to avoid re-fetching) ─────────────────
+const base64Cache = new Map<string, string>();
+
+// ─── PDF page render cache (keyed `${attId}_${pageNum}`) ─────────────────────
+const pdfPageCache = new Map<string, string>();
+
 // ─── Thumbnail load semaphore (max 2 concurrent) ──────────────────────────────
 
 let activeThumbnailLoads = 0;
@@ -318,7 +324,7 @@ function PdfThumbnail({
   const [loading, setLoading] = useState(false);
   const [visible, setVisible] = useState(!!cached);
   const containerRef = useRef<HTMLDivElement>(null);
-  const largeFile = attachment.size > 2 * 1024 * 1024;
+  const largeFile = attachment.size > 3 * 1024 * 1024;
 
   useEffect(() => {
     mountedThumbnailCount++;
@@ -326,7 +332,7 @@ function PdfThumbnail({
   }, []);
 
   useEffect(() => {
-    if (cached) return;
+    if (cached || largeFile) return;
     const el = containerRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
@@ -335,11 +341,10 @@ function PdfThumbnail({
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [cached]);
+  }, [cached, largeFile]);
 
   useEffect(() => {
     if (!visible || thumb || largeFile) return;
-    if (mountedThumbnailCount > 5) return;
     let cancelled = false;
     setLoading(true);
     (async () => {
@@ -350,6 +355,7 @@ function PdfThumbnail({
           "/api/gmail/attachment", { messageId, attachmentId: attachment.id }, token, refreshToken,
         );
         if (cancelled) return;
+        base64Cache.set(attachment.id, data.base64);
         const url = await generatePdfThumbnail(data.base64);
         if (!cancelled && url) { thumbCache.set(attachment.id, url); setThumb(url); }
       } catch { } finally {
@@ -360,33 +366,50 @@ function PdfThumbnail({
     return () => { cancelled = true; };
   }, [visible, attachment.id]);
 
+  const fileCardArea = (
+    <div
+      style={{
+        width: 260, height: 160,
+        background: theme.cardBg,
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8,
+        border: `1px solid ${theme.border}`,
+      }}
+    >
+      <div className="w-12 h-12 rounded-xl bg-red-500 flex items-center justify-center">
+        <span className="text-white text-xs font-bold">PDF</span>
+      </div>
+      <p className="text-xs font-semibold px-4 text-center" style={{ color: theme.receivedText, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {attachment.name}
+      </p>
+      <p className="text-[11px]" style={{ color: theme.subText }}>{fmtSize(attachment.size)}</p>
+      {loading && <Loader2 className="w-4 h-4 animate-spin" style={{ color: theme.subText }} />}
+    </div>
+  );
+
   return (
     <div ref={containerRef} style={{ width: 260, borderRadius: 14, overflow: "hidden", marginBottom: 6 }}>
       <button onClick={onTap} className="block active:opacity-80" style={{ width: 260 }}>
-        <div style={{ width: 260, height: 160, overflow: "hidden", background: "#f0f0f0" }}>
-          {thumb ? (
-            <img src={thumb} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top", display: "block" }} />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center" style={{ background: "rgba(128,128,128,0.18)" }}>
-              {loading
-                ? <Loader2 className="w-6 h-6 animate-spin" style={{ color: theme.subText }} />
-                : <FileText className="w-10 h-10" style={{ color: theme.subText }} />
-              }
+        {thumb ? (
+          <>
+            <div style={{ width: 260, height: 160, overflow: "hidden" }}>
+              <img src={thumb} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top", display: "block" }} />
             </div>
-          )}
-        </div>
-        <div style={{ width: 260, height: 52, display: "flex", alignItems: "center", gap: 10, padding: "0 12px", background: "rgba(0,0,0,0.6)" }}>
-          <div className="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center flex-shrink-0">
-            <span className="text-white text-[7px] font-bold">PDF</span>
-          </div>
-          <div className="flex-1 min-w-0 text-left">
-            <p className="text-white text-[11px] font-semibold truncate">{attachment.name}</p>
-            <p className="text-white/55 text-[10px]">{fmtSize(attachment.size)}</p>
-          </div>
-        </div>
+            <div style={{ width: 260, height: 52, display: "flex", alignItems: "center", gap: 10, padding: "0 12px", background: "rgba(0,0,0,0.6)" }}>
+              <div className="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center flex-shrink-0">
+                <span className="text-white text-[7px] font-bold">PDF</span>
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-white text-[11px] font-semibold truncate">{attachment.name}</p>
+                <p className="text-white/55 text-[10px]">{fmtSize(attachment.size)}</p>
+              </div>
+            </div>
+          </>
+        ) : (
+          fileCardArea
+        )}
       </button>
       {isLastAtt && bodyText && (
-        <div style={{ padding: "8px 12px", fontSize: 13, color: "white", background: "rgba(0,0,0,0.6)" }}>
+        <div style={{ padding: "8px 12px", fontSize: 13, color: thumb ? "white" : theme.receivedText, background: thumb ? "rgba(0,0,0,0.6)" : theme.cardBg }}>
           {bodyText}
         </div>
       )}
@@ -482,6 +505,155 @@ function ImageAttachment({
         )}
       </div>
     </>
+  );
+}
+
+// ─── PDF page renderer (lazy, one page per component) ────────────────────────
+
+function PdfPageRenderer({ pdfDoc, pageNum, attId }: {
+  pdfDoc: any; pageNum: number; attId: string;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const placeholderRef = useRef<HTMLDivElement>(null);
+  const [rendered, setRendered] = useState(() => pdfPageCache.has(`${attId}_${pageNum}`));
+
+  useEffect(() => {
+    if (rendered) {
+      const dataUrl = pdfPageCache.get(`${attId}_${pageNum}`)!;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const img = new Image();
+      img.onload = () => {
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext("2d")?.drawImage(img, 0, 0);
+      };
+      img.src = dataUrl;
+      return;
+    }
+    const placeholder = placeholderRef.current;
+    if (!placeholder) return;
+    let cancelled = false;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      observer.disconnect();
+      (async () => {
+        try {
+          const page = await pdfDoc.getPage(pageNum);
+          const viewport = page.getViewport({ scale: 1.5 });
+          const canvas = canvasRef.current;
+          if (!canvas || cancelled) return;
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          const ctx = canvas.getContext("2d")!;
+          ctx.fillStyle = "#fff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          await page.render({ canvasContext: ctx, viewport }).promise;
+          if (!cancelled) {
+            pdfPageCache.set(`${attId}_${pageNum}`, canvas.toDataURL("image/jpeg", 0.85));
+            setRendered(true);
+          }
+        } catch {}
+      })();
+    }, { threshold: 0.05 });
+    observer.observe(placeholder);
+    return () => { cancelled = true; observer.disconnect(); };
+  }, [pdfDoc, pageNum, attId, rendered]);
+
+  return (
+    <div style={{ width: "100%", marginBottom: 2 }}>
+      {!rendered && (
+        <div
+          ref={placeholderRef}
+          style={{ width: "100%", height: 400, display: "flex", alignItems: "center", justifyContent: "center", background: "#111" }}
+        >
+          <Loader2 className="w-8 h-8 animate-spin" style={{ color: "rgba(255,255,255,0.3)" }} />
+        </div>
+      )}
+      <canvas ref={canvasRef} style={{ width: "100%", display: rendered ? "block" : "none" }} />
+    </div>
+  );
+}
+
+// ─── PDF Viewer (fullscreen, page-by-page) ────────────────────────────────────
+
+function PdfViewer({ attachment, messageId, token, refreshToken, onClose }: {
+  attachment: GmailAttachment; messageId: string; token: string; refreshToken?: string | null;
+  onClose: () => void;
+}) {
+  const [pdfDoc, setPdfDoc] = useState<any>(null);
+  const [numPages, setNumPages] = useState(0);
+  const [loadingPdf, setLoadingPdf] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        let b64 = base64Cache.get(attachment.id);
+        if (!b64) {
+          const data = await gmailPost<{ base64: string }>(
+            "/api/gmail/attachment", { messageId, attachmentId: attachment.id }, token, refreshToken,
+          );
+          b64 = data.base64;
+          base64Cache.set(attachment.id, b64);
+        }
+        if (cancelled) return;
+        const pdfjsLib = await import("pdfjs-dist");
+        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+          "pdfjs-dist/build/pdf.worker.min.mjs",
+          import.meta.url,
+        ).href;
+        const binary = atob(b64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const doc = await pdfjsLib.getDocument({ data: bytes }).promise;
+        if (!cancelled) { setPdfDoc(doc); setNumPages(doc.numPages); }
+      } catch {
+        if (!cancelled) setLoadError(true);
+      } finally {
+        if (!cancelled) setLoadingPdf(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [attachment.id]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "#000" }}>
+      <div
+        className="flex-shrink-0 flex items-center px-4 pb-3"
+        style={{
+          paddingTop: "max(3rem, env(safe-area-inset-top))",
+          background: "rgba(0,0,0,0.9)",
+          borderBottom: "1px solid rgba(255,255,255,0.1)",
+        }}
+      >
+        <button
+          onClick={onClose}
+          className="text-white text-sm font-semibold active:opacity-60"
+          style={{ minWidth: 48 }}
+        >
+          Done
+        </button>
+        <p className="flex-1 text-center text-white text-sm font-semibold truncate px-3">{attachment.name}</p>
+        <div style={{ minWidth: 48 }} />
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {loadingPdf ? (
+          <div className="flex items-center justify-center" style={{ height: 300 }}>
+            <Loader2 className="w-8 h-8 animate-spin" style={{ color: "rgba(255,255,255,0.4)" }} />
+          </div>
+        ) : loadError ? (
+          <div className="flex items-center justify-center" style={{ height: 300 }}>
+            <p className="text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>Could not load PDF</p>
+          </div>
+        ) : (
+          Array.from({ length: numPages }, (_, i) => (
+            <PdfPageRenderer key={i + 1} pdfDoc={pdfDoc} pageNum={i + 1} attId={attachment.id} />
+          ))
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -605,7 +777,7 @@ function MessageBubble({
   const { toast } = useToast();
   const isSent = msg.direction === "sent";
   const [forwardTarget, setForwardTarget] = useState<GmailAttachment | null>(null);
-  const [openingPdfId, setOpeningPdfId] = useState<string | null>(null);
+  const [viewerAtt, setViewerAtt] = useState<GmailAttachment | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleBodyTouchStart = (text: string) => {
@@ -615,20 +787,6 @@ function MessageBubble({
   };
   const handleBodyTouchEnd = () => {
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
-  };
-
-  const openPdf = async (att: GmailAttachment) => {
-    setOpeningPdfId(att.id);
-    try {
-      const data = await gmailPost<{ base64: string }>(
-        "/api/gmail/attachment", { messageId: msg.id, attachmentId: att.id }, token, refreshToken,
-      );
-      await openPdfNative(data.base64, att.name);
-    } catch (err) {
-      toast({ title: "Could not open PDF", description: (err as Error).message, variant: "destructive" });
-    } finally {
-      setOpeningPdfId(null);
-    }
   };
 
   const isPdf = (att: GmailAttachment) =>
@@ -642,6 +800,15 @@ function MessageBubble({
 
   return (
     <>
+      {viewerAtt && (
+        <PdfViewer
+          attachment={viewerAtt}
+          messageId={msg.id}
+          token={token}
+          refreshToken={refreshToken}
+          onClose={() => setViewerAtt(null)}
+        />
+      )}
       {forwardTarget && (
         <ForwardSheet
           contacts={contacts}
@@ -696,16 +863,10 @@ function MessageBubble({
                       token={token}
                       refreshToken={refreshToken}
                       theme={theme}
-                      onTap={() => openPdf(att)}
+                      onTap={() => setViewerAtt(att)}
                       bodyText={displayBody}
                       isLastAtt={isLastAtt}
                     />
-                    {openingPdfId === att.id && (
-                      <div className="flex items-center gap-1.5 px-3 py-1.5">
-                        <Loader2 className="w-3 h-3 animate-spin" style={{ color: bubbleSub }} />
-                        <span className="text-[10px]" style={{ color: bubbleSub }}>Opening…</span>
-                      </div>
-                    )}
                   </div>
                 );
               }
@@ -725,20 +886,17 @@ function MessageBubble({
               }
               return (
                 <div key={att.id} style={{ width: 260, borderRadius: 14, overflow: "hidden", marginBottom: 6 }}>
-                  <div style={{ width: 260, height: 160, overflow: "hidden", background: "#f0f0f0", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <FileText className="w-12 h-12" style={{ color: theme.subText }} />
-                  </div>
-                  <div style={{ width: 260, height: 52, display: "flex", alignItems: "center", gap: 10, padding: "0 12px", background: "rgba(0,0,0,0.6)" }}>
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.15)" }}>
-                      <FileText className="w-4 h-4 text-white" />
+                  <button onClick={() => isPdf(att) ? setViewerAtt(att) : undefined} className="block active:opacity-80" style={{ width: 260 }}>
+                    <div style={{ width: 260, height: 160, background: theme.cardBg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, border: `1px solid ${theme.border}` }}>
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.15)" }}>
+                        <FileText className="w-6 h-6 text-white" />
+                      </div>
+                      <p className="text-sm font-semibold px-4 text-center" style={{ color: theme.receivedText, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{att.name}</p>
+                      <p className="text-xs" style={{ color: theme.subText }}>{fmtSize(att.size)}</p>
                     </div>
-                    <div className="flex-1 min-w-0 text-left">
-                      <p className="text-white text-[11px] font-semibold truncate">{att.name}</p>
-                      <p className="text-white/55 text-[10px]">{fmtSize(att.size)}</p>
-                    </div>
-                  </div>
+                  </button>
                   {isLastAtt && displayBody && (
-                    <div style={{ padding: "8px 12px", fontSize: 13, color: "white", background: "rgba(0,0,0,0.6)" }}>
+                    <div style={{ padding: "8px 12px", fontSize: 13, color: theme.receivedText, background: theme.cardBg }}>
                       {displayBody}
                     </div>
                   )}
@@ -1126,7 +1284,7 @@ function ThreadView({
         refreshToken,
       );
       let msgs = data.messages;
-      if (msgs.length > 30) msgs = msgs.slice(-30);
+      if (msgs.length > 15) msgs = msgs.slice(-15);
       if (!olderThan) {
         requestAnimationFrame(() => { if (!cancelled) setMessages(msgs); });
         loadFailCountRef.current = 0;
@@ -1157,7 +1315,7 @@ function ThreadView({
   useEffect(() => {
     const el = messagesContainerRef.current;
     if (!el) return;
-    const handler = () => setShowLoadPill(el.scrollTop < 60 && hasMore);
+    const handler = () => setShowLoadPill(el.scrollTop < 80 && hasMore);
     el.addEventListener("scroll", handler);
     return () => el.removeEventListener("scroll", handler);
   }, [hasMore]);
@@ -1286,8 +1444,8 @@ function ThreadView({
             }}
             onClick={loadOlder}
           >
-            {loadingOlder ? <Loader2 size={12} className="animate-spin" /> : <ArrowLeft size={12} style={{ transform: "rotate(90deg)" }} />}
-            Load older messages
+            {loadingOlder ? <Loader2 size={12} className="animate-spin" /> : "↑"}
+            {" "}Load older messages
           </div>
         )}
         {loading && messages.length === 0 ? (

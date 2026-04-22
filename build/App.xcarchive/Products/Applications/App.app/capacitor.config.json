@@ -20,7 +20,6 @@
 		"Permissions": {}
 	},
 	"packageClassList": [
-		"FileOpenerPlugin",
 		"AppPlugin",
 		"CAPBrowserPlugin",
 		"CAPCameraPlugin",

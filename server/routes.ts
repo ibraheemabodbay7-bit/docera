@@ -1073,7 +1073,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         const olderThanTime = new Date(olderThan).getTime();
         filtered = messages.filter(m => new Date(m.date).getTime() < olderThanTime);
       }
-      const limit = 30;
+      const limit = 15;
       const total = filtered.length;
       const hasMore = total > limit;
       const paginated = filtered.slice(Math.max(0, total - limit));
