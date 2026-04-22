@@ -150,7 +150,7 @@ async function generatePdfThumbnail(base64: string): Promise<string> {
     const viewport = page.getViewport({ scale: 2.0 });
     const canvas = document.createElement("canvas");
     canvas.width = viewport.width;
-    canvas.height = Math.floor(viewport.width * 0.5);
+    canvas.height = Math.floor(viewport.width * 0.45);
     const ctx = canvas.getContext("2d")!;
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -165,18 +165,27 @@ async function generatePdfThumbnail(base64: string): Promise<string> {
 
 async function openPdfNative(base64: string, filename: string) {
   if (Capacitor.isNativePlatform()) {
-    const result = await Filesystem.writeFile({
-      path: filename,
-      data: base64,
-      directory: Directory.Cache,
-    });
-    await Share.share({
-      title: filename,
-      url: result.uri,
-    });
+    try {
+      const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+      await Filesystem.writeFile({
+        path: safeName,
+        data: base64,
+        directory: Directory.Cache,
+        recursive: true,
+      });
+      const uriResult = await Filesystem.getUri({
+        path: safeName,
+        directory: Directory.Cache,
+      });
+      await Share.share({
+        url: uriResult.uri,
+      });
+    } catch (err) {
+      console.error("Could not open PDF:", (err as Error).message);
+    }
   } else {
     const blob = await fetch(`data:application/pdf;base64,${base64}`).then(r => r.blob());
-    window.open(URL.createObjectURL(blob), "_blank");
+    window.open(URL.createObjectURL(blob), '_blank');
   }
 }
 
