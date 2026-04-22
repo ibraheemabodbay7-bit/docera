@@ -815,6 +815,21 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     res.json({ accessToken: entry.accessToken, refreshToken: entry.refreshToken ?? null });
   });
 
+  // ── Gmail refresh token ───────────────────────────────────────────────────
+  app.post("/api/gmail/refresh-token", async (req, res) => {
+    const schema = z.object({ refreshToken: z.string().min(1) });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+    try {
+      const oauth2Client = new google.auth.OAuth2(GMAIL_WEB_CLIENT_ID, GMAIL_WEB_CLIENT_SECRET, GMAIL_RAILWAY_REDIRECT);
+      oauth2Client.setCredentials({ refresh_token: parsed.data.refreshToken });
+      const { credentials } = await oauth2Client.refreshAccessToken();
+      res.json({ accessToken: credentials.access_token });
+    } catch (err) {
+      res.status(401).json({ error: "refresh_failed" });
+    }
+  });
+
   // ── Gmail send: send email with PDF attachment using caller's access token ─
   app.post("/api/gmail/send", async (req, res) => {
     const schema = z.object({

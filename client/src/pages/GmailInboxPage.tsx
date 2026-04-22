@@ -228,6 +228,25 @@ function initials(name: string) {
   return name.split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "?";
 }
 
+async function refreshGmailToken(refreshToken: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/gmail/refresh-token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+      credentials: "omit",
+    });
+    const data = await res.json();
+    if (data.accessToken) {
+      localStorage.setItem("gmail_access_token", data.accessToken);
+      return data.accessToken;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 async function gmailPost<T>(
   path: string,
   extra: Record<string, unknown>,
@@ -241,6 +260,24 @@ async function gmailPost<T>(
     credentials: Capacitor.isNativePlatform() ? "omit" : "include",
   });
   if (!res.ok) {
+    if (res.status === 401) {
+      const storedRefresh = localStorage.getItem("gmail_refresh_token");
+      if (storedRefresh) {
+        const newToken = await refreshGmailToken(storedRefresh);
+        if (newToken) {
+          const retry = await fetch(`${API_BASE}${path}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ accessToken: newToken, ...extra }),
+            credentials: Capacitor.isNativePlatform() ? "omit" : "include",
+          });
+          if (retry.ok) return retry.json();
+        }
+      }
+      localStorage.removeItem("gmail_access_token");
+      localStorage.removeItem("gmail_refresh_token");
+      throw Object.assign(new Error("token_expired"), { status: 401 });
+    }
     const body = await res.json().catch(() => ({ error: res.statusText }));
     throw Object.assign(new Error(body.error ?? "Request failed"), { status: res.status });
   }
@@ -1677,7 +1714,7 @@ interface GmailInboxPageProps { onBack: () => void; onUnreadCount?: (count: numb
 export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPageProps) {
   const { toast } = useToast();
   const [gmailToken, setGmailToken] = useState<string | null>(null);
-  const [gmailRefreshToken, setGmailRefreshToken] = useState<string | null>(null);
+  const [gmailRefreshToken] = useState<string | null>(() => localStorage.getItem("gmail_refresh_token"));
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [connecting, setConnecting] = useState(false);
@@ -1699,7 +1736,7 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
   useEffect(() => {
     const stored = localStorage.getItem(GMAIL_TOKEN_KEY);
     const storedRefresh = localStorage.getItem(GMAIL_REFRESH_TOKEN_KEY);
-    if (stored) { setGmailToken(stored); setGmailRefreshToken(storedRefresh); }
+    if (stored) { setGmailToken(stored); }
     if (!Capacitor.isNativePlatform()) return;
 
     let handle: { remove: () => void } | null = null;
@@ -1714,13 +1751,9 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
         .then(r => r.json())
         .then((data: { accessToken?: string; refreshToken?: string; error?: string }) => {
           if (data.accessToken) {
-            localStorage.setItem(GMAIL_TOKEN_KEY, data.accessToken);
-            if (data.refreshToken) localStorage.setItem(GMAIL_REFRESH_TOKEN_KEY, data.refreshToken);
+            localStorage.setItem("gmail_access_token", data.accessToken);
+            if (data.refreshToken) localStorage.setItem("gmail_refresh_token", data.refreshToken);
             setGmailToken(data.accessToken);
-            setGmailRefreshToken(data.refreshToken ?? null);
-            toast({ title: "Gmail connected" });
-          } else {
-            toast({ title: "Connection failed", description: data.error, variant: "destructive" });
           }
         })
         .catch(() => toast({ title: "Gmail connection failed", variant: "destructive" }))
@@ -1749,7 +1782,6 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
     localStorage.removeItem(GMAIL_TOKEN_KEY);
     localStorage.removeItem(GMAIL_REFRESH_TOKEN_KEY);
     setGmailToken(null);
-    setGmailRefreshToken(null);
     setSelectedContact(null);
   };
 
@@ -1757,7 +1789,6 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
     localStorage.removeItem(GMAIL_TOKEN_KEY);
     localStorage.removeItem(GMAIL_REFRESH_TOKEN_KEY);
     setGmailToken(null);
-    setGmailRefreshToken(null);
     setSelectedContact(null);
     setContacts([]);
     toast({ title: "Gmail disconnected" });
