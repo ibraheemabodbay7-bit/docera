@@ -165,13 +165,25 @@ async function generatePdfThumbnail(base64: string): Promise<string> {
 
 async function openPdfNative(base64: string, name: string) {
   if (Capacitor.isNativePlatform()) {
-    const { Filesystem, Directory } = await import("@capacitor/filesystem");
-    const { FileOpener } = await import("@capacitor-community/file-opener");
-    const safe = name.replace(/[^a-z0-9._-]/gi, "_");
-    const fileName = safe.endsWith(".pdf") ? safe : `${safe}.pdf`;
-    await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache, recursive: true });
-    const { uri } = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
-    await FileOpener.open({ filePath: uri, contentType: "application/pdf" });
+    try {
+      const { Filesystem, Directory } = await import("@capacitor/filesystem");
+      const safe = name.replace(/[^a-z0-9._-]/gi, "_");
+      const fileName = safe.endsWith(".pdf") ? safe : `${safe}.pdf`;
+      await Filesystem.writeFile({
+        path: fileName,
+        data: base64,
+        directory: Directory.Cache,
+        recursive: true,
+      });
+      const { uri } = await Filesystem.getUri({
+        path: fileName,
+        directory: Directory.Cache,
+      });
+      const filePath = uri.replace("file://", "");
+      await (window as any).Capacitor.Plugins.DocViewer.openFile({ filePath });
+    } catch (err) {
+      console.error("PDF open error:", err);
+    }
   } else {
     const blob = await fetch(`data:application/pdf;base64,${base64}`).then(r => r.blob());
     const url = URL.createObjectURL(blob);
