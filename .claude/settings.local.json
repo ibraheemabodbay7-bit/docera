@@ -7,14 +7,7 @@
       "Bash(npm run *)",
       "Bash(npx cap *)",
       "Bash(npx tsc *)",
-      "Bash(git init *)",
-      "Bash(npm install *)",
-      "Bash(npm list *)",
-      "Read(//private/tmp/claude-501/-Users-user-Downloads-app_output/487b7eaa-bdd0-41d9-bfc6-95e88e765bfa/tasks/**)",
-      "Read(//tmp/**)",
-      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('scripts',{}\\).get\\('deploy','not found'\\)\\)\")",
-      "Bash(sed -i '' 's/String\\(req\\\\.params\\\\.id\\)/sp\\(req.params.id\\)/g; s/\\\\\\(await storage\\\\.[a-zA-Z]*\\(req\\\\.params\\\\.id\\\\\\)/\\\\1/g' /Users/user/Downloads/app_output/server/routes.ts)",
-      "Bash(sed -i '' 's/req\\\\.params\\\\.id\\\\b/sp\\(req.params.id\\)/g' /Users/user/Downloads/app_output/server/routes.ts)"
+      "Bash(git init *)"
     ]
   }
 }

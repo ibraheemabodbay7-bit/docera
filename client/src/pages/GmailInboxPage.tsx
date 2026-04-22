@@ -13,11 +13,9 @@ import {
 } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE } from "@/lib/queryClient";
-import ClientProfilePage from "./ClientProfilePage";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const PRIMARY = PRIMARY;
 const WEB_CLIENT_ID = "787920130380-euura0so62q39iro5t4ukfqlsiu5tagd.apps.googleusercontent.com";
 const RAILWAY_REDIRECT_URI = "https://docera-production.up.railway.app/api/gmail/callback";
 const GMAIL_TOKEN_KEY = "gmail_access_token";
@@ -53,7 +51,7 @@ function getTheme(dark: boolean): Theme {
         cardBg: "#1a1a1a",
         receivedBg: "#1e1e1e",
         receivedText: "#ffffff",
-        sentBg: PRIMARY,
+        sentBg: "#1a3a5c",
         sentText: "#ffffff",
         subText: "rgba(255,255,255,0.45)",
         inputBg: "#1a1a1a",
@@ -67,7 +65,7 @@ function getTheme(dark: boolean): Theme {
         cardBg: "#ffffff",
         receivedBg: "#e5e5ea",
         receivedText: "#000000",
-        sentBg: PRIMARY,
+        sentBg: "#1a3a5c",
         sentText: "#ffffff",
         subText: "rgba(0,0,0,0.45)",
         inputBg: "#ffffff",
@@ -105,7 +103,6 @@ type Contact = {
   hasUnread: boolean;
   hasAttachments: boolean;
   isImportant?: boolean;
-  score?: number;
 };
 
 type DocItem = { id: string; name: string; type: string; dataUrl: string };
@@ -166,20 +163,17 @@ async function generatePdfThumbnail(base64: string): Promise<string> {
 
 // ─── Open PDF via native Quick Look (iOS) ─────────────────────────────────────
 
-async function openPdfNative(
-  base64: string,
-  filename: string,
-  toastFn?: (opts: { title: string; description?: string; variant?: string }) => void,
-) {
+async function openPdfNative(base64: string, filename: string) {
   if (Capacitor.isNativePlatform()) {
-    try {
-      const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
-      await Filesystem.writeFile({ path: safeName, data: base64, directory: Directory.Cache, recursive: true });
-      const fileResult = await Filesystem.getUri({ path: safeName, directory: Directory.Cache });
-      await Share.share({ title: filename, url: fileResult.uri });
-    } catch (err) {
-      toastFn?.({ title: "Could not open PDF", description: (err as Error).message, variant: "destructive" });
-    }
+    const result = await Filesystem.writeFile({
+      path: filename,
+      data: base64,
+      directory: Directory.Cache,
+    });
+    await Share.share({
+      title: filename,
+      url: result.uri,
+    });
   } else {
     const blob = await fetch(`data:application/pdf;base64,${base64}`).then(r => r.blob());
     window.open(URL.createObjectURL(blob), "_blank");
@@ -360,7 +354,6 @@ function ImageAttachment({
 }) {
   const [src, setSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [imgError, setImgError] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [visible, setVisible] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -383,12 +376,7 @@ function ImageAttachment({
     gmailPost<{ base64: string }>(
       "/api/gmail/attachment", { messageId, attachmentId: attachment.id }, token, refreshToken,
     )
-      .then(data => {
-        if (!cancelled) {
-          const mimeType = attachment.mimeType?.startsWith("image/") ? attachment.mimeType : "image/jpeg";
-          setSrc(`data:${mimeType};base64,${data.base64}`);
-        }
-      })
+      .then(data => { if (!cancelled) setSrc(`data:${attachment.mimeType};base64,${data.base64}`); })
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -419,8 +407,8 @@ function ImageAttachment({
               <div className="w-full h-full flex items-center justify-center" style={{ background: theme.pillBg }}>
                 {loading && <Loader2 className="w-6 h-6 animate-spin" style={{ color: theme.subText }} />}
               </div>
-            ) : src && !imgError ? (
-              <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top", display: "block" }} onError={() => setImgError(true)} />
+            ) : src ? (
+              <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top", display: "block" }} />
             ) : (
               <div className="w-full h-full flex items-center justify-center" style={{ background: "rgba(128,128,128,0.18)" }}>
                 <ImageOff className="w-8 h-8" style={{ color: theme.subText }} />
@@ -524,7 +512,7 @@ function ForwardSheet({
             >
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-                style={{ background: PRIMARY }}
+                style={{ background: "#1a3a5c" }}
               >
                 {initials(c.name)}
               </div>
@@ -585,7 +573,7 @@ function MessageBubble({
       const data = await gmailPost<{ base64: string }>(
         "/api/gmail/attachment", { messageId: msg.id, attachmentId: att.id }, token, refreshToken,
       );
-      await openPdfNative(data.base64, att.name, toast);
+      await openPdfNative(data.base64, att.name);
     } catch (err) {
       toast({ title: "Could not open PDF", description: (err as Error).message, variant: "destructive" });
     } finally {
@@ -926,7 +914,7 @@ function ChatInput({
                 className="flex items-center gap-3 p-4 rounded-2xl active:opacity-70"
                 style={{ background: theme.cardBg }}
               >
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: PRIMARY }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "#1a3a5c" }}>
                   <FileText className="w-5 h-5 text-white" />
                 </div>
                 <span className="font-semibold" style={{ color: theme.receivedText }}>From Docera</span>
@@ -937,7 +925,7 @@ function ChatInput({
                 className="flex items-center gap-3 p-4 rounded-2xl active:opacity-70"
                 style={{ background: theme.cardBg }}
               >
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: PRIMARY }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "#1a3a5c" }}>
                   <Paperclip className="w-5 h-5 text-white" />
                 </div>
                 <span className="font-semibold" style={{ color: theme.receivedText }}>Photo / File from iPhone</span>
@@ -1041,7 +1029,7 @@ function ChatInput({
           onClick={sendText}
           disabled={!text.trim() || sending}
           className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-60 mb-1 disabled:opacity-40"
-          style={{ background: PRIMARY }}
+          style={{ background: "#1a3a5c" }}
         >
           {sending
             ? <Loader2 className="w-4 h-4 animate-spin text-white" />
@@ -1071,7 +1059,6 @@ function ThreadView({
   const [showSearch, setShowSearch] = useState(false);
   const [search, setSearch] = useState("");
   const [showLoadPill, setShowLoadPill] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
   const loadFailCountRef = useRef(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -1177,20 +1164,6 @@ function ThreadView({
     return nodes;
   };
 
-  if (showProfile) {
-    return (
-      <ClientProfilePage
-        contact={contact}
-        messages={messages}
-        token={token}
-        refreshToken={refreshToken}
-        onBack={() => setShowProfile(false)}
-        theme={theme}
-        onOpenThread={() => setShowProfile(false)}
-      />
-    );
-  }
-
   return (
     <div className="flex flex-col h-full" style={{ background: theme.bg }}>
       {/* Header */}
@@ -1210,21 +1183,16 @@ function ThreadView({
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <button
-            onClick={() => setShowProfile(true)}
-            className="flex items-center gap-3 flex-1 min-w-0 active:opacity-70 text-left"
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+            style={{ background: "#1a3a5c" }}
           >
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-              style={{ background: PRIMARY }}
-            >
-              {initials(contact.name)}
-            </div>
-            <div className="min-w-0">
-              <p className="font-semibold text-sm truncate" style={{ color: theme.receivedText }}>{contact.name}</p>
-              <p className="text-xs truncate" style={{ color: theme.subText }}>{contact.email}</p>
-            </div>
-          </button>
+            {initials(contact.name)}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm truncate" style={{ color: theme.receivedText }}>{contact.name}</p>
+            <p className="text-xs truncate" style={{ color: theme.subText }}>{contact.email}</p>
+          </div>
           <button
             onClick={() => { setShowSearch(v => !v); setSearch(""); }}
             className="w-9 h-9 rounded-xl flex items-center justify-center active:opacity-60"
@@ -1291,7 +1259,7 @@ function ThreadView({
             <button
               onClick={() => load()}
               className="px-5 py-2 rounded-xl text-white text-sm font-semibold"
-              style={{ background: PRIMARY }}
+              style={{ background: "#1a3a5c" }}
             >
               Retry
             </button>
@@ -1348,40 +1316,13 @@ function ContactList({
   const [search, setSearch] = useState("");
   const [showMenu, setShowMenu] = useState(false);
   const [smartMode, setSmartMode] = useState(false);
-  const [activeTab, setActiveTab] = useState<"important" | "other">("important");
+  const [inboxTab, setInboxTab] = useState<"important" | "other">("important");
 
-  const CONTACTS_CACHE_KEY = `gmail_contacts_cache_${token.slice(-8)}`;
-  const CACHE_TTL = 5 * 60 * 1000;
-
-  const loadInitial = useCallback(async (forceRefresh = false) => {
-    // Try cache first
-    if (!forceRefresh) {
-      try {
-        const raw = localStorage.getItem(CONTACTS_CACHE_KEY);
-        if (raw) {
-          const { ts, data } = JSON.parse(raw) as { ts: number; data: Contact[] };
-          if (Date.now() - ts < CACHE_TTL) {
-            setContacts(data);
-            onContactsLoaded(data);
-            setLoading(false);
-            // Refresh in background
-            gmailPost<{ contacts: Contact[] }>("/api/gmail/messages", {}, token, refreshToken)
-              .then(d => {
-                localStorage.setItem(CONTACTS_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: d.contacts }));
-                setContacts(d.contacts);
-                onContactsLoaded(d.contacts);
-              })
-              .catch(() => {});
-            return;
-          }
-        }
-      } catch {}
-    }
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await gmailPost<{ contacts: Contact[] }>("/api/gmail/messages", {}, token, refreshToken);
-      localStorage.setItem(CONTACTS_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: data.contacts }));
       setContacts(data.contacts);
       onContactsLoaded(data.contacts);
     } catch (err) {
@@ -1397,44 +1338,33 @@ function ContactList({
     }
   }, [token, refreshToken]);
 
-  useEffect(() => { loadInitial(); }, [loadInitial]);
+  useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    const id = setInterval(() => loadInitial(true), CACHE_TTL);
+    const id = setInterval(() => load(), 5 * 60 * 1000);
     return () => clearInterval(id);
-  }, [loadInitial]);
+  }, [load]);
 
   const importantContacts = contacts.filter(c => c.isImportant !== false);
   const otherContacts = contacts.filter(c => c.isImportant === false);
+  const tabContacts = inboxTab === "important" ? importantContacts : otherContacts;
 
-  const smartSort = (arr: Contact[]) => [...arr].sort((a, b) => {
-    const aTop = a.hasAttachments && a.messageCount > 3;
-    const bTop = b.hasAttachments && b.messageCount > 3;
-    if (aTop !== bTop) return aTop ? -1 : 1;
+  const sortedImportant = [...importantContacts].sort((a, b) => {
     if (a.hasAttachments !== b.hasAttachments) return a.hasAttachments ? -1 : 1;
-    const aMed = a.messageCount > 5;
-    const bMed = b.messageCount > 5;
-    if (aMed !== bMed) return aMed ? -1 : 1;
-    return new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime();
+    return b.messageCount - a.messageCount;
   });
-
-  const sortedImportant = smartSort(importantContacts);
   const sortedOther = [...otherContacts].sort((a, b) =>
     new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime()
   );
 
-  const topContacts = [...importantContacts]
-    .sort((a, b) => ((b.score ?? 0) - (a.score ?? 0)) || (b.hasAttachments ? 1 : -1))
-    .slice(0, 5);
-
-  const smartContacts = [...(activeTab === "important" ? importantContacts : otherContacts)]
+  const smartContacts = [...tabContacts]
     .filter(c => c.hasAttachments || c.messageCount >= 3)
     .sort((a, b) => {
       if (a.hasAttachments !== b.hasAttachments) return a.hasAttachments ? -1 : 1;
       return b.messageCount - a.messageCount;
     });
 
-  const base = smartMode ? smartContacts : (activeTab === "important" ? sortedImportant : sortedOther);
+  const base = smartMode ? smartContacts : (inboxTab === "important" ? sortedImportant : sortedOther);
   const filtered = search
     ? base.filter(c =>
         c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -1473,7 +1403,7 @@ function ContactList({
             </button>
 
             <button
-              onClick={() => loadInitial(true)}
+              onClick={load}
               disabled={loading}
               className="w-9 h-9 rounded-xl flex items-center justify-center active:opacity-60"
               style={{ color: theme.subText }}
@@ -1529,7 +1459,7 @@ function ContactList({
             onClick={() => setSmartMode(v => !v)}
             className="flex-shrink-0 px-3 h-9 rounded-xl text-xs font-semibold transition-colors"
             style={{
-              background: smartMode ? PRIMARY : theme.pillBg,
+              background: smartMode ? "#1a3a5c" : theme.pillBg,
               color: smartMode ? "white" : theme.subText,
             }}
           >
@@ -1537,28 +1467,23 @@ function ContactList({
           </button>
         </div>
         {/* Important / Other tabs */}
-        <div
-          className="flex gap-1 mb-1 p-1"
-          style={{ background: theme.pillBg, borderRadius: 12 }}
-        >
+        <div className="flex gap-2 mb-1">
           <button
-            onClick={() => setActiveTab("important")}
-            className="flex-1 py-1.5 text-xs font-semibold transition-colors"
+            onClick={() => setInboxTab("important")}
+            className="px-4 py-1.5 rounded-full text-xs font-semibold transition-colors"
             style={{
-              borderRadius: 10,
-              background: activeTab === "important" ? PRIMARY : "transparent",
-              color: activeTab === "important" ? "white" : theme.subText,
+              background: inboxTab === "important" ? "white" : "transparent",
+              color: inboxTab === "important" ? "#000" : theme.subText,
             }}
           >
             📬 Important
           </button>
           <button
-            onClick={() => setActiveTab("other")}
-            className="flex-1 py-1.5 text-xs font-semibold transition-colors"
+            onClick={() => setInboxTab("other")}
+            className="px-4 py-1.5 rounded-full text-xs font-semibold transition-colors"
             style={{
-              borderRadius: 10,
-              background: activeTab === "other" ? PRIMARY : "transparent",
-              color: activeTab === "other" ? "white" : theme.subText,
+              background: inboxTab === "other" ? "white" : "transparent",
+              color: inboxTab === "other" ? "#000" : theme.subText,
             }}
           >
             🗂 Other
@@ -1586,9 +1511,9 @@ function ContactList({
             <p className="font-medium" style={{ color: theme.receivedText }}>Couldn't load inbox</p>
             <p className="text-sm mt-1" style={{ color: theme.subText }}>{error}</p>
             <button
-              onClick={() => loadInitial(true)}
+              onClick={load}
               className="mt-4 px-5 py-2 rounded-xl text-white text-sm font-semibold"
-              style={{ background: PRIMARY }}
+              style={{ background: "#1a3a5c" }}
             >
               Try again
             </button>
@@ -1601,116 +1526,69 @@ function ContactList({
             </p>
           </div>
         ) : (
-          <>
-            {/* Top contacts chip row — Important tab only */}
-            {activeTab === "important" && !search && topContacts.length > 0 && (
-              <div className="overflow-x-auto px-4 pt-3 pb-1 flex gap-2" style={{ scrollbarWidth: "none" }}>
-                {topContacts.map(c => (
-                  <button
-                    key={c.email}
-                    onClick={() => onSelect(c)}
-                    className="flex flex-col items-center gap-1 flex-shrink-0 active:opacity-70"
-                    style={{ minWidth: 56 }}
+          <div className="flex flex-col gap-0.5 mt-2 px-4">
+            {filtered.map(c => (
+              <button
+                key={c.email}
+                onClick={() => onSelect(c)}
+                className="w-full flex items-center gap-3 p-3 rounded-2xl active:opacity-70 text-left"
+                style={{ background: theme.cardBg }}
+              >
+                {/* Avatar + unread dot */}
+                <div className="relative flex-shrink-0">
+                  <div
+                    className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-sm"
+                    style={{ background: "#1a3a5c" }}
                   >
-                    <div
-                      className="w-12 h-12 rounded-full flex items-center justify-center text-white text-sm font-bold"
-                      style={{ background: PRIMARY }}
+                    {initials(c.name)}
+                  </div>
+                  {c.hasUnread && (
+                    <span
+                      className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2"
+                      style={{ background: "#1a3a5c", borderColor: theme.cardBg }}
+                    />
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className="text-sm truncate"
+                      style={{ color: theme.receivedText, fontWeight: c.hasUnread ? 700 : 600 }}
                     >
-                      {initials(c.name)}
-                    </div>
-                    <span className="text-[10px] truncate w-14 text-center" style={{ color: theme.subText }}>
-                      {c.name.split(" ")[0]}
+                      {c.name}
                     </span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="flex flex-col gap-0.5 mt-2 px-4">
-              {filtered.map(c => {
-                const isOther = activeTab === "other";
-                return (
-                  <button
-                    key={c.email}
-                    onClick={() => onSelect(c)}
-                    className="w-full flex items-center gap-3 active:opacity-70 text-left"
-                    style={{
-                      background: theme.cardBg,
-                      borderRadius: 16,
-                      padding: isOther ? "8px 12px" : "12px",
-                    }}
-                  >
-                    {/* Avatar + unread dot */}
-                    <div className="relative flex-shrink-0">
-                      <div
-                        className="rounded-full flex items-center justify-center text-white font-semibold"
-                        style={{
-                          width: isOther ? 36 : 48,
-                          height: isOther ? 36 : 48,
-                          fontSize: isOther ? 12 : 14,
-                          background: PRIMARY,
-                        }}
+                    <span className="text-[11px] flex-shrink-0" style={{ color: theme.subText }}>
+                      {fmtMsgTime(c.lastDate)}
+                    </span>
+                  </div>
+                  <p className="text-xs truncate mt-0.5" style={{ color: theme.subText }}>{c.email}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    {c.lastDirection === "sent" && (
+                      <Send className="w-3 h-3 flex-shrink-0" style={{ color: theme.subText }} />
+                    )}
+                    {c.hasAttachments && (
+                      <Paperclip className="w-3 h-3 flex-shrink-0" style={{ color: theme.subText }} />
+                    )}
+                    <p
+                      className="text-[11px] truncate flex-1"
+                      style={{ color: c.hasUnread ? theme.receivedText : theme.subText, fontWeight: c.hasUnread ? 600 : 400 }}
+                    >
+                      {c.lastMessage || c.lastSubject}
+                    </p>
+                    {smartMode && (
+                      <span
+                        className="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
+                        style={{ background: "#1a3a5c", color: "white" }}
                       >
-                        {initials(c.name)}
-                      </div>
-                      {c.hasUnread && (
-                        <span
-                          className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full border-2"
-                          style={{ background: PRIMARY, borderColor: theme.cardBg }}
-                        />
-                      )}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <span
-                          className="text-sm truncate"
-                          style={{ color: theme.receivedText, fontWeight: c.hasUnread ? 700 : 600 }}
-                        >
-                          {c.name}
-                        </span>
-                        <span className="text-[11px] flex-shrink-0" style={{ color: theme.subText }}>
-                          {fmtMsgTime(c.lastDate)}
-                        </span>
-                      </div>
-                      {!isOther && (
-                        <>
-                          <p className="text-xs truncate mt-0.5" style={{ color: theme.subText }}>{c.email}</p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            {c.lastDirection === "sent" && (
-                              <Send className="w-3 h-3 flex-shrink-0" style={{ color: theme.subText }} />
-                            )}
-                            {c.hasAttachments && (
-                              <Paperclip className="w-3 h-3 flex-shrink-0" style={{ color: theme.subText }} />
-                            )}
-                            <p
-                              className="text-[11px] truncate flex-1"
-                              style={{ color: c.hasUnread ? theme.receivedText : theme.subText, fontWeight: c.hasUnread ? 600 : 400 }}
-                            >
-                              {c.lastMessage || c.lastSubject}
-                            </p>
-                            {smartMode && (
-                              <span
-                                className="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
-                                style={{ background: PRIMARY, color: "white" }}
-                              >
-                                {c.messageCount}
-                              </span>
-                            )}
-                          </div>
-                        </>
-                      )}
-                      {isOther && (
-                        <p className="text-[11px] truncate" style={{ color: theme.subText }}>
-                          {c.lastMessage || c.lastSubject}
-                        </p>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </>
+                        {c.messageCount}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
         )}
       </div>
     </div>
@@ -1752,7 +1630,7 @@ function ConnectPrompt({
           onClick={onConnect}
           disabled={connecting}
           className="w-full max-w-xs py-4 rounded-2xl text-white text-base font-bold active:opacity-80 disabled:opacity-50 flex items-center justify-center gap-2"
-          style={{ background: PRIMARY }}
+          style={{ background: "#1a3a5c" }}
         >
           {connecting
             ? <><Loader2 className="w-5 h-5 animate-spin" /> Connecting…</>
