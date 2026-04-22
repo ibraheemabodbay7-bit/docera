@@ -39,7 +39,7 @@ export async function getStripeSync(): Promise<StripeSync> {
     stripeSecretKey: secret,
     stripeAccountId: accountId,
     databaseUrl,
-  });
+  } as any);
 
   return stripeSyncInstance;
 }

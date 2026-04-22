@@ -28,15 +28,16 @@ const MS_TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token
 const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
 
 async function refreshIfNeeded(user: User): Promise<User> {
-  if (!user.tokenExpiry) return user;
-  const expiry = new Date(user.tokenExpiry).getTime();
+  const u = user as any;
+  if (!u.tokenExpiry) return user;
+  const expiry = new Date(u.tokenExpiry).getTime();
   if (expiry > Date.now() + 60 * 1000) return user;
-  if (!user.refreshToken) return user;
+  if (!u.refreshToken) return user;
 
   const params = new URLSearchParams({
     client_id: process.env.MICROSOFT_CLIENT_ID ?? "",
     client_secret: process.env.MICROSOFT_CLIENT_SECRET ?? "",
-    refresh_token: user.refreshToken,
+    refresh_token: u.refreshToken,
     grant_type: "refresh_token",
     scope: "openid email profile Mail.Read Mail.Send offline_access",
   });
@@ -51,10 +52,10 @@ async function refreshIfNeeded(user: User): Promise<User> {
 
   const data = await res.json();
   const updated = await storage.updateUser(user.id, {
-    accessToken: data.access_token ?? user.accessToken,
-    refreshToken: data.refresh_token ?? user.refreshToken,
-    tokenExpiry: data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : user.tokenExpiry,
-  });
+    accessToken: data.access_token ?? u.accessToken,
+    refreshToken: data.refresh_token ?? u.refreshToken,
+    tokenExpiry: data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : u.tokenExpiry,
+  } as any);
   return updated ?? user;
 }
 
@@ -68,7 +69,7 @@ async function graphGet(accessToken: string, path: string) {
 
 export async function listInbox(user: User): Promise<EmailThread[]> {
   const refreshed = await refreshIfNeeded(user);
-  const token = refreshed.accessToken;
+  const token = (refreshed as any).accessToken;
   if (!token) throw new Error("No access token");
 
   const data = await graphGet(
@@ -90,7 +91,7 @@ export async function listInbox(user: User): Promise<EmailThread[]> {
 
 export async function fetchMessage(user: User, messageId: string): Promise<EmailMessage | null> {
   const refreshed = await refreshIfNeeded(user);
-  const token = refreshed.accessToken;
+  const token = (refreshed as any).accessToken;
   if (!token) return null;
 
   const msg = await graphGet(token, `/me/messages/${encodeURIComponent(messageId)}?$select=id,subject,from,toRecipients,receivedDateTime,body,hasAttachments`);
@@ -128,7 +129,7 @@ export async function sendOutlook(
   { to, subject, body, attachments }: { to: string; subject: string; body: string; attachments?: Array<{ name: string; dataUrl: string }> }
 ): Promise<void> {
   const refreshed = await refreshIfNeeded(user);
-  const token = refreshed.accessToken;
+  const token = (refreshed as any).accessToken;
   if (!token) throw new Error("No access token");
 
   const message: any = {

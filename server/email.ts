@@ -127,7 +127,7 @@ export async function sendDocumentEmail(opts: SendDocumentEmailOpts): Promise<vo
       {
         filename,
         content: base64Content,
-        content_type: mimeType,
+        contentType: mimeType,
       },
     ],
   });

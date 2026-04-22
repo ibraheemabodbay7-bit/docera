@@ -755,6 +755,7 @@ export default function ScannerPage({
               flipV: sp.flipV ?? false,
               processedUrl: "",
               manualCrop: true, // stored quad is the user's saved crop — protect it
+              isScreenshot: false,
             };
           })
         );
@@ -977,7 +978,7 @@ export default function ScannerPage({
       for (const photo of photos) {
         const url = photo.webPath
           ? photo.webPath
-          : photo.dataUrl ?? "";
+          : (photo as any).dataUrl ?? "";
         if (!url) continue;
         let dataUrl = url;
         if (!url.startsWith("data:")) {
@@ -2015,7 +2016,6 @@ export default function ScannerPage({
                 playsInline
                 muted
                 disablePictureInPicture
-                // @ts-expect-error — disableRemotePlayback is valid but not in React types
                 disableRemotePlayback
                 className="w-full h-full object-cover"
               />}

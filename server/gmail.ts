@@ -27,30 +27,32 @@ export interface EmailMessage {
 }
 
 function getClient(user: User) {
+  const u = user as any;
   const client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET
   );
   client.setCredentials({
-    access_token: user.accessToken ?? undefined,
-    refresh_token: user.refreshToken ?? undefined,
-    expiry_date: user.tokenExpiry ? new Date(user.tokenExpiry).getTime() : undefined,
+    access_token: u.accessToken ?? undefined,
+    refresh_token: u.refreshToken ?? undefined,
+    expiry_date: u.tokenExpiry ? new Date(u.tokenExpiry).getTime() : undefined,
   });
   return client;
 }
 
 async function refreshIfNeeded(user: User): Promise<User> {
-  if (!user.tokenExpiry) return user;
-  const expiry = new Date(user.tokenExpiry).getTime();
+  const u = user as any;
+  if (!u.tokenExpiry) return user;
+  const expiry = new Date(u.tokenExpiry).getTime();
   if (expiry > Date.now() + 60 * 1000) return user;
 
   const auth = getClient(user);
   const { credentials } = await auth.refreshAccessToken();
   const updated = await storage.updateUser(user.id, {
-    accessToken: credentials.access_token ?? user.accessToken,
-    refreshToken: credentials.refresh_token ?? user.refreshToken,
-    tokenExpiry: credentials.expiry_date ? new Date(credentials.expiry_date) : user.tokenExpiry,
-  });
+    accessToken: credentials.access_token ?? u.accessToken,
+    refreshToken: credentials.refresh_token ?? u.refreshToken,
+    tokenExpiry: credentials.expiry_date ? new Date(credentials.expiry_date) : u.tokenExpiry,
+  } as any);
   return updated ?? user;
 }
 

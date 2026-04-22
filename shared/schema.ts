@@ -98,5 +98,11 @@ export type DocumentSummary = Omit<Document, "dataUrl" | "pages">;
 
 export type PublicUser = Omit<User, "password">;
 
+// Aliases used by legacy client pages
+export type Contact = Client & { role?: string; initials?: string; status?: string; [key: string]: any };
+export type File = Document;
+export type ConversationWithContact = Record<string, any>;
+export type MessageWithFile = Record<string, any>;
+
 export const DOC_STATUSES = ["draft", "pending", "sent", "approved", "rejected"] as const;
 export type DocStatus = typeof DOC_STATUSES[number];

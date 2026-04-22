@@ -26,7 +26,7 @@ export default function ContactsView({ onOpenChat, onCompose }: ContactsViewProp
     .filter(c =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       (c.email ?? "").toLowerCase().includes(search.toLowerCase()) ||
-      c.role.toLowerCase().includes(search.toLowerCase())
+      (c.role ?? "").toLowerCase().includes(search.toLowerCase())
     )
     .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -100,7 +100,7 @@ export default function ContactsView({ onOpenChat, onCompose }: ContactsViewProp
                       <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
                         <span className="text-primary font-semibold text-sm">{contact.initials}</span>
                       </div>
-                      <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background ${statusColor[contact.status] ?? "bg-status-offline"}`} />
+                      <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background ${statusColor[contact.status ?? ""] ?? "bg-status-offline"}`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-foreground text-sm">{contact.name}</p>

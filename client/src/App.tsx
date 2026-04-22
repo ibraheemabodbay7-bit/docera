@@ -15,6 +15,8 @@ import GmailInboxPage from "./pages/GmailInboxPage";
 import { useSubscription } from "./hooks/use-subscription";
 import { Loader2, Sparkles, X } from "lucide-react";
 
+export type ActiveView = "inbox" | "chat" | "contacts" | "files" | "camera";
+
 type View =
   | { name: "home" }
   | { name: "scanner"; folderId?: string; clientId?: string }

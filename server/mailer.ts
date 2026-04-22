@@ -15,17 +15,18 @@ function dataUrlToBuffer(dataUrl: string): { buffer: Buffer; mimeType: string } 
 }
 
 export async function sendEmail(user: User, payload: EmailPayload): Promise<void> {
-  if (!user.smtpHost || !user.smtpPort) {
+  const u = user as any;
+  if (!u.smtpHost || !u.smtpPort) {
     throw new Error("SMTP not configured");
   }
 
   const transport = nodemailer.createTransport({
-    host: user.smtpHost,
-    port: user.smtpPort,
-    secure: user.smtpPort === 465,
+    host: u.smtpHost,
+    port: u.smtpPort,
+    secure: u.smtpPort === 465,
     auth: {
       user: user.username,
-      pass: user.smtpPassword ?? user.imapPassword ?? "",
+      pass: u.smtpPassword ?? u.imapPassword ?? "",
     },
     tls: { rejectUnauthorized: false },
   });

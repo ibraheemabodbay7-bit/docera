@@ -30,11 +30,12 @@ export interface EmailMessage {
 }
 
 function getImapSettings(user: User): { host: string; port: number; useSSL: boolean; pass: string } {
+  const u = user as any;
   return {
-    host: user.imapHost ?? autoDetectHost(user.username, "imap"),
-    port: user.imapPort ?? 993,
-    useSSL: user.imapUseSSL ?? true,
-    pass: user.imapPassword ?? "",
+    host: u.imapHost ?? autoDetectHost(user.username, "imap"),
+    port: u.imapPort ?? 993,
+    useSSL: u.imapUseSSL ?? true,
+    pass: u.imapPassword ?? "",
   };
 }
 
@@ -93,7 +94,8 @@ export async function listInbox(user: User, limit = 30): Promise<EmailThread[]> 
   try {
     const lock = await client.getMailboxLock("INBOX");
     try {
-      const total = client.mailbox?.exists ?? 0;
+      const mailbox = client.mailbox as any;
+      const total = (mailbox ? mailbox.exists : 0) ?? 0;
       if (total === 0) return [];
       const start = Math.max(1, total - limit + 1);
       const messages = client.fetch(`${start}:*`, {

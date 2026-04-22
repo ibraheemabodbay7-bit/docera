@@ -315,7 +315,6 @@ async function nativeShareDoc(doc: { name: string; type: string; dataUrl: string
     title: doc.name,
     url: result.uri,
     dialogTitle: "Send document",
-    mimeType,
   });
 }
 

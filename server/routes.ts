@@ -10,6 +10,15 @@ import { sendDocumentEmail } from "./email";
 import { Resend } from "resend";
 import { google } from "googleapis";
 
+declare module "express-session" {
+  interface SessionData {
+    userId: string;
+  }
+}
+
+// Coerce express param (string | string[]) to string
+const sp = (v: string | string[]): string => Array.isArray(v) ? (v[0] ?? "") : v;
+
 const GMAIL_WEB_CLIENT_ID = process.env.GMAIL_WEB_CLIENT_ID ?? "";
 const GMAIL_WEB_CLIENT_SECRET = process.env.GMAIL_WEB_CLIENT_SECRET ?? "";
 const GMAIL_RAILWAY_REDIRECT = process.env.GMAIL_REDIRECT_URI ?? "https://docera-production.up.railway.app/api/gmail/callback";
@@ -68,7 +77,7 @@ function makeGmailClient(accessToken: string) {
 }
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
-  if (!req.session?.userId) return res.status(401).json({ error: "Unauthorized" });
+  if (!(req.session as any)?.userId) return res.status(401).json({ error: "Unauthorized" });
   next();
 }
 
@@ -95,7 +104,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const existing = await storage.getUserByEmail(email);
     if (existing) return res.status(409).json({ error: "Email already registered" });
     const user = await storage.createUser({ username: email, password, name });
-    req.session.userId = user.id;
+    (req.session as any).userId = user.id;
     req.session.save(() => res.json({ id: user.id, name: user.name, username: user.username }));
   });
 
@@ -111,7 +120,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     if (!user) return res.status(401).json({ error: "Invalid email or password" });
     const valid = await bcrypt.compare(password, user.password!);
     if (!valid) return res.status(401).json({ error: "Invalid email or password" });
-    req.session.userId = user.id;
+    (req.session as any).userId = user.id;
     req.session.save(() => res.json({ id: user.id, name: user.name, username: user.username }));
   });
 
@@ -133,7 +142,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         name: "Guest",
       });
     }
-    req.session.userId = guest.id;
+    (req.session as any).userId = guest.id;
     req.session.save(() =>
       res.json({ id: guest!.id, name: guest!.name, username: guest!.username })
     );
@@ -161,15 +170,15 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         name: "Guest",
       });
     }
-    req.session.userId = user.id;
+    (req.session as any).userId = user.id;
     req.session.save(() =>
       res.json({ id: user!.id, name: user!.name, username: user!.username })
     );
   });
 
   app.get("/api/auth/me", async (req, res) => {
-    if (!req.session?.userId) return res.status(401).json({ error: "Unauthorized" });
-    const user = await storage.getUser(req.session.userId);
+    if (!(req.session as any)?.userId) return res.status(401).json({ error: "Unauthorized" });
+    const user = await storage.getUser((req.session as any).userId);
     if (!user) return res.status(401).json({ error: "Unauthorized" });
     res.json({ id: user.id, name: user.name, username: user.username, senderName: user.senderName ?? null });
   });
@@ -186,7 +195,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const update: { name?: string; senderName?: string | null } = {};
     if (parsed.data.name !== undefined) update.name = parsed.data.name;
     if (parsed.data.senderName !== undefined) update.senderName = parsed.data.senderName;
-    const user = await storage.updateUser(req.session.userId!, update);
+    const user = await storage.updateUser((req.session as any).userId!, update);
     if (!user) return res.status(404).json({ error: "Not found" });
     res.json({ id: user.id, name: user.name, username: user.username, senderName: user.senderName ?? null });
   });
@@ -197,7 +206,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     if (process.env.BYPASS_SUBSCRIPTION === "true") {
       return res.json({ status: "active", active: true, currentPeriodEnd: null, trialEnd: null, bypassed: true, hasStripeCustomer: false });
     }
-    const userId = req.session.userId!;
+    const userId = (req.session as any).userId!;
 
     // Auto-start 3-day trial on first use if no trial exists yet
     const userBeforeCheck = await storage.getUser(userId);
@@ -236,7 +245,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
 
   // ── Native IAP activation (called from client after RevenueCat confirms purchase) ──
   app.post("/api/subscription/native-activate", requireAuth, async (req, res) => {
-    const userId = req.session.userId!;
+    const userId = (req.session as any).userId!;
     await storage.setSubscribed(userId, true);
     res.json({ status: "active", active: true });
   });
@@ -270,7 +279,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const priceId = parsed.data?.priceId ?? process.env.STRIPE_PRICE_ID;
     if (!priceId) return res.status(500).json({ error: "No price configured. Set STRIPE_PRICE_ID." });
 
-    const user = await storage.getUser(req.session.userId!);
+    const user = await storage.getUser((req.session as any).userId!);
     if (!user) return res.status(401).json({ error: "Unauthorized" });
 
     try {
@@ -316,7 +325,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
 
   // Called after Stripe checkout success — syncs subscription ID from Stripe to user record
   app.post("/api/stripe/sync", requireAuth, async (req, res) => {
-    const user = await storage.getUser(req.session.userId!);
+    const user = await storage.getUser((req.session as any).userId!);
     if (!user?.stripeCustomerId) return res.json({ synced: false, reason: "no_customer" });
 
     try {
@@ -345,7 +354,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   });
 
   app.post("/api/stripe/portal", requireAuth, async (req, res) => {
-    const user = await storage.getUser(req.session.userId!);
+    const user = await storage.getUser((req.session as any).userId!);
     if (!user?.stripeCustomerId) {
       return res.status(400).json({ error: "no_stripe_customer", message: "No billing account found. Start a paid subscription to access billing management." });
     }
@@ -377,7 +386,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   // ── Folders ───────────────────────────────────────────────────────────────
 
   app.get("/api/folders", requireAuth, async (req, res) => {
-    const folderList = await storage.getFolders(req.session.userId!);
+    const folderList = await storage.getFolders((req.session as any).userId!);
     res.json(folderList);
   });
 
@@ -385,7 +394,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const schema = z.object({ name: z.string().min(1) });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Name required" });
-    const folder = await storage.createFolder({ userId: req.session.userId!, name: parsed.data.name });
+    const folder = await storage.createFolder({ userId: (req.session as any).userId!, name: parsed.data.name });
     res.json(folder);
   });
 
@@ -393,20 +402,20 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const schema = z.object({ name: z.string().min(1) });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Name required" });
-    const folder = await storage.updateFolder(req.params.id, { name: parsed.data.name });
+    const folder = await storage.updateFolder(sp(req.params.id), { name: parsed.data.name });
     if (!folder) return res.status(404).json({ error: "Not found" });
     res.json(folder);
   });
 
   app.delete("/api/folders/:id", requireAuth, async (req, res) => {
-    await storage.deleteFolder(req.params.id);
+    await storage.deleteFolder(sp(req.params.id));
     res.json({ ok: true });
   });
 
   // ── Clients ───────────────────────────────────────────────────────────────
 
   app.get("/api/clients", requireAuth, async (req, res) => {
-    const clientList = await storage.getClients(req.session.userId!);
+    const clientList = await storage.getClients((req.session as any).userId!);
     res.json(clientList);
   });
 
@@ -420,7 +429,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
     const client = await storage.createClient({
-      userId: req.session.userId!,
+      userId: (req.session as any).userId!,
       name: parsed.data.name,
       email: parsed.data.email ?? null,
       phone: parsed.data.phone ?? null,
@@ -438,24 +447,24 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
-    const existing = await storage.getClient(req.params.id);
-    if (!existing || existing.userId !== req.session.userId) return res.status(404).json({ error: "Not found" });
-    const client = await storage.updateClient(req.params.id, parsed.data);
+    const existing = await storage.getClient(sp(req.params.id));
+    if (!existing || existing.userId !== (req.session as any).userId) return res.status(404).json({ error: "Not found" });
+    const client = await storage.updateClient(sp(req.params.id), parsed.data);
     if (!client) return res.status(404).json({ error: "Not found" });
     res.json(client);
   });
 
   app.delete("/api/clients/:id", requireAuth, async (req, res) => {
-    const existing = await storage.getClient(req.params.id);
-    if (!existing || existing.userId !== req.session.userId) return res.status(404).json({ error: "Not found" });
-    await storage.deleteClient(req.params.id);
+    const existing = await storage.getClient(sp(req.params.id));
+    if (!existing || existing.userId !== (req.session as any).userId) return res.status(404).json({ error: "Not found" });
+    await storage.deleteClient(sp(req.params.id));
     res.json({ ok: true });
   });
 
   app.get("/api/clients/:id/documents", requireAuth, async (req, res) => {
-    const existing = await storage.getClient(req.params.id);
-    if (!existing || existing.userId !== req.session.userId) return res.status(404).json({ error: "Not found" });
-    const docs = await storage.getDocumentsByClient(req.params.id, req.session.userId!);
+    const existing = await storage.getClient(sp(req.params.id));
+    if (!existing || existing.userId !== (req.session as any).userId) return res.status(404).json({ error: "Not found" });
+    const docs = await storage.getDocumentsByClient(sp(req.params.id), (req.session as any).userId!);
     res.json(docs);
   });
 
@@ -464,7 +473,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   app.get("/api/documents", requireAuth, async (req, res) => {
     const { folderId } = req.query;
     const docs = await storage.getDocuments(
-      req.session.userId!,
+      (req.session as any).userId!,
       folderId === "null" ? null : folderId as string | undefined
     );
     res.json(docs);
@@ -484,7 +493,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
     const doc = await storage.createDocument({
-      userId: req.session.userId!,
+      userId: (req.session as any).userId!,
       name: parsed.data.name,
       type: parsed.data.type,
       dataUrl: parsed.data.dataUrl,
@@ -497,7 +506,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     // Auto-create "created" event
     await storage.createDocumentEvent({
       documentId: doc.id,
-      userId: req.session.userId!,
+      userId: (req.session as any).userId!,
       type: "created",
       label: "Document created",
     });
@@ -516,15 +525,15 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
-    const existing = await storage.getDocument(req.params.id);
-    if (!existing || existing.userId !== req.session.userId) return res.status(404).json({ error: "Not found" });
-    const doc = await storage.updateDocumentContent(req.params.id, parsed.data);
+    const existing = await storage.getDocument(sp(req.params.id));
+    if (!existing || existing.userId !== (req.session as any).userId) return res.status(404).json({ error: "Not found" });
+    const doc = await storage.updateDocumentContent(sp(req.params.id), parsed.data);
     if (!doc) return res.status(404).json({ error: "Not found" });
     // Auto-create "edited" event when content (pages/dataUrl) changes
     if (parsed.data.dataUrl || parsed.data.pages) {
       await storage.createDocumentEvent({
         documentId: doc.id,
-        userId: req.session.userId!,
+        userId: (req.session as any).userId!,
         type: "edited",
         label: "Document edited",
       });
@@ -534,14 +543,14 @@ export async function registerRoutes(httpServer: Server, app: Express) {
 
   // Duplicate a document
   app.post("/api/documents/:id/duplicate", requireAuth, async (req, res) => {
-    const src = await storage.getDocument(req.params.id);
-    if (!src || src.userId !== req.session.userId) return res.status(404).json({ error: "Not found" });
+    const src = await storage.getDocument(sp(req.params.id));
+    if (!src || src.userId !== (req.session as any).userId) return res.status(404).json({ error: "Not found" });
     const newName = src.name.replace(/ \(Copy\)$/, "") + " (Copy)";
-    const copy = await storage.duplicateDocument(req.params.id, newName);
+    const copy = await storage.duplicateDocument(sp(req.params.id), newName);
     if (!copy) return res.status(500).json({ error: "Failed to duplicate" });
     await storage.createDocumentEvent({
       documentId: copy.id,
-      userId: req.session.userId!,
+      userId: (req.session as any).userId!,
       type: "created",
       label: `Duplicated from "${src.name}"`,
     });
@@ -549,8 +558,8 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   });
 
   app.get("/api/documents/:id", requireAuth, async (req, res) => {
-    const doc = await storage.getDocument(req.params.id);
-    if (!doc || doc.userId !== req.session.userId) return res.status(404).json({ error: "Not found" });
+    const doc = await storage.getDocument(sp(req.params.id));
+    if (!doc || doc.userId !== (req.session as any).userId) return res.status(404).json({ error: "Not found" });
     res.json(doc);
   });
 
@@ -565,15 +574,15 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
-    const existing = await storage.getDocument(req.params.id);
-    if (!existing || existing.userId !== req.session.userId) return res.status(404).json({ error: "Not found" });
-    const doc = await storage.updateDocument(req.params.id, parsed.data);
+    const existing = await storage.getDocument(sp(req.params.id));
+    if (!existing || existing.userId !== (req.session as any).userId) return res.status(404).json({ error: "Not found" });
+    const doc = await storage.updateDocument(sp(req.params.id), parsed.data);
     if (!doc) return res.status(404).json({ error: "Not found" });
     // Auto-create events for rename and status changes
     if (parsed.data.name && parsed.data.name !== existing.name) {
       await storage.createDocumentEvent({
         documentId: doc.id,
-        userId: req.session.userId!,
+        userId: (req.session as any).userId!,
         type: "renamed",
         label: `Renamed to "${parsed.data.name}"`,
       });
@@ -582,7 +591,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       const label = `Status changed to ${parsed.data.status.charAt(0).toUpperCase() + parsed.data.status.slice(1)}`;
       await storage.createDocumentEvent({
         documentId: doc.id,
-        userId: req.session.userId!,
+        userId: (req.session as any).userId!,
         type: "status_changed",
         label,
       });
@@ -592,14 +601,14 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         const client = await storage.getClient(parsed.data.clientId);
         await storage.createDocumentEvent({
           documentId: doc.id,
-          userId: req.session.userId!,
+          userId: (req.session as any).userId!,
           type: "client_assigned",
           label: `Assigned to ${client?.name ?? "client"}`,
         });
       } else {
         await storage.createDocumentEvent({
           documentId: doc.id,
-          userId: req.session.userId!,
+          userId: (req.session as any).userId!,
           type: "client_removed",
           label: "Removed from client",
         });
@@ -609,18 +618,18 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   });
 
   app.delete("/api/documents/:id", requireAuth, async (req, res) => {
-    const existing = await storage.getDocument(req.params.id);
-    if (!existing || existing.userId !== req.session.userId) return res.status(404).json({ error: "Not found" });
-    await storage.deleteDocument(req.params.id);
+    const existing = await storage.getDocument(sp(req.params.id));
+    if (!existing || existing.userId !== (req.session as any).userId) return res.status(404).json({ error: "Not found" });
+    await storage.deleteDocument(sp(req.params.id));
     res.json({ ok: true });
   });
 
   // ── Document Events ────────────────────────────────────────────────────────
 
   app.get("/api/documents/:id/events", requireAuth, async (req, res) => {
-    const doc = await storage.getDocument(req.params.id);
-    if (!doc || doc.userId !== req.session.userId) return res.status(404).json({ error: "Not found" });
-    const events = await storage.getDocumentEvents(req.params.id);
+    const doc = await storage.getDocument(sp(req.params.id));
+    if (!doc || doc.userId !== (req.session as any).userId) return res.status(404).json({ error: "Not found" });
+    const events = await storage.getDocumentEvents(sp(req.params.id));
     res.json(events);
   });
 
@@ -632,11 +641,11 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
-    const doc = await storage.getDocument(req.params.id);
-    if (!doc || doc.userId !== req.session.userId) return res.status(404).json({ error: "Not found" });
+    const doc = await storage.getDocument(sp(req.params.id));
+    if (!doc || doc.userId !== (req.session as any).userId) return res.status(404).json({ error: "Not found" });
     const event = await storage.createDocumentEvent({
-      documentId: req.params.id,
-      userId: req.session.userId!,
+      documentId: sp(req.params.id),
+      userId: (req.session as any).userId!,
       type: parsed.data.type,
       label: parsed.data.label,
     });
@@ -654,8 +663,8 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid input" });
     }
-    const doc = await storage.getDocument(req.params.id);
-    if (!doc || doc.userId !== req.session.userId) {
+    const doc = await storage.getDocument(sp(req.params.id));
+    if (!doc || doc.userId !== (req.session as any).userId) {
       return res.status(404).json({ error: "Not found" });
     }
     if (!doc.dataUrl || doc.dataUrl.length < 50) {
@@ -663,7 +672,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         error: "This document has no exported file yet — please save or re-export it first.",
       });
     }
-    const sender = await storage.getUser(req.session.userId!);
+    const sender = await storage.getUser((req.session as any).userId!);
     const senderDisplayName = sender?.senderName?.trim() || sender?.name?.trim() || null;
     const emailSubject = `Document from Docera – ${doc.name}`;
     try { await sendDocumentEmail({
@@ -682,7 +691,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         storage.updateDocument(doc.id, { status: "sent" }),
         storage.createDocumentEvent({
           documentId: doc.id,
-          userId: req.session.userId!,
+          userId: (req.session as any).userId!,
           type: "sent",
           label: eventLabel,
         }),
@@ -1200,7 +1209,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
 
   app.get("/api/credits/hw", requireAuth, async (req, res) => {
     try {
-      const { credits, resetAt } = await storage.getHwCredits(req.session.userId!);
+      const { credits, resetAt } = await storage.getHwCredits((req.session as any).userId!);
       res.json({ credits, resetAt });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to get credits";
@@ -1212,7 +1221,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   app.post("/api/credits/hw/checkout", requireAuth, async (req, res) => {
     try {
       const stripe = await getUncachableStripeClient();
-      const user = await storage.getUser(req.session.userId!);
+      const user = await storage.getUser((req.session as any).userId!);
       if (!user) return res.status(404).json({ error: "User not found" });
 
       let customerId = user.stripeCustomerId;
@@ -1262,7 +1271,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       }
 
       // ── Credit gate ──────────────────────────────────────────────────────
-      const credit = await storage.consumeHwCredit(req.session.userId!);
+      const credit = await storage.consumeHwCredit((req.session as any).userId!);
       if (!credit.ok) {
         return res.status(402).json({ error: "no_credits", remaining: 0 });
       }
@@ -1270,7 +1279,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       const apiKey = process.env.OPENAI_API_KEY;
       if (!apiKey) {
         // Refund the credit — this is a server config issue, not user error
-        await storage.addHwCredits(req.session.userId!, 1);
+        await storage.addHwCredits((req.session as any).userId!, 1);
         return res.status(503).json({ error: "Hebrew OCR is not configured — OPENAI_API_KEY is missing." });
       }
 
@@ -1365,7 +1374,7 @@ Begin JSON:`,
 
       if (!response.ok) {
         // Refund credit — OpenAI errors are not the user's fault
-        await storage.addHwCredits(req.session.userId!, 1);
+        await storage.addHwCredits((req.session as any).userId!, 1);
         if (response.status === 429) {
           return res.status(503).json({ error: "Recognition is temporarily unavailable. Please try again later." });
         }
@@ -1386,7 +1395,7 @@ Begin JSON:`,
       }
 
       // Detect whether text contains Hebrew characters (used for sort direction)
-      function lineIsRTL(words: Array<{ w: string; x: number }>): boolean {
+      const lineIsRTL = (words: Array<{ w: string; x: number }>): boolean => {
         const combined = words.map(w => w.w).join("");
         return /[\u05D0-\u05EA\uFB1D-\uFB4F]/.test(combined);
       }
@@ -1454,7 +1463,7 @@ Begin JSON:`,
       return res.json({ blocks, warning, remaining: credit.remaining });
     } catch (err: unknown) {
       // Refund the credit — unexpected server errors shouldn't cost the user a scan
-      try { await storage.addHwCredits(req.session.userId!, 1); } catch { /* best-effort */ }
+      try { await storage.addHwCredits((req.session as any).userId!, 1); } catch { /* best-effort */ }
       const message = err instanceof Error ? err.message : "Unexpected error during OCR";
       res.status(500).json({ error: message });
     }

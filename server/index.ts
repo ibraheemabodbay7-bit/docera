@@ -55,13 +55,13 @@ app.use(
 );
 app.use(express.urlencoded({ extended: false }));
 
-const PgSession = connectPgSimple(session);
+const PgSession = connectPgSimple(session as any);
 const pgPool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
 app.set("trust proxy", 1);
 
 app.use(
-  session({
+  (session as any)({
     store: new PgSession({ pool: pgPool, createTableIfMissing: true }),
     secret: process.env.SESSION_SECRET ?? "docchat-secret-key",
     resave: false,
