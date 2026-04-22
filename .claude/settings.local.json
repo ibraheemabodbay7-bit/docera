@@ -7,7 +7,8 @@
       "Bash(npm run *)",
       "Bash(npx cap *)",
       "Bash(npx tsc *)",
-      "Bash(git init *)"
+      "Bash(git init *)",
+      "Bash(npm install *)"
     ]
   }
 }

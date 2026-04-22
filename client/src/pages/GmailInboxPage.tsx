@@ -163,29 +163,21 @@ async function generatePdfThumbnail(base64: string): Promise<string> {
 
 // ─── Open PDF via native Quick Look (iOS) ─────────────────────────────────────
 
-async function openPdfNative(base64: string, filename: string) {
+async function openPdfNative(base64: string, name: string) {
   if (Capacitor.isNativePlatform()) {
-    try {
-      const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
-      await Filesystem.writeFile({
-        path: safeName,
-        data: base64,
-        directory: Directory.Cache,
-        recursive: true,
-      });
-      const uriResult = await Filesystem.getUri({
-        path: safeName,
-        directory: Directory.Cache,
-      });
-      await Share.share({
-        url: uriResult.uri,
-      });
-    } catch (err) {
-      console.error("Could not open PDF:", (err as Error).message);
-    }
+    const { Filesystem, Directory } = await import("@capacitor/filesystem");
+    const { FileOpener } = await import("@capacitor-community/file-opener");
+    const safe = name.replace(/[^a-z0-9._-]/gi, "_");
+    const fileName = safe.endsWith(".pdf") ? safe : `${safe}.pdf`;
+    await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache, recursive: true });
+    const { uri } = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
+    await FileOpener.open({ filePath: uri, contentType: "application/pdf" });
   } else {
     const blob = await fetch(`data:application/pdf;base64,${base64}`).then(r => r.blob());
-    window.open(URL.createObjectURL(blob), '_blank');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = name; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
 }
 
