@@ -102,6 +102,7 @@ type Contact = {
   lastDirection: "sent" | "received";
   hasUnread: boolean;
   hasAttachments: boolean;
+  isImportant?: boolean;
 };
 
 type DocItem = { id: string; name: string; type: string; dataUrl: string };
@@ -115,6 +116,7 @@ const thumbCache = new Map<string, string>();
 let activeThumbnailLoads = 0;
 const MAX_CONCURRENT_THUMBNAILS = 2;
 const thumbnailQueue: Array<() => void> = [];
+let mountedThumbnailCount = 0;
 
 function acquireThumbnailSlot(): Promise<void> {
   return new Promise(resolve => {
@@ -134,23 +136,29 @@ function releaseThumbnailSlot() {
 }
 
 async function generatePdfThumbnail(base64: string): Promise<string> {
-  const pdfjsLib = await import("pdfjs-dist");
-  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-    "pdfjs-dist/build/pdf.worker.min.mjs",
-    import.meta.url,
-  ).href;
-  const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-  const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
-  const page = await pdf.getPage(1);
-  const viewport = page.getViewport({ scale: 1.5 });
-  const canvas = document.createElement("canvas");
-  canvas.width = viewport.width;
-  canvas.height = Math.round(viewport.width * 0.45);
-  const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "white";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  await page.render({ canvas, canvasContext: ctx, viewport } as any).promise;
-  return canvas.toDataURL("image/jpeg", 0.85);
+  try {
+    const pdfjsLib = await import("pdfjs-dist");
+    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+      "pdfjs-dist/build/pdf.worker.min.mjs",
+      import.meta.url,
+    ).href;
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+    const page = await pdf.getPage(1);
+    const viewport = page.getViewport({ scale: 2.0 });
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = Math.floor(viewport.width * 0.5);
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    return canvas.toDataURL("image/jpeg", 0.9);
+  } catch {
+    return "";
+  }
 }
 
 // ─── Open PDF via native Quick Look (iOS) ─────────────────────────────────────
@@ -250,18 +258,23 @@ function DateSeparator({ dateStr, theme }: { dateStr: string; theme: Theme }) {
 // ─── PDF thumbnail component ──────────────────────────────────────────────────
 
 function PdfThumbnail({
-  messageId, attachment, token, theme, onTap,
+  messageId, attachment, token, refreshToken, theme, onTap, bodyText, isLastAtt,
 }: {
-  messageId: string; attachment: GmailAttachment; token: string; theme: Theme; onTap: () => void;
+  messageId: string; attachment: GmailAttachment; token: string; refreshToken?: string | null;
+  theme: Theme; onTap: () => void; bodyText?: string; isLastAtt?: boolean;
 }) {
   const cached = thumbCache.get(attachment.id) ?? null;
   const [thumb, setThumb] = useState<string | null>(cached);
   const [loading, setLoading] = useState(false);
   const [visible, setVisible] = useState(!!cached);
-  const containerRef = useRef<HTMLButtonElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const largeFile = attachment.size > 2 * 1024 * 1024;
 
-  // Observe viewport entry — skip if already cached
+  useEffect(() => {
+    mountedThumbnailCount++;
+    return () => { mountedThumbnailCount--; };
+  }, []);
+
   useEffect(() => {
     if (cached) return;
     const el = containerRef.current;
@@ -274,9 +287,9 @@ function PdfThumbnail({
     return () => observer.disconnect();
   }, [cached]);
 
-  // Fetch + generate thumbnail once visible (skip if large file)
   useEffect(() => {
     if (!visible || thumb || largeFile) return;
+    if (mountedThumbnailCount > 5) return;
     let cancelled = false;
     setLoading(true);
     (async () => {
@@ -284,11 +297,11 @@ function PdfThumbnail({
       try {
         if (cancelled) return;
         const data = await gmailPost<{ base64: string }>(
-          "/api/gmail/attachment", { messageId, attachmentId: attachment.id }, token,
+          "/api/gmail/attachment", { messageId, attachmentId: attachment.id }, token, refreshToken,
         );
         if (cancelled) return;
         const url = await generatePdfThumbnail(data.base64);
-        if (!cancelled) { thumbCache.set(attachment.id, url); setThumb(url); }
+        if (!cancelled && url) { thumbCache.set(attachment.id, url); setThumb(url); }
       } catch { } finally {
         releaseThumbnailSlot();
         if (!cancelled) setLoading(false);
@@ -298,54 +311,53 @@ function PdfThumbnail({
   }, [visible, attachment.id]);
 
   return (
-    <button ref={containerRef} onClick={onTap} className="w-full active:opacity-80">
-      {/* Preview area — fixed 160px */}
-      <div style={{ height: 160, overflow: "hidden", borderRadius: "12px 12px 0 0" }}>
-        {thumb ? (
-          <img src={thumb} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <div
-            className="w-full h-full flex items-center justify-center"
-            style={{ background: "rgba(128,128,128,0.18)" }}
-          >
-            {loading
-              ? <Loader2 className="w-6 h-6 animate-spin" style={{ color: theme.subText }} />
-              : <FileText className="w-10 h-10" style={{ color: theme.subText }} />
-            }
+    <div ref={containerRef} style={{ width: 260, borderRadius: 14, overflow: "hidden", marginBottom: 6 }}>
+      <button onClick={onTap} className="block active:opacity-80" style={{ width: 260 }}>
+        <div style={{ width: 260, height: 160, overflow: "hidden", background: "#f0f0f0" }}>
+          {thumb ? (
+            <img src={thumb} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top", display: "block" }} />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center" style={{ background: "rgba(128,128,128,0.18)" }}>
+              {loading
+                ? <Loader2 className="w-6 h-6 animate-spin" style={{ color: theme.subText }} />
+                : <FileText className="w-10 h-10" style={{ color: theme.subText }} />
+              }
+            </div>
+          )}
+        </div>
+        <div style={{ width: 260, height: 52, display: "flex", alignItems: "center", gap: 10, padding: "0 12px", background: "rgba(0,0,0,0.6)" }}>
+          <div className="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center flex-shrink-0">
+            <span className="text-white text-[7px] font-bold">PDF</span>
           </div>
-        )}
-      </div>
-      {/* Dark strip — fixed 44px */}
-      <div
-        className="flex items-center gap-2 px-2.5"
-        style={{ background: "rgba(0,0,0,0.72)", height: 44 }}
-      >
-        <div className="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center flex-shrink-0">
-          <span className="text-white text-[7px] font-bold">PDF</span>
+          <div className="flex-1 min-w-0 text-left">
+            <p className="text-white text-[11px] font-semibold truncate">{attachment.name}</p>
+            <p className="text-white/55 text-[10px]">{fmtSize(attachment.size)}</p>
+          </div>
         </div>
-        <div className="flex-1 min-w-0 text-left">
-          <p className="text-white text-[11px] font-semibold truncate">{attachment.name}</p>
-          <p className="text-white/55 text-[10px]">{fmtSize(attachment.size)}</p>
+      </button>
+      {isLastAtt && bodyText && (
+        <div style={{ padding: "8px 12px", fontSize: 13, color: "white", background: "rgba(0,0,0,0.6)" }}>
+          {bodyText}
         </div>
-      </div>
-    </button>
+      )}
+    </div>
   );
 }
 
 // ─── Image attachment ─────────────────────────────────────────────────────────
 
 function ImageAttachment({
-  messageId, attachment, token, theme,
+  messageId, attachment, token, refreshToken, theme, bodyText, isLastAtt,
 }: {
-  messageId: string; attachment: GmailAttachment; token: string; theme: Theme;
+  messageId: string; attachment: GmailAttachment; token: string; refreshToken?: string | null;
+  theme: Theme; bodyText?: string; isLastAtt?: boolean;
 }) {
   const [src, setSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [visible, setVisible] = useState(false);
-  const containerRef = useRef<HTMLButtonElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Observe viewport entry
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -357,13 +369,12 @@ function ImageAttachment({
     return () => observer.disconnect();
   }, []);
 
-  // Fetch image only once visible
   useEffect(() => {
     if (!visible) return;
     let cancelled = false;
     setLoading(true);
     gmailPost<{ base64: string }>(
-      "/api/gmail/attachment", { messageId, attachmentId: attachment.id }, token,
+      "/api/gmail/attachment", { messageId, attachmentId: attachment.id }, token, refreshToken,
     )
       .then(data => { if (!cancelled) setSrc(`data:${attachment.mimeType};base64,${data.base64}`); })
       .catch(() => {})
@@ -389,24 +400,37 @@ function ImageAttachment({
           </button>
         </div>
       )}
-      <button
-        ref={containerRef}
-        onClick={() => src && setFullscreen(true)}
-        className="w-full active:opacity-80"
-        style={{ height: 160, display: "block", overflow: "hidden", borderRadius: 12 }}
-      >
-        {!visible || loading ? (
-          <div className="w-full h-full flex items-center justify-center" style={{ background: theme.pillBg }}>
-            {loading && <Loader2 className="w-6 h-6 animate-spin" style={{ color: theme.subText }} />}
+      <div ref={containerRef} style={{ width: 260, borderRadius: 14, overflow: "hidden", marginBottom: 6 }}>
+        <button onClick={() => src && setFullscreen(true)} className="block active:opacity-80" style={{ width: 260 }}>
+          <div style={{ width: 260, height: 160, overflow: "hidden", background: "#f0f0f0" }}>
+            {!visible || loading ? (
+              <div className="w-full h-full flex items-center justify-center" style={{ background: theme.pillBg }}>
+                {loading && <Loader2 className="w-6 h-6 animate-spin" style={{ color: theme.subText }} />}
+              </div>
+            ) : src ? (
+              <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top", display: "block" }} />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center" style={{ background: "rgba(128,128,128,0.18)" }}>
+                <ImageOff className="w-8 h-8" style={{ color: theme.subText }} />
+              </div>
+            )}
           </div>
-        ) : src ? (
-          <img src={src} alt="" style={{ width: "100%", height: 160, objectFit: "cover", objectPosition: "top" }} />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center" style={{ background: "rgba(128,128,128,0.18)" }}>
-            <ImageOff className="w-8 h-8" style={{ color: theme.subText }} />
+          <div style={{ width: 260, height: 52, display: "flex", alignItems: "center", gap: 10, padding: "0 12px", background: "rgba(0,0,0,0.6)" }}>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.15)" }}>
+              <ImageOff className="w-4 h-4 text-white" />
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-white text-[11px] font-semibold truncate">{attachment.name}</p>
+              <p className="text-white/55 text-[10px]">{fmtSize(attachment.size)}</p>
+            </div>
+          </div>
+        </button>
+        {isLastAtt && bodyText && (
+          <div style={{ padding: "8px 12px", fontSize: 13, color: "white", background: "rgba(0,0,0,0.6)" }}>
+            {bodyText}
           </div>
         )}
-      </button>
+      </div>
     </>
   );
 }
@@ -414,10 +438,10 @@ function ImageAttachment({
 // ─── Forward sheet ────────────────────────────────────────────────────────────
 
 function ForwardSheet({
-  contacts, attachment, messageId, token, onClose, theme,
+  contacts, attachment, messageId, token, refreshToken, onClose, theme,
 }: {
   contacts: Contact[]; attachment: GmailAttachment; messageId: string;
-  token: string; onClose: () => void; theme: Theme;
+  token: string; refreshToken?: string | null; onClose: () => void; theme: Theme;
 }) {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
@@ -434,7 +458,7 @@ function ForwardSheet({
     setSending(contact.email);
     try {
       const attData = await gmailPost<{ base64: string }>(
-        "/api/gmail/attachment", { messageId, attachmentId: attachment.id }, token,
+        "/api/gmail/attachment", { messageId, attachmentId: attachment.id }, token, refreshToken,
       );
       await gmailPost("/api/gmail/send-message", {
         to: contact.email,
@@ -443,7 +467,7 @@ function ForwardSheet({
         attachmentBase64: attData.base64,
         attachmentName: attachment.name,
         attachmentMimeType: attachment.mimeType || "application/octet-stream",
-      }, token);
+      }, token, refreshToken);
       toast({ title: "Forwarded!", description: `→ ${contact.name}` });
       onClose();
     } catch (err) {
@@ -510,10 +534,23 @@ function ForwardSheet({
 
 // ─── Message bubble ───────────────────────────────────────────────────────────
 
+function highlightText(text: string, query: string): React.ReactNode {
+  if (!query) return text;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return text;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark style={{ background: "yellow", color: "black" }}>{text.slice(idx, idx + query.length)}</mark>
+      {highlightText(text.slice(idx + query.length), query)}
+    </>
+  );
+}
+
 function MessageBubble({
-  msg, token, contacts, theme,
+  msg, token, refreshToken, contacts, theme, searchQuery,
 }: {
-  msg: GmailMessage; token: string; contacts: Contact[]; theme: Theme;
+  msg: GmailMessage; token: string; refreshToken?: string | null; contacts: Contact[]; theme: Theme; searchQuery?: string;
 }) {
   const { toast } = useToast();
   const isSent = msg.direction === "sent";
@@ -534,7 +571,7 @@ function MessageBubble({
     setOpeningPdfId(att.id);
     try {
       const data = await gmailPost<{ base64: string }>(
-        "/api/gmail/attachment", { messageId: msg.id, attachmentId: att.id }, token,
+        "/api/gmail/attachment", { messageId: msg.id, attachmentId: att.id }, token, refreshToken,
       );
       await openPdfNative(data.base64, att.name);
     } catch (err) {
@@ -561,6 +598,7 @@ function MessageBubble({
           attachment={forwardTarget}
           messageId={msg.id}
           token={token}
+          refreshToken={refreshToken}
           onClose={() => setForwardTarget(null)}
           theme={theme}
         />
@@ -581,54 +619,87 @@ function MessageBubble({
 
         {/* Bubble */}
         <div
-          className="max-w-[78%] overflow-hidden"
           style={{
-            background: bubbleBg,
+            background: hasAtts ? "transparent" : bubbleBg,
             borderRadius: isSent ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+            overflow: "hidden",
+            ...(hasAtts ? { width: 260 } : { maxWidth: "78%" }),
           }}
         >
-          {/* Attachments */}
-          {msg.attachments.map(att => (
-            <div
-              key={att.id}
-              style={{ width: "100%", maxWidth: 280, borderRadius: 16, overflow: "hidden", marginBottom: 4 }}
-            >
-              {isPdf(att) ? (
-                <>
-                  <PdfThumbnail
+          {/* Attachments — 260px uniform cards */}
+          {(() => {
+            const rawBody = msg.body || (!hasAtts ? msg.snippet : "");
+            const isAutoGenerated = !rawBody ||
+              rawBody.startsWith("Please find the attached") ||
+              rawBody.startsWith("Forwarding ") ||
+              rawBody.trim() === "";
+            const displayBody = isAutoGenerated ? undefined : rawBody;
+
+            return msg.attachments.map((att, idx) => {
+              const isLastAtt = idx === msg.attachments.length - 1;
+              if (isPdf(att)) {
+                return (
+                  <div key={att.id}>
+                    <PdfThumbnail
+                      messageId={msg.id}
+                      attachment={att}
+                      token={token}
+                      refreshToken={refreshToken}
+                      theme={theme}
+                      onTap={() => openPdf(att)}
+                      bodyText={displayBody}
+                      isLastAtt={isLastAtt}
+                    />
+                    {openingPdfId === att.id && (
+                      <div className="flex items-center gap-1.5 px-3 py-1.5">
+                        <Loader2 className="w-3 h-3 animate-spin" style={{ color: bubbleSub }} />
+                        <span className="text-[10px]" style={{ color: bubbleSub }}>Opening…</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+              if (isImage(att)) {
+                return (
+                  <ImageAttachment
+                    key={att.id}
                     messageId={msg.id}
                     attachment={att}
                     token={token}
+                    refreshToken={refreshToken}
                     theme={theme}
-                    onTap={() => openPdf(att)}
+                    bodyText={displayBody}
+                    isLastAtt={isLastAtt}
                   />
-                  {openingPdfId === att.id && (
-                    <div className="flex items-center gap-1.5 px-3 py-1.5">
-                      <Loader2 className="w-3 h-3 animate-spin" style={{ color: bubbleSub }} />
-                      <span className="text-[10px]" style={{ color: bubbleSub }}>Opening…</span>
+                );
+              }
+              return (
+                <div key={att.id} style={{ width: 260, borderRadius: 14, overflow: "hidden", marginBottom: 6 }}>
+                  <div style={{ width: 260, height: 160, overflow: "hidden", background: "#f0f0f0", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <FileText className="w-12 h-12" style={{ color: theme.subText }} />
+                  </div>
+                  <div style={{ width: 260, height: 52, display: "flex", alignItems: "center", gap: 10, padding: "0 12px", background: "rgba(0,0,0,0.6)" }}>
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.15)" }}>
+                      <FileText className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="text-white text-[11px] font-semibold truncate">{att.name}</p>
+                      <p className="text-white/55 text-[10px]">{fmtSize(att.size)}</p>
+                    </div>
+                  </div>
+                  {isLastAtt && displayBody && (
+                    <div style={{ padding: "8px 12px", fontSize: 13, color: "white", background: "rgba(0,0,0,0.6)" }}>
+                      {displayBody}
                     </div>
                   )}
-                </>
-              ) : isImage(att) ? (
-                <ImageAttachment messageId={msg.id} attachment={att} token={token} theme={theme} />
-              ) : (
-                <div
-                  className="flex items-center gap-2 px-3 py-2.5"
-                  style={{ background: "rgba(128,128,128,0.15)", height: 160, width: "100%" }}
-                >
-                  <FileText className="w-6 h-6 flex-shrink-0" style={{ color: bubbleSub }} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium truncate" style={{ color: bubbleText }}>{att.name}</p>
-                    <p className="text-[10px]" style={{ color: bubbleSub }}>{fmtSize(att.size)}</p>
-                  </div>
                 </div>
-              )}
-            </div>
-          ))}
+              );
+            });
+          })()}
 
-          {/* Body / snippet — skip auto-generated messages */}
-          {(() => {
-            const bodyText = msg.body || (!hasAtts ? msg.snippet : "");
+          {/* Body text for text-only messages */}
+          {!hasAtts && (() => {
+            const bodyText = msg.body || msg.snippet || "";
             const isAutoGenerated = !bodyText ||
               bodyText.startsWith("Please find the attached") ||
               bodyText.startsWith("Forwarding ") ||
@@ -637,14 +708,11 @@ function MessageBubble({
             return (
               <p
                 className="text-sm leading-relaxed whitespace-pre-wrap break-words"
-                style={{
-                  color: bubbleText,
-                  padding: hasAtts ? "6px 12px 4px" : "10px 14px 4px",
-                }}
+                style={{ color: bubbleText, padding: "10px 14px 4px" }}
                 onTouchStart={() => handleBodyTouchStart(bodyText)}
                 onTouchEnd={handleBodyTouchEnd}
               >
-                {bodyText}
+                {searchQuery ? highlightText(bodyText, searchQuery) : bodyText}
               </p>
             );
           })()}
@@ -652,7 +720,11 @@ function MessageBubble({
           {/* Timestamp */}
           <p
             className="text-[10px] text-right"
-            style={{ color: bubbleSub, padding: hasAtts ? "0 10px 8px" : "0 12px 8px" }}
+            style={{
+              color: hasAtts ? "rgba(255,255,255,0.55)" : bubbleSub,
+              padding: hasAtts ? "0 10px 8px" : "0 12px 8px",
+              background: hasAtts ? "rgba(0,0,0,0.6)" : "transparent",
+            }}
           >
             {fmtBubbleTime(msg.date)}
           </p>
@@ -676,9 +748,9 @@ function MessageBubble({
 // ─── Chat input ───────────────────────────────────────────────────────────────
 
 function ChatInput({
-  contact, token, onSent, onTokenExpired, theme,
+  contact, token, refreshToken, onSent, onTokenExpired, theme,
 }: {
-  contact: Contact; token: string; onSent: () => void; onTokenExpired: () => void; theme: Theme;
+  contact: Contact; token: string; refreshToken?: string | null; onSent: () => void; onTokenExpired: () => void; theme: Theme;
 }) {
   const { toast } = useToast();
   const [text, setText] = useState("");
@@ -780,7 +852,7 @@ function ChatInput({
         attachmentBase64: pdfBase64,
         attachmentName: `${doc.name}.pdf`,
         attachmentMimeType: "application/pdf",
-      }, token);
+      }, token, refreshToken);
       setShowDocPicker(false);
       toast({ title: "Sent!", description: `${doc.name} → ${contact.name}` });
       onSent();
@@ -813,7 +885,7 @@ function ChatInput({
         attachmentBase64: base64,
         attachmentName: file.name,
         attachmentMimeType: file.type || "application/octet-stream",
-      }, token);
+      }, token, refreshToken);
       toast({ title: "Sent!", description: `${file.name} → ${contact.name}` });
       onSent();
     } catch (err) {
@@ -982,15 +1054,20 @@ function ThreadView({
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
+  const [oldestDate, setOldestDate] = useState<string | null>(null);
   const [tooManyFiles, setTooManyFiles] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [search, setSearch] = useState("");
+  const [showLoadPill, setShowLoadPill] = useState(false);
   const loadFailCountRef = useRef(0);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async (olderThan?: string) => {
+    if (loading && olderThan) return;
     if (!olderThan) { setLoading(true); setError(null); }
     else setLoadingOlder(true);
+    let cancelled = false;
     try {
       const data = await gmailPost<{ messages: GmailMessage[]; hasMore: boolean }>(
         "/api/gmail/thread-messages",
@@ -1001,15 +1078,15 @@ function ThreadView({
       let msgs = data.messages;
       if (msgs.length > 30) msgs = msgs.slice(-30);
       if (!olderThan) {
-        setTimeout(() => {
-          setMessages(msgs);
-          loadFailCountRef.current = 0;
-        }, 100);
+        requestAnimationFrame(() => { if (!cancelled) setMessages(msgs); });
+        loadFailCountRef.current = 0;
+        setOldestDate(msgs[0]?.date ?? null);
         setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 280);
       } else {
         setMessages(prev => [...msgs, ...prev]);
+        if (msgs[0]) setOldestDate(msgs[0].date);
       }
-      setHasMore(data.hasMore);
+      setHasMore(data.hasMore ?? false);
     } catch (err) {
       const e = err as Error & { status?: number };
       if (e.status === 401 || e.status === 403) { onTokenExpired(); return; }
@@ -1022,14 +1099,52 @@ function ThreadView({
       if (!olderThan) setLoading(false);
       else setLoadingOlder(false);
     }
+    return () => { cancelled = true; };
   }, [contact.email, token, refreshToken]);
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const handler = () => setShowLoadPill(el.scrollTop < 60 && hasMore);
+    el.addEventListener("scroll", handler);
+    return () => el.removeEventListener("scroll", handler);
+  }, [hasMore]);
+
+  const loadOlder = useCallback(async () => {
+    if (!oldestDate || loadingOlder) return;
+    setLoadingOlder(true);
+    const el = messagesContainerRef.current;
+    const prevScrollHeight = el?.scrollHeight ?? 0;
+    try {
+      const data = await gmailPost<{ messages: GmailMessage[]; hasMore: boolean }>(
+        "/api/gmail/thread-messages",
+        { contactEmail: contact.email, olderThan: oldestDate },
+        token,
+        refreshToken,
+      );
+      setMessages(prev => [...data.messages, ...prev]);
+      if (data.messages[0]) setOldestDate(data.messages[0].date);
+      setHasMore(data.hasMore ?? false);
+      requestAnimationFrame(() => {
+        if (el) el.scrollTop = el.scrollHeight - prevScrollHeight;
+      });
+    } catch (err) {
+      const e = err as Error & { status?: number };
+      if (e.status === 401 || e.status === 403) onTokenExpired();
+    } finally {
+      setLoadingOlder(false);
+    }
+  }, [oldestDate, loadingOlder, contact.email, token, refreshToken]);
+
+  const q = search.toLowerCase();
   const visibleMessages = search
     ? messages.filter(m =>
-        m.body.toLowerCase().includes(search.toLowerCase()) ||
-        m.subject.toLowerCase().includes(search.toLowerCase()),
+        (m.body || "").toLowerCase().includes(q) ||
+        (m.subject || "").toLowerCase().includes(q) ||
+        (m.snippet || "").toLowerCase().includes(q) ||
+        (m.fromName || "").toLowerCase().includes(q),
       )
     : messages;
 
@@ -1043,7 +1158,7 @@ function ThreadView({
         lastDate = isValid(d) ? d : lastDate;
       }
       nodes.push(
-        <MessageBubble key={msg.id} msg={msg} token={token} contacts={contacts} theme={theme} />,
+        <MessageBubble key={msg.id} msg={msg} token={token} refreshToken={refreshToken} contacts={contacts} theme={theme} searchQuery={search} />,
       );
     }
     return nodes;
@@ -1110,7 +1225,21 @@ function ThreadView({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-4" style={{ position: "relative" }}>
+        {showLoadPill && (
+          <div
+            style={{
+              position: "absolute", top: 8, left: "50%", transform: "translateX(-50%)",
+              zIndex: 10, background: "rgba(0,0,0,0.7)", borderRadius: 20,
+              padding: "6px 16px", cursor: "pointer", color: "white", fontSize: 12,
+              display: "flex", alignItems: "center", gap: 6,
+            }}
+            onClick={loadOlder}
+          >
+            {loadingOlder ? <Loader2 size={12} className="animate-spin" /> : <ArrowLeft size={12} style={{ transform: "rotate(90deg)" }} />}
+            Load older messages
+          </div>
+        )}
         {loading && messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 gap-3">
             <Loader2 className="w-8 h-8 animate-spin" style={{ color: theme.subText }} />
@@ -1140,25 +1269,13 @@ function ThreadView({
             <Mail className="w-12 h-12 mb-3" style={{ color: theme.subText }} />
             <p style={{ color: theme.subText }}>No messages with this contact</p>
           </div>
+        ) : search && visibleMessages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-48 text-center">
+            <Search className="w-12 h-12 mb-3" style={{ color: theme.subText }} />
+            <p style={{ color: theme.subText }}>No results for "{search}"</p>
+          </div>
         ) : (
-          <>
-            {hasMore && (
-              <div className="flex justify-center mb-3">
-                <button
-                  onClick={() => load(messages[0]?.date)}
-                  disabled={loadingOlder}
-                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[12px] font-medium active:opacity-70 disabled:opacity-50"
-                  style={{ background: theme.pillBg, color: theme.subText }}
-                >
-                  {loadingOlder
-                    ? <><Loader2 className="w-3 h-3 animate-spin" />&nbsp;Loading…</>
-                    : "Load older messages"
-                  }
-                </button>
-              </div>
-            )}
-            {renderMessages()}
-          </>
+          renderMessages()
         )}
         <div ref={bottomRef} />
       </div>
@@ -1166,6 +1283,7 @@ function ThreadView({
       <ChatInput
         contact={contact}
         token={token}
+        refreshToken={refreshToken}
         onSent={() => load()}
         onTokenExpired={onTokenExpired}
         theme={theme}
@@ -1198,6 +1316,7 @@ function ContactList({
   const [search, setSearch] = useState("");
   const [showMenu, setShowMenu] = useState(false);
   const [smartMode, setSmartMode] = useState(false);
+  const [inboxTab, setInboxTab] = useState<"important" | "other">("important");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1226,21 +1345,26 @@ function ContactList({
     return () => clearInterval(id);
   }, [load]);
 
-  // Attachments-first sort, then by date
-  const sorted = [...contacts].sort((a, b) => {
-    if (a.hasAttachments !== b.hasAttachments) return a.hasAttachments ? -1 : 1;
-    return new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime();
-  });
+  const importantContacts = contacts.filter(c => c.isImportant !== false);
+  const otherContacts = contacts.filter(c => c.isImportant === false);
+  const tabContacts = inboxTab === "important" ? importantContacts : otherContacts;
 
-  // Smart: attachments-first by messageCount desc, then messageCount >= 3 by messageCount desc
-  const smartContacts = [...contacts]
+  const sortedImportant = [...importantContacts].sort((a, b) => {
+    if (a.hasAttachments !== b.hasAttachments) return a.hasAttachments ? -1 : 1;
+    return b.messageCount - a.messageCount;
+  });
+  const sortedOther = [...otherContacts].sort((a, b) =>
+    new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime()
+  );
+
+  const smartContacts = [...tabContacts]
     .filter(c => c.hasAttachments || c.messageCount >= 3)
     .sort((a, b) => {
       if (a.hasAttachments !== b.hasAttachments) return a.hasAttachments ? -1 : 1;
       return b.messageCount - a.messageCount;
     });
 
-  const base = smartMode ? smartContacts : sorted;
+  const base = smartMode ? smartContacts : (inboxTab === "important" ? sortedImportant : sortedOther);
   const filtered = search
     ? base.filter(c =>
         c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -1340,6 +1464,29 @@ function ContactList({
             }}
           >
             ✦ Smart
+          </button>
+        </div>
+        {/* Important / Other tabs */}
+        <div className="flex gap-2 mb-1">
+          <button
+            onClick={() => setInboxTab("important")}
+            className="px-4 py-1.5 rounded-full text-xs font-semibold transition-colors"
+            style={{
+              background: inboxTab === "important" ? "white" : "transparent",
+              color: inboxTab === "important" ? "#000" : theme.subText,
+            }}
+          >
+            📬 Important
+          </button>
+          <button
+            onClick={() => setInboxTab("other")}
+            className="px-4 py-1.5 rounded-full text-xs font-semibold transition-colors"
+            style={{
+              background: inboxTab === "other" ? "white" : "transparent",
+              color: inboxTab === "other" ? "#000" : theme.subText,
+            }}
+          >
+            🗂 Other
           </button>
         </div>
       </div>
@@ -1516,9 +1663,9 @@ function OfflineBanner() {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-interface GmailInboxPageProps { onBack: () => void; }
+interface GmailInboxPageProps { onBack: () => void; onUnreadCount?: (count: number) => void; }
 
-export default function GmailInboxPage({ onBack }: GmailInboxPageProps) {
+export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPageProps) {
   const { toast } = useToast();
   const [gmailToken, setGmailToken] = useState<string | null>(null);
   const [gmailRefreshToken, setGmailRefreshToken] = useState<string | null>(null);
@@ -1641,7 +1788,7 @@ export default function GmailInboxPage({ onBack }: GmailInboxPageProps) {
           onSelect={setSelectedContact}
           onTokenExpired={handleTokenExpired}
           onDisconnect={handleDisconnect}
-          onContactsLoaded={setContacts}
+          onContactsLoaded={loaded => { setContacts(loaded); onUnreadCount?.(loaded.filter(c => c.hasUnread).length); }}
           darkMode={darkMode}
           onToggleDark={toggleDark}
           theme={theme}

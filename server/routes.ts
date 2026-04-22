@@ -891,14 +891,14 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       const myEmail = profile.data.emailAddress?.toLowerCase() ?? "";
 
       const [inboxList, sentList] = await Promise.all([
-        gmail.users.messages.list({ userId: "me", q: "in:inbox", maxResults: 50 }),
+        gmail.users.messages.list({ userId: "me", q: "in:inbox", maxResults: 100 }),
         gmail.users.messages.list({ userId: "me", q: "in:sent", maxResults: 50 }),
       ]);
       const allIds = [
         ...(inboxList.data.messages ?? []).map(m => m.id!),
         ...(sentList.data.messages ?? []).map(m => m.id!),
       ];
-      const uniqueIds = [...new Set(allIds)].slice(0, 80);
+      const uniqueIds = [...new Set(allIds)].slice(0, 100);
 
       const details = await Promise.all(
         uniqueIds.map(id =>
@@ -952,6 +952,32 @@ export async function registerRoutes(httpServer: Server, app: Express) {
 
       const contacts = Array.from(contactMap.values())
         .sort((a, b) => new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime());
+
+      const apiKey = process.env.OPENAI_API_KEY;
+      if (apiKey && contacts.length > 0) {
+        try {
+          const snippets = contacts.map((c, i) => `${i}: from=${c.name}, subject=${c.lastSubject}, snippet=${c.lastMessage?.slice(0, 80)}`).join('\n');
+          const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+              model: 'gpt-4o-mini',
+              max_tokens: 200,
+              messages: [{
+                role: 'user',
+                content: `Classify each email contact as "important" or "promo". Important = real person, work, legal, financial, personal. Promo = newsletter, marketing, automated, OTP codes, receipts, shipping.\n\nReturn ONLY a JSON array of strings, one per contact in order: ["important","promo",...]\n\n${snippets}`
+              }]
+            })
+          });
+          const aiData = await aiRes.json() as { choices?: Array<{ message?: { content?: string } }> };
+          const raw = aiData.choices?.[0]?.message?.content ?? '[]';
+          const labels = JSON.parse(raw.match(/\[[\s\S]*\]/)?.[0] ?? '[]') as string[];
+          contacts.forEach((c, i) => { (c as Record<string, unknown>).isImportant = labels[i] === 'important'; });
+        } catch {
+          contacts.forEach(c => { (c as Record<string, unknown>).isImportant = true; });
+        }
+      }
+
       res.json({ myEmail, contacts });
     } catch (err: unknown) {
       const e = err as Record<string, unknown>;

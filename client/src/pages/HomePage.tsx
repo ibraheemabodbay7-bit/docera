@@ -25,6 +25,7 @@ interface HomePageProps {
   onOpenClients: () => void;
   onOpenInbox: () => void;
   onLogout: () => void;
+  inboxUnreadCount?: number;
 }
 
 function sizeStr(size: number) {
@@ -359,7 +360,7 @@ function FolderChip({ folder, onOpen, onDelete, onRename }: { folder: Folder; on
   );
 }
 
-export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFolder, onProfile, onOpenClients, onOpenInbox, onLogout }: HomePageProps) {
+export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFolder, onProfile, onOpenClients, onOpenInbox, onLogout, inboxUnreadCount = 0 }: HomePageProps) {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | DocStatus>(() => getSetting("defaultFilter", "all") as "all" | DocStatus);
@@ -1140,9 +1141,16 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
           <button
             data-testid="tab-inbox"
             onClick={onOpenInbox}
-            className="flex-1 flex flex-col items-center gap-0.5 pt-3 pb-1 text-muted-foreground active:opacity-60"
+            className="flex-1 flex flex-col items-center gap-0.5 pt-3 pb-1 text-muted-foreground active:opacity-60 relative"
           >
-            <Mail className="w-[22px] h-[22px]" />
+            <div className="relative">
+              <Mail className="w-[22px] h-[22px]" />
+              {inboxUnreadCount > 0 && (
+                <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center px-0.5">
+                  {inboxUnreadCount > 9 ? "9+" : inboxUnreadCount}
+                </span>
+              )}
+            </div>
             <span className="text-[9px] font-semibold tracking-tight">Inbox</span>
           </button>
 

@@ -113,6 +113,7 @@ function AppWithAuth() {
   const [subscriptionTimedOut, setSubscriptionTimedOut] = useState(false);
   const [view, setView] = useState<View>({ name: "home" });
   const [trialBannerDismissed, setTrialBannerDismissed] = useState(false);
+  const [inboxUnreadCount, setInboxUnreadCount] = useState(0);
   const subscription = useSubscription();
 
   useEffect(() => {
@@ -301,7 +302,7 @@ function AppWithAuth() {
   }
 
   if (view.name === "inbox") {
-    return <GmailInboxPage onBack={goHome} />;
+    return <GmailInboxPage onBack={goHome} onUnreadCount={setInboxUnreadCount} />;
   }
 
   if (view.name === "scanner") {
@@ -395,6 +396,7 @@ function AppWithAuth() {
         onProfile={goProfile}
         onOpenClients={goClients}
         onOpenInbox={goInbox}
+        inboxUnreadCount={inboxUnreadCount}
         onLogout={handleLogout}
       />
     </>
