@@ -619,9 +619,10 @@ function highlightText(text: string, query: string): React.ReactNode {
 }
 
 function MessageBubble({
-  msg, token, refreshToken, contacts, theme, searchQuery,
+  msg, token, refreshToken, contacts, theme, searchQuery, onOpenPdf,
 }: {
   msg: GmailMessage; token: string; refreshToken?: string | null; contacts: Contact[]; theme: Theme; searchQuery?: string;
+  onOpenPdf?: (att: GmailAttachment, msgId: string) => void;
 }) {
   const { toast } = useToast();
   const isSent = msg.direction === "sent";
@@ -702,17 +703,7 @@ function MessageBubble({
                       token={token}
                       refreshToken={refreshToken}
                       theme={theme}
-                      onTap={async () => {
-                        let b64 = base64Cache.get(att.id);
-                        if (!b64) {
-                          const data = await gmailPost<{ base64: string }>(
-                            "/api/gmail/attachment", { messageId: msg.id, attachmentId: att.id }, token, refreshToken,
-                          );
-                          b64 = data.base64;
-                          base64Cache.set(att.id, b64);
-                        }
-                        openPdfNative(b64, att.name);
-                      }}
+                      onTap={() => onOpenPdf?.(att, msg.id)}
                       bodyText={displayBody}
                       isLastAtt={isLastAtt}
                     />
@@ -735,7 +726,7 @@ function MessageBubble({
               }
               return (
                 <div key={att.id} style={{ width: 260, borderRadius: 14, overflow: "hidden", marginBottom: 6 }}>
-                  <button onClick={async () => { if (isPdf(att)) { let b64 = base64Cache.get(att.id); if (!b64) { const data = await gmailPost<{ base64: string }>("/api/gmail/attachment", { messageId: msg.id, attachmentId: att.id }, token, refreshToken); b64 = data.base64; base64Cache.set(att.id, b64); } openPdfNative(b64, att.name); } }} className="block active:opacity-80" style={{ width: 260 }}>
+                  <button onClick={() => { if (isPdf(att)) onOpenPdf?.(att, msg.id); }} className="block active:opacity-80" style={{ width: 260 }}>
                     <div style={{ width: 260, height: 160, background: theme.cardBg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, border: `1px solid ${theme.border}` }}>
                       <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.15)" }}>
                         <FileText className="w-6 h-6 text-white" />
@@ -1098,6 +1089,154 @@ function ChatInput({
   );
 }
 
+// ─── PDF Viewer ───────────────────────────────────────────────────────────────
+
+function PdfViewer({ attachment, messageId, token, refreshToken, onClose }: {
+  attachment: GmailAttachment;
+  messageId: string;
+  token: string;
+  refreshToken?: string | null;
+  onClose: () => void;
+}) {
+  const [pages, setPages] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        let b64 = base64Cache.get(attachment.id);
+        if (!b64) {
+          const data = await gmailPost<{ base64: string }>(
+            "/api/gmail/attachment",
+            { messageId, attachmentId: attachment.id },
+            token,
+            refreshToken,
+          );
+          b64 = data.base64;
+          base64Cache.set(attachment.id, b64);
+        }
+        if (cancelled) return;
+        const pdfjsLib = await import("pdfjs-dist");
+        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+          "pdfjs-dist/build/pdf.worker.min.mjs",
+          import.meta.url,
+        ).href;
+        const binary = atob(b64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+        const pageDataUrls: string[] = [];
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const viewport = page.getViewport({ scale: 2.0 });
+          const canvas = document.createElement("canvas");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          const ctx = canvas.getContext("2d")!;
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          await page.render({ canvasContext: ctx, viewport }).promise;
+          pageDataUrls.push(canvas.toDataURL("image/jpeg", 0.85));
+        }
+        if (!cancelled) setPages(pageDataUrls);
+      } catch {
+        if (!cancelled) setError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [attachment.id]);
+
+  const share = async () => {
+    try {
+      const { Filesystem, Directory } = await import("@capacitor/filesystem");
+      const { Share } = await import("@capacitor/share");
+      const b64 = base64Cache.get(attachment.id) ?? "";
+      const safe = attachment.name.replace(/[^a-z0-9._-]/gi, "_");
+      const fileName = safe.endsWith(".pdf") ? safe : `${safe}.pdf`;
+      await Filesystem.writeFile({ path: fileName, data: b64, directory: Directory.Cache, recursive: true });
+      const { uri } = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
+      await Share.share({ url: uri, title: attachment.name });
+    } catch (err) { console.error(err); }
+  };
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0, left: 0, right: 0, bottom: 0,
+      zIndex: 99999,
+      background: '#000',
+      display: 'flex',
+      flexDirection: 'column',
+    }}>
+      <div style={{
+        flexShrink: 0,
+        paddingTop: 'max(3rem, env(safe-area-inset-top))',
+        paddingBottom: 12,
+        paddingLeft: 16,
+        paddingRight: 16,
+        background: '#111',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+      }}>
+        <button onClick={onClose} style={{
+          color: 'white', background: 'none', border: 'none',
+          fontSize: 17, fontWeight: 600, cursor: 'pointer', padding: '4px 8px'
+        }}>
+          Done
+        </button>
+        <span style={{
+          color: 'white', fontSize: 14, fontWeight: 600,
+          flex: 1, textAlign: 'center', overflow: 'hidden',
+          textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: '0 12px'
+        }}>
+          {attachment.name}
+        </span>
+        <div style={{ width: 60 }} />
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto', background: '#1a1a1a' }}>
+        {loading ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
+            <Loader2 style={{ color: 'rgba(255,255,255,0.4)', width: 32, height: 32 }} className="animate-spin" />
+          </div>
+        ) : error ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
+            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>Could not load PDF</p>
+          </div>
+        ) : (
+          pages.map((dataUrl, i) => (
+            <img key={i} src={dataUrl} style={{ width: '100%', display: 'block', marginBottom: 4 }} alt={`Page ${i + 1}`} />
+          ))
+        )}
+      </div>
+
+      <div style={{
+        flexShrink: 0,
+        paddingBottom: 'max(2rem, env(safe-area-inset-bottom))',
+        paddingTop: 12,
+        background: '#111',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-around',
+      }}>
+        <button onClick={share} style={{
+          background: 'none', border: 'none', color: 'white',
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          gap: 4, cursor: 'pointer'
+        }}>
+          <Share2 style={{ width: 24, height: 24 }} />
+          <span style={{ fontSize: 11 }}>Share</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Thread view ──────────────────────────────────────────────────────────────
 
 function ThreadView({
@@ -1116,6 +1255,8 @@ function ThreadView({
   const [showSearch, setShowSearch] = useState(false);
   const [search, setSearch] = useState("");
   const [showLoadPill, setShowLoadPill] = useState(false);
+  const [viewerAtt, setViewerAtt] = useState<GmailAttachment | null>(null);
+  const [viewerMsgId, setViewerMsgId] = useState<string>("");
   const loadFailCountRef = useRef(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -1215,13 +1356,24 @@ function ThreadView({
         lastDate = isValid(d) ? d : lastDate;
       }
       nodes.push(
-        <MessageBubble key={msg.id} msg={msg} token={token} refreshToken={refreshToken} contacts={contacts} theme={theme} searchQuery={search} />,
+        <MessageBubble key={msg.id} msg={msg} token={token} refreshToken={refreshToken} contacts={contacts} theme={theme} searchQuery={search}
+          onOpenPdf={(att, msgId) => { setViewerAtt(att); setViewerMsgId(msgId); }} />,
       );
     }
     return nodes;
   };
 
   return (
+    <>
+    {viewerAtt && (
+      <PdfViewer
+        attachment={viewerAtt}
+        messageId={viewerMsgId}
+        token={token}
+        refreshToken={refreshToken}
+        onClose={() => setViewerAtt(null)}
+      />
+    )}
     <div className="flex flex-col h-full" style={{ background: theme.bg }}>
       {/* Header */}
       <div
@@ -1346,6 +1498,7 @@ function ThreadView({
         theme={theme}
       />
     </div>
+    </>
   );
 }
 
