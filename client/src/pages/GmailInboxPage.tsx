@@ -619,14 +619,15 @@ function PdfViewer({ attachment, messageId, token, refreshToken, onClose }: {
   }, [attachment.id]);
 
   return (
-    <div className="fixed inset-0 z-50" style={{ background: "#000" }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, background: "#000", display: 'flex', flexDirection: 'column' }}>
       <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0,
+        position: 'sticky', top: 0,
         paddingTop: 'max(3rem, env(safe-area-inset-top))',
         paddingBottom: 12, paddingLeft: 16, paddingRight: 16,
         background: 'rgba(0,0,0,0.85)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         zIndex: 10,
+        flexShrink: 0,
       }}>
         <button onClick={onClose}
           style={{ color: 'white', background: 'none', border: 'none', fontSize: 17, fontWeight: 600, cursor: 'pointer' }}>
@@ -637,7 +638,7 @@ function PdfViewer({ attachment, messageId, token, refreshToken, onClose }: {
         </span>
         <div style={{ width: 60 }} />
       </div>
-      <div className="overflow-y-auto" style={{ height: '100%', paddingTop: 80, paddingBottom: 80 }}>
+      <div style={{ flex: 1, overflowY: 'auto', paddingTop: 8, paddingBottom: 8 }}>
         {loadingPdf ? (
           <div className="flex items-center justify-center" style={{ height: 300 }}>
             <Loader2 className="w-8 h-8 animate-spin" style={{ color: "rgba(255,255,255,0.4)" }} />
@@ -653,12 +654,13 @@ function PdfViewer({ attachment, messageId, token, refreshToken, onClose }: {
         )}
       </div>
       <div style={{
-        position: 'absolute', bottom: 0, left: 0, right: 0,
+        position: 'sticky', bottom: 0,
         paddingBottom: 'max(2rem, env(safe-area-inset-bottom))',
         paddingTop: 12,
         background: 'rgba(0,0,0,0.85)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-around',
         zIndex: 10,
+        flexShrink: 0,
       }}>
         <button
           onClick={async () => {
