@@ -619,26 +619,25 @@ function PdfViewer({ attachment, messageId, token, refreshToken, onClose }: {
   }, [attachment.id]);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "#000" }}>
-      <div
-        className="flex-shrink-0 flex items-center px-4 pb-3"
-        style={{
-          paddingTop: "max(3rem, env(safe-area-inset-top))",
-          background: "rgba(0,0,0,0.9)",
-          borderBottom: "1px solid rgba(255,255,255,0.1)",
-        }}
-      >
-        <button
-          onClick={onClose}
-          className="text-white text-sm font-semibold active:opacity-60"
-          style={{ minWidth: 48 }}
-        >
+    <div className="fixed inset-0 z-50" style={{ background: "#000" }}>
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0,
+        paddingTop: 'max(3rem, env(safe-area-inset-top))',
+        paddingBottom: 12, paddingLeft: 16, paddingRight: 16,
+        background: 'rgba(0,0,0,0.85)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        zIndex: 10,
+      }}>
+        <button onClick={onClose}
+          style={{ color: 'white', background: 'none', border: 'none', fontSize: 17, fontWeight: 600, cursor: 'pointer' }}>
           Done
         </button>
-        <p className="flex-1 text-center text-white text-sm font-semibold truncate px-3">{attachment.name}</p>
-        <div style={{ minWidth: 48 }} />
+        <span style={{ color: 'white', fontSize: 14, fontWeight: 600, flex: 1, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: '0 12px' }}>
+          {attachment.name}
+        </span>
+        <div style={{ width: 60 }} />
       </div>
-      <div className="flex-1 overflow-y-auto">
+      <div className="overflow-y-auto" style={{ height: '100%', paddingTop: 80, paddingBottom: 80 }}>
         {loadingPdf ? (
           <div className="flex items-center justify-center" style={{ height: 300 }}>
             <Loader2 className="w-8 h-8 animate-spin" style={{ color: "rgba(255,255,255,0.4)" }} />
@@ -652,6 +651,33 @@ function PdfViewer({ attachment, messageId, token, refreshToken, onClose }: {
             <PdfPageRenderer key={i + 1} pdfDoc={pdfDoc} pageNum={i + 1} attId={attachment.id} />
           ))
         )}
+      </div>
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0,
+        paddingBottom: 'max(2rem, env(safe-area-inset-bottom))',
+        paddingTop: 12,
+        background: 'rgba(0,0,0,0.85)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-around',
+        zIndex: 10,
+      }}>
+        <button
+          onClick={async () => {
+            try {
+              const { Filesystem, Directory } = await import('@capacitor/filesystem');
+              const { Share } = await import('@capacitor/share');
+              const b64 = base64Cache.get(attachment.id) ?? "";
+              const safe = attachment.name.replace(/[^a-z0-9._-]/gi, '_');
+              const fileName = safe.endsWith('.pdf') ? safe : `${safe}.pdf`;
+              await Filesystem.writeFile({ path: fileName, data: b64, directory: Directory.Cache, recursive: true });
+              const { uri } = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
+              await Share.share({ url: uri, title: attachment.name });
+            } catch(err) { console.error(err); }
+          }}
+          style={{ background: 'none', border: 'none', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'pointer' }}
+        >
+          <span style={{ fontSize: 22 }}>⬆️</span>
+          <span style={{ fontSize: 11 }}>Share</span>
+        </button>
       </div>
     </div>
   );
