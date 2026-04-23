@@ -1063,18 +1063,19 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         };
       }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-      const olderThan = parsed.data.olderThan;
-      let filtered = messages;
-      if (olderThan) {
-        const olderThanTime = new Date(olderThan).getTime();
-        filtered = messages.filter(m => new Date(m.date).getTime() < olderThanTime);
-      }
       const limit = 15;
-      const total = filtered.length;
-      const hasMore = total > limit;
-      const paginated = filtered.slice(Math.max(0, total - limit));
+      const total = messages.length;
 
-      res.json({ myEmail, messages: paginated, hasMore, total });
+      // If olderThan provided, filter messages before that date
+      let filtered = messages;
+      if (parsed.data.olderThan) {
+        filtered = messages.filter(m => new Date(m.date).getTime() < new Date(parsed.data.olderThan!).getTime());
+      }
+
+      const hasMore = filtered.length > limit;
+      const paginated = filtered.slice(Math.max(0, filtered.length - limit));
+
+      res.json({ myEmail, messages: paginated, hasMore, total: filtered.length });
     } catch (err: unknown) {
       const e = err as Record<string, unknown>;
       const status = (e?.response as Record<string, unknown>)?.status as number ?? 500;
