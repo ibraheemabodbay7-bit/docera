@@ -3,7 +3,9 @@ import {
   ArrowLeft, Mail, RefreshCw, FileText, Send, X, AlertCircle,
   Plus, Paperclip, Share2, Loader2, WifiOff, Sun, Moon, ImageOff, Search,
 } from "lucide-react";
-import { Capacitor } from "@capacitor/core";
+import { Capacitor, registerPlugin } from "@capacitor/core";
+
+const QuickLook = registerPlugin<{ openPDF: (options: { path: string }) => Promise<void> }>("QuickLook");
 import { Share } from "@capacitor/share";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { Browser } from "@capacitor/browser";
@@ -182,7 +184,7 @@ async function openPdfNative(base64: string, name: string) {
         path: fileName,
         directory: Directory.Cache,
       });
-      await (window as any).Capacitor.Plugins.QuickLook.openPDF({ path: uri });
+      await QuickLook.openPDF({ path: uri });
     } catch (err) {
       console.error("PDF open error:", err);
     }
