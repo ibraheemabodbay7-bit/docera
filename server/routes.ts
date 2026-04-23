@@ -968,32 +968,59 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       const contacts = Array.from(contactMap.values())
         .sort((a, b) => new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime());
 
+      // STEP 1: Rule-based scoring
+      const scoredContacts = contacts.map(c => {
+        let score = 0;
+        const text = ((c.lastSubject ?? '') + ' ' + (c.lastMessage ?? '')).toLowerCase();
+        const emailLower = c.email.toLowerCase();
+
+        if (c.lastDirection === 'sent') score += 5;
+        if (c.messageCount > 1) score += 5;
+        if (c.hasAttachments) score += 4;
+        if (c.messageCount > 2) score += 3;
+        if (c.messageCount > 5) score += 3;
+        if (c.messageCount > 10) score += 3;
+
+        const automatedPatterns = ['noreply','no-reply','donotreply','do-not-reply','notification','newsletter','mailer','postmaster','alerts@','marketing@'];
+        if (automatedPatterns.some(p => emailLower.includes(p))) score -= 5;
+
+        const promoKeywords = ['unsubscribe','sale','discount','offer','deal','free','win','prize','coupon','promo','otp','verify your','confirm your','click here','limited time','expires','your order','receipt','delivery','track your','password reset'];
+        score -= promoKeywords.filter(k => text.includes(k)).length * 2;
+
+        if (c.messageCount === 1 && !c.hasAttachments) score -= 3;
+
+        return { ...c, score, isImportant: score >= 5 };
+      });
+
+      // STEP 2: OpenAI for borderline (score 2-7 only)
+      const borderline = scoredContacts.filter(c => (c as any).score >= 2 && (c as any).score <= 7);
       const apiKey = process.env.OPENAI_API_KEY;
-      if (apiKey && contacts.length > 0) {
+      if (apiKey && borderline.length > 0) {
         try {
-          const snippets = contacts.map((c, i) => `${i}: from=${c.name}, subject=${c.lastSubject}, snippet=${c.lastMessage?.slice(0, 80)}`).join('\n');
+          const snippets = borderline.map((c, i) =>
+            `${i}: name="${c.name}" email="${c.email}" subject="${c.lastSubject?.slice(0,60)}" preview="${c.lastMessage?.slice(0,80)}" attachments=${c.hasAttachments ? 'yes' : 'no'} messages=${c.messageCount} direction=${c.lastDirection}`
+          ).join('\n');
           const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
               model: 'gpt-4o-mini',
               max_tokens: 200,
-              messages: [{
-                role: 'user',
-                content: `Classify each email contact as "important" or "promo". Important = real person, work, legal, financial, personal. Promo = newsletter, marketing, automated, OTP codes, receipts, shipping.\n\nReturn ONLY a JSON array of strings, one per contact in order: ["important","promo",...]\n\n${snippets}`
-              }]
+              messages: [{ role: 'user', content: `Classify each email contact as "important" or "other".\nIMPORTANT = real person, client, colleague, legal, financial, back-and-forth conversation, PDF exchange.\nOTHER = newsletter, marketing, automated, OTP, receipt, shipping, one-time email.\nIf unsure → mark important.\nReturn ONLY JSON array: ["important","other",...]\n\n${snippets}` }]
             })
           });
-          const aiData = await aiRes.json() as { choices?: Array<{ message?: { content?: string } }> };
+          const aiData = await aiRes.json() as { choices?: Array<{message?: {content?: string}}>};
           const raw = aiData.choices?.[0]?.message?.content ?? '[]';
           const labels = JSON.parse(raw.match(/\[[\s\S]*\]/)?.[0] ?? '[]') as string[];
-          contacts.forEach((c, i) => { (c as Record<string, unknown>).isImportant = labels[i] === 'important'; });
-        } catch {
-          contacts.forEach(c => { (c as Record<string, unknown>).isImportant = true; });
-        }
+          borderline.forEach((c, i) => {
+            const contact = scoredContacts.find(sc => sc.email === c.email);
+            if (contact && labels[i]) (contact as any).isImportant = labels[i] === 'important';
+          });
+        } catch { /* keep rule-based results */ }
       }
 
-      res.json({ myEmail, contacts });
+      // STEP 3: Client applies localStorage overrides (learn over time)
+      res.json({ myEmail, contacts: scoredContacts });
     } catch (err: unknown) {
       const e = err as Record<string, unknown>;
       const status = (e?.response as Record<string, unknown>)?.status as number ?? 500;

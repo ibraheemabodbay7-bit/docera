@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   ArrowLeft, Mail, RefreshCw, FileText, Send, X, AlertCircle,
   Plus, Paperclip, Share2, Loader2, WifiOff, Sun, Moon, ImageOff, Search,
+  ChevronDown, ChevronRight,
 } from "lucide-react";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 
@@ -15,6 +16,7 @@ import {
 } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE } from "@/lib/queryClient";
+import ClientProfilePage from "./ClientProfilePage";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -105,6 +107,7 @@ type Contact = {
   hasUnread: boolean;
   hasAttachments: boolean;
   isImportant?: boolean;
+  score?: number;
 };
 
 type DocItem = { id: string; name: string; type: string; dataUrl: string };
@@ -1251,6 +1254,8 @@ function ThreadView({
   const [showLoadPill, setShowLoadPill] = useState(false);
   const [viewerAtt, setViewerAtt] = useState<GmailAttachment | null>(null);
   const [viewerMsgId, setViewerMsgId] = useState<string>("");
+  const [showProfile, setShowProfile] = useState(false);
+  const [filesExpanded, setFilesExpanded] = useState(false);
   const loadFailCountRef = useRef(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -1340,6 +1345,8 @@ function ThreadView({
       )
     : messages;
 
+  const allAttachments = messages.flatMap(m => m.attachments.map(att => ({ ...att, msgId: m.id })));
+
   const renderMessages = () => {
     const nodes: React.ReactNode[] = [];
     let lastDate: Date | null = null;
@@ -1359,6 +1366,15 @@ function ThreadView({
 
   return (
     <>
+    {showProfile && (
+      <ClientProfilePage
+        contact={contact}
+        messages={messages}
+        onBack={() => setShowProfile(false)}
+        onOpenPdf={(att, msgId) => { setViewerAtt(att); setViewerMsgId(msgId); setShowProfile(false); }}
+        onOpenConversation={() => setShowProfile(false)}
+      />
+    )}
     {viewerAtt && (
       <PdfViewer
         attachment={viewerAtt}
@@ -1386,16 +1402,22 @@ function ThreadView({
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div
-            className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-            style={{ background: "#1a3a5c" }}
+          <button
+            onClick={() => setShowProfile(true)}
+            className="flex items-center gap-3 flex-1 min-w-0 active:opacity-70"
+            style={{ background: "none", border: "none", padding: 0 }}
           >
-            {initials(contact.name)}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm truncate" style={{ color: theme.receivedText }}>{contact.name}</p>
-            <p className="text-xs truncate" style={{ color: theme.subText }}>{contact.email}</p>
-          </div>
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+              style={{ background: "#1a3a5c" }}
+            >
+              {initials(contact.name)}
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="font-semibold text-sm truncate" style={{ color: theme.receivedText }}>{contact.name}</p>
+              <p className="text-xs truncate" style={{ color: theme.subText }}>{contact.email}</p>
+            </div>
+          </button>
           <button
             onClick={() => { setShowSearch(v => !v); setSearch(""); }}
             className="w-9 h-9 rounded-xl flex items-center justify-center active:opacity-60"
@@ -1478,7 +1500,52 @@ function ThreadView({
             <p style={{ color: theme.subText }}>No results for "{search}"</p>
           </div>
         ) : (
-          renderMessages()
+          <>
+            {/* Collapsible Files section */}
+            {allAttachments.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <button
+                  onClick={() => setFilesExpanded(v => !v)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl w-full text-left"
+                  style={{ background: theme.pillBg }}
+                >
+                  <Paperclip className="w-4 h-4 flex-shrink-0" style={{ color: theme.subText }} />
+                  <span className="text-sm font-medium flex-1" style={{ color: theme.subText }}>
+                    📎 {allAttachments.length} {allAttachments.length === 1 ? "File" : "Files"}
+                  </span>
+                  {filesExpanded
+                    ? <ChevronDown className="w-4 h-4" style={{ color: theme.subText }} />
+                    : <ChevronRight className="w-4 h-4" style={{ color: theme.subText }} />
+                  }
+                </button>
+                {filesExpanded && (
+                  <div className="mt-2 flex flex-col gap-1.5">
+                    {allAttachments.map((att, i) => {
+                      const isPdf = att.mimeType === "application/pdf" || att.name.toLowerCase().endsWith(".pdf");
+                      return (
+                        <button
+                          key={`${att.id}-${i}`}
+                          onClick={() => { if (isPdf) { setViewerAtt(att); setViewerMsgId(att.msgId); } }}
+                          disabled={!isPdf}
+                          className="flex items-center gap-3 p-3 rounded-xl active:opacity-70 disabled:opacity-60 text-left"
+                          style={{ background: theme.cardBg }}
+                        >
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isPdf ? "bg-red-500" : "bg-blue-500"}`}>
+                            <span className="text-white text-[8px] font-bold">{isPdf ? "PDF" : "IMG"}</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold truncate" style={{ color: theme.receivedText }}>{att.name}</p>
+                            <p className="text-[11px]" style={{ color: theme.subText }}>{fmtSize(att.size)}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+            {renderMessages()}
+          </>
         )}
         <div ref={bottomRef} />
       </div>
@@ -1521,6 +1588,11 @@ function ContactList({
   const [showMenu, setShowMenu] = useState(false);
   const [smartMode, setSmartMode] = useState(false);
   const [inboxTab, setInboxTab] = useState<"important" | "other">("important");
+  const [overrides, setOverrides] = useState<Record<string, 'important' | 'other'>>(() => {
+    try { return JSON.parse(localStorage.getItem("docera_contact_overrides") ?? "{}"); } catch { return {}; }
+  });
+  const [longPressTarget, setLongPressTarget] = useState<Contact | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1549,17 +1621,26 @@ function ContactList({
     return () => clearInterval(id);
   }, [load]);
 
-  const importantContacts = contacts.filter(c => c.isImportant !== false);
-  const otherContacts = contacts.filter(c => c.isImportant === false);
+  const contactsWithOverrides = contacts.map(c =>
+    overrides[c.email] ? { ...c, isImportant: overrides[c.email] === 'important' } : c
+  );
+  const importantContacts = contactsWithOverrides.filter(c => c.isImportant !== false);
+  const otherContacts = contactsWithOverrides.filter(c => c.isImportant === false);
   const tabContacts = inboxTab === "important" ? importantContacts : otherContacts;
 
   const sortedImportant = [...importantContacts].sort((a, b) => {
     if (a.hasAttachments !== b.hasAttachments) return a.hasAttachments ? -1 : 1;
-    return b.messageCount - a.messageCount;
+    if (b.messageCount !== a.messageCount) return b.messageCount - a.messageCount;
+    return new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime();
   });
   const sortedOther = [...otherContacts].sort((a, b) =>
     new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime()
   );
+
+  const autoSuggest = [...importantContacts]
+    .filter(c => c.hasAttachments)
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+    .slice(0, 5);
 
   const smartContacts = [...tabContacts]
     .filter(c => c.hasAttachments || c.messageCount >= 3)
@@ -1569,6 +1650,20 @@ function ContactList({
     });
 
   const base = smartMode ? smartContacts : (inboxTab === "important" ? sortedImportant : sortedOther);
+
+  const startLongPress = (c: Contact) => {
+    longPressTimer.current = setTimeout(() => setLongPressTarget(c), 500);
+  };
+  const endLongPress = () => {
+    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+  };
+  const moveContact = (email: string, to: 'important' | 'other') => {
+    const next = { ...overrides, [email]: to };
+    setOverrides(next);
+    localStorage.setItem("docera_contact_overrides", JSON.stringify(next));
+    setLongPressTarget(null);
+  };
+
   const filtered = search
     ? base.filter(c =>
         c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -1579,6 +1674,40 @@ function ContactList({
 
   return (
     <div className="flex flex-col h-full" style={{ background: theme.bg }}>
+      {/* Long-press action sheet */}
+      {longPressTarget && (
+        <div className="fixed inset-0 z-50 flex items-end">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setLongPressTarget(null)} />
+          <div
+            className="relative w-full rounded-t-3xl shadow-2xl"
+            style={{ background: theme.header, paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
+          >
+            <div className="w-10 h-1 rounded-full mx-auto mt-3 mb-4" style={{ background: theme.subText }} />
+            <div className="px-4 pb-2">
+              <p className="text-sm font-semibold px-2 mb-3" style={{ color: theme.subText }}>{longPressTarget.name}</p>
+              {inboxTab === "other" ? (
+                <button
+                  onClick={() => moveContact(longPressTarget.email, 'important')}
+                  className="w-full flex items-center gap-3 p-4 rounded-2xl active:opacity-70 mb-2"
+                  style={{ background: theme.cardBg }}
+                >
+                  <span style={{ fontSize: 18 }}>📬</span>
+                  <span className="font-semibold" style={{ color: theme.receivedText }}>Move to Important</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => moveContact(longPressTarget.email, 'other')}
+                  className="w-full flex items-center gap-3 p-4 rounded-2xl active:opacity-70 mb-2"
+                  style={{ background: theme.cardBg }}
+                >
+                  <span style={{ fontSize: 18 }}>🗂</span>
+                  <span className="font-semibold" style={{ color: theme.receivedText }}>Move to Other</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div
         className="flex-shrink-0 px-4 pb-2"
@@ -1731,14 +1860,66 @@ function ContactList({
           </div>
         ) : (
           <div className="flex flex-col gap-0.5 mt-2 px-4">
-            {filtered.map(c => (
+            {/* Auto-suggest row — top attachment contacts, important tab only */}
+            {inboxTab === "important" && !smartMode && !search && autoSuggest.length > 0 && (
+              <div style={{ overflowX: "auto", display: "flex", gap: 16, padding: "8px 4px 12px", marginBottom: 4 }}>
+                {autoSuggest.map(c => (
+                  <button
+                    key={c.email}
+                    onClick={() => onSelect(c)}
+                    style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0, background: "none", border: "none", cursor: "pointer" }}
+                  >
+                    <div
+                      style={{
+                        width: 48, height: 48, borderRadius: "50%",
+                        background: "#1a3a5c", color: "white",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 16, fontWeight: 700,
+                      }}
+                    >
+                      {initials(c.name)}
+                    </div>
+                    <span style={{ fontSize: 11, color: theme.receivedText, fontWeight: 500, maxWidth: 52, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {c.name.split(" ")[0]}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {filtered.map(c => inboxTab === "other" ? (
+              /* Compact row for Other tab */
               <button
                 key={c.email}
                 onClick={() => onSelect(c)}
+                onTouchStart={() => startLongPress(c)}
+                onTouchEnd={endLongPress}
+                onTouchMove={endLongPress}
+                className="w-full flex items-center gap-3 p-2.5 rounded-2xl active:opacity-70 text-left"
+                style={{ background: theme.cardBg, opacity: 0.85 }}
+              >
+                <div
+                  className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-xs flex-shrink-0"
+                  style={{ background: "#2a4a6c" }}
+                >
+                  {initials(c.name)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm truncate" style={{ color: theme.subText, fontWeight: 500 }}>{c.name}</p>
+                  <p className="text-xs truncate" style={{ color: theme.subText, opacity: 0.6 }}>{c.email}</p>
+                </div>
+              </button>
+            ) : (
+              /* Full card for Important tab */
+              <button
+                key={c.email}
+                onClick={() => onSelect(c)}
+                onTouchStart={() => startLongPress(c)}
+                onTouchEnd={endLongPress}
+                onTouchMove={endLongPress}
                 className="w-full flex items-center gap-3 p-3 rounded-2xl active:opacity-70 text-left"
                 style={{ background: theme.cardBg }}
               >
-                {/* Avatar + unread dot */}
                 <div className="relative flex-shrink-0">
                   <div
                     className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-sm"
@@ -1749,8 +1930,13 @@ function ContactList({
                   {c.hasUnread && (
                     <span
                       className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2"
-                      style={{ background: "#1a3a5c", borderColor: theme.cardBg }}
+                      style={{ background: "#007aff", borderColor: theme.cardBg }}
                     />
+                  )}
+                  {c.hasAttachments && (
+                    <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: theme.header }}>
+                      <Paperclip className="w-2.5 h-2.5" style={{ color: theme.subText }} />
+                    </span>
                   )}
                 </div>
 
@@ -1771,16 +1957,13 @@ function ContactList({
                     {c.lastDirection === "sent" && (
                       <Send className="w-3 h-3 flex-shrink-0" style={{ color: theme.subText }} />
                     )}
-                    {c.hasAttachments && (
-                      <Paperclip className="w-3 h-3 flex-shrink-0" style={{ color: theme.subText }} />
-                    )}
                     <p
                       className="text-[11px] truncate flex-1"
                       style={{ color: c.hasUnread ? theme.receivedText : theme.subText, fontWeight: c.hasUnread ? 600 : 400 }}
                     >
                       {c.lastMessage || c.lastSubject}
                     </p>
-                    {smartMode && (
+                    {c.messageCount > 3 && (
                       <span
                         className="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
                         style={{ background: "#1a3a5c", color: "white" }}
