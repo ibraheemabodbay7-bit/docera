@@ -1285,9 +1285,11 @@ function ThreadView({
       );
       let msgs = data.messages;
       if (msgs.length > 15) msgs = msgs.slice(-15);
+      console.log("[load] received:", msgs.length, "msgs, hasMore:", data.hasMore, "olderThan:", olderThan ?? "none");
       if (!olderThan) {
         requestAnimationFrame(() => { if (!cancelled) setMessages(msgs); });
         loadFailCountRef.current = 0;
+        console.log("[load] setting oldestDate to:", msgs[0]?.date ?? null);
         setOldestDate(msgs[0]?.date ?? null);
         setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 280);
       } else {
@@ -1326,12 +1328,14 @@ function ThreadView({
     const el = messagesContainerRef.current;
     const prevScrollHeight = el?.scrollHeight ?? 0;
     try {
-      const data = await gmailPost<{ messages: GmailMessage[]; hasMore: boolean }>(
+      console.log("[loadOlder] sending olderThan:", oldestDate);
+      const data = await gmailPost<{ messages: GmailMessage[]; hasMore: boolean; total?: number }>(
         "/api/gmail/thread-messages",
         { contactEmail: contact.email, olderThan: oldestDate },
         token,
         refreshToken,
       );
+      console.log("[loadOlder] received:", data.messages.length, "msgs, hasMore:", data.hasMore, "total:", data.total);
       setMessages(prev => [...data.messages, ...prev]);
       if (data.messages[0]) setOldestDate(data.messages[0].date);
       setHasMore(data.hasMore ?? false);

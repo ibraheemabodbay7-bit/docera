@@ -1024,23 +1024,57 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       const profile = await gmail.users.getProfile({ userId: "me" });
       const myEmail = profile.data.emailAddress?.toLowerCase() ?? "";
 
+      // Phase 1: fetch metadata for up to 100 messages (headers only, fast)
       const list = await gmail.users.messages.list({
         userId: "me",
         q: `from:${contactEmail} OR to:${contactEmail}`,
-        maxResults: 30,
+        maxResults: 100,
       });
       const ids = (list.data.messages ?? []).map(m => m.id!);
+      console.log(`[thread-messages] pool size: ${ids.length}, olderThan: ${parsed.data.olderThan ?? "none"}`);
 
-      const details: Array<unknown> = [];
-      for (let i = 0; i < ids.length; i += 3) {
-        const chunk = ids.slice(i, i + 3);
+      const metaResults: Array<unknown> = [];
+      for (let i = 0; i < ids.length; i += 10) {
+        const chunk = ids.slice(i, i + 10);
         const chunkResults = await Promise.all(
-          chunk.map(id => gmail.users.messages.get({ userId: "me", id, format: "full" }).then(r => r.data).catch(() => null))
+          chunk.map(id => gmail.users.messages.get({
+            userId: "me", id,
+            format: "metadata",
+            metadataHeaders: ["Date", "From", "To", "Subject"],
+          }).then(r => r.data).catch(() => null))
         );
-        details.push(...chunkResults);
+        metaResults.push(...chunkResults);
       }
 
-      const messages = (details as Array<Record<string, unknown> | null>).filter(Boolean).map(msg => {
+      type MetaMsg = { id: string; date: string; internalDate: number };
+      const allMeta: MetaMsg[] = (metaResults as Array<Record<string, unknown> | null>)
+        .filter(Boolean)
+        .map(msg => {
+          const h = ((msg!.payload as Record<string, unknown>)?.headers ?? []) as Array<{ name?: string | null; value?: string | null }>;
+          const date = getGmailHeader(h, "Date");
+          return { id: msg!.id as string, date, internalDate: new Date(date).getTime() };
+        })
+        .sort((a, b) => a.internalDate - b.internalDate);
+
+      // Phase 2: filter and paginate on metadata
+      const limit = 15;
+      const olderThanTime = parsed.data.olderThan ? new Date(parsed.data.olderThan).getTime() : null;
+      const filtered = olderThanTime
+        ? allMeta.filter(m => m.internalDate < olderThanTime)
+        : allMeta;
+
+      console.log(`[thread-messages] filtered: ${filtered.length}, hasMore: ${filtered.length > limit}`);
+
+      const hasMore = filtered.length > limit;
+      const toFetch = filtered.slice(Math.max(0, filtered.length - limit));
+
+      // Phase 3: fetch full details only for the 15 messages we need
+      const fullDetails: Array<unknown> = await Promise.all(
+        toFetch.map(m => gmail.users.messages.get({ userId: "me", id: m.id, format: "full" })
+          .then(r => r.data).catch(() => null))
+      );
+
+      const paginated = (fullDetails as Array<Record<string, unknown> | null>).filter(Boolean).map(msg => {
         const h = ((msg!.payload as Record<string, unknown>)?.headers ?? []) as Array<{ name?: string | null; value?: string | null }>;
         const from = parseGmailEmail(getGmailHeader(h, "From"));
         const to = parseGmailEmail(getGmailHeader(h, "To"));
@@ -1062,18 +1096,6 @@ export async function registerRoutes(httpServer: Server, app: Express) {
           attachments,
         };
       }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-      const limit = 15;
-      const total = messages.length;
-
-      // If olderThan provided, filter messages before that date
-      let filtered = messages;
-      if (parsed.data.olderThan) {
-        filtered = messages.filter(m => new Date(m.date).getTime() < new Date(parsed.data.olderThan!).getTime());
-      }
-
-      const hasMore = filtered.length > limit;
-      const paginated = filtered.slice(Math.max(0, filtered.length - limit));
 
       res.json({ myEmail, messages: paginated, hasMore, total: filtered.length });
     } catch (err: unknown) {
