@@ -906,14 +906,14 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       const myEmail = profile.data.emailAddress?.toLowerCase() ?? "";
 
       const [inboxList, sentList] = await Promise.all([
-        gmail.users.messages.list({ userId: "me", q: "in:inbox", maxResults: 100 }),
-        gmail.users.messages.list({ userId: "me", q: "in:sent", maxResults: 50 }),
+        gmail.users.messages.list({ userId: "me", q: "in:inbox", maxResults: 200 }),
+        gmail.users.messages.list({ userId: "me", q: "in:sent", maxResults: 100 }),
       ]);
       const allIds = [
         ...(inboxList.data.messages ?? []).map(m => m.id!),
         ...(sentList.data.messages ?? []).map(m => m.id!),
       ];
-      const uniqueIds = [...new Set(allIds)].slice(0, 100);
+      const uniqueIds = [...new Set(allIds)].slice(0, 250);
 
       const details = await Promise.all(
         uniqueIds.map(id =>
