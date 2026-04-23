@@ -236,56 +236,50 @@ function initials(name: string) {
   return name.split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "?";
 }
 
-async function refreshGmailToken(refreshToken: string): Promise<string | null> {
-  try {
-    const res = await fetch(`${API_BASE}/api/gmail/refresh-token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken }),
-      credentials: "omit",
-    });
-    const data = await res.json();
-    if (data.accessToken) {
-      localStorage.setItem("gmail_access_token", data.accessToken);
-      return data.accessToken;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 async function gmailPost<T>(
   path: string,
   extra: Record<string, unknown>,
   token: string,
   refreshToken?: string | null,
 ): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ accessToken: token, ...(refreshToken ? { refreshToken } : {}), ...extra }),
-    credentials: Capacitor.isNativePlatform() ? "omit" : "include",
-  });
-  if (!res.ok) {
-    if (res.status === 401) {
-      const storedRefresh = localStorage.getItem("gmail_refresh_token");
-      if (storedRefresh) {
-        const newToken = await refreshGmailToken(storedRefresh);
-        if (newToken) {
-          const retry = await fetch(`${API_BASE}${path}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ accessToken: newToken, ...extra }),
-            credentials: Capacitor.isNativePlatform() ? "omit" : "include",
-          });
-          if (retry.ok) return retry.json();
+  const makeRequest = async (accessToken: string) => {
+    return fetch(`${API_BASE}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accessToken, ...extra }),
+      credentials: Capacitor.isNativePlatform() ? "omit" : "include",
+    });
+  };
+
+  let res = await makeRequest(token);
+
+  if (res.status === 401) {
+    const storedRefresh = localStorage.getItem("gmail_refresh_token");
+    if (storedRefresh) {
+      try {
+        const refreshRes = await fetch(`${API_BASE}/api/gmail/refresh-token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken: storedRefresh }),
+          credentials: "omit",
+        });
+        if (refreshRes.ok) {
+          const refreshData = await refreshRes.json();
+          if (refreshData.accessToken) {
+            localStorage.setItem("gmail_access_token", refreshData.accessToken);
+            res = await makeRequest(refreshData.accessToken);
+          }
         }
-      }
+      } catch {}
+    }
+    if (res.status === 401) {
       localStorage.removeItem("gmail_access_token");
       localStorage.removeItem("gmail_refresh_token");
       throw Object.assign(new Error("token_expired"), { status: 401 });
     }
+  }
+
+  if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
     throw Object.assign(new Error(body.error ?? "Request failed"), { status: res.status });
   }
