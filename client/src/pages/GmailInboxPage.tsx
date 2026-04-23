@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   ArrowLeft, Mail, RefreshCw, FileText, Send, X, AlertCircle,
   Plus, Paperclip, Share2, Loader2, WifiOff, Sun, Moon, ImageOff, Search,
-  ChevronDown, ChevronRight,
+  ChevronDown, ChevronRight, ChevronLeft,
 } from "lucide-react";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 
@@ -201,6 +201,17 @@ async function openPdfNative(base64: string, name: string) {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function decodeHtml(html: string): string {
+  return (html ?? '')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)));
+}
 
 function fmtSize(bytes: number) {
   if (bytes > 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -1370,6 +1381,8 @@ function ThreadView({
       <ClientProfilePage
         contact={contact}
         messages={messages}
+        token={token}
+        refreshToken={refreshToken}
         onBack={() => setShowProfile(false)}
         onOpenPdf={(att, msgId) => { setViewerAtt(att); setViewerMsgId(msgId); setShowProfile(false); }}
         onOpenConversation={() => setShowProfile(false)}
@@ -1385,65 +1398,50 @@ function ThreadView({
       />
     )}
     <div className="flex flex-col h-full" style={{ background: theme.bg }}>
-      {/* Header */}
-      <div
-        className="flex-shrink-0 border-b"
-        style={{
-          paddingTop: "max(3rem, env(safe-area-inset-top))",
-          borderColor: theme.border,
-          background: theme.header,
-        }}
-      >
-        <div className="flex items-center gap-3 px-4 pb-3">
+      {/* Header — compact iOS style */}
+      <div style={{ flexShrink: 0, background: "#000000", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingTop: "max(3rem, env(safe-area-inset-top))" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 8px 8px" }}>
           <button
             onClick={onBack}
-            className="w-9 h-9 rounded-xl flex items-center justify-center active:opacity-60"
-            style={{ color: theme.receivedText }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "#007AFF", padding: "4px 6px", display: "flex", alignItems: "center", flexShrink: 0 }}
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ChevronLeft style={{ width: 22, height: 22 }} />
           </button>
           <button
             onClick={() => setShowProfile(true)}
-            className="flex items-center gap-3 flex-1 min-w-0 active:opacity-70"
-            style={{ background: "none", border: "none", padding: 0 }}
+            style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0, background: "none", border: "none", cursor: "pointer", padding: 0 }}
           >
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-              style={{ background: "#1a3a5c" }}
-            >
+            <div style={{ width: 36, height: 36, borderRadius: 18, background: "#1a3a5c", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 14, fontWeight: 600, flexShrink: 0 }}>
               {initials(contact.name)}
             </div>
-            <div className="flex-1 min-w-0 text-left">
-              <p className="font-semibold text-sm truncate" style={{ color: theme.receivedText }}>{contact.name}</p>
-              <p className="text-xs truncate" style={{ color: theme.subText }}>{contact.email}</p>
+            <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+              <p style={{ color: "white", fontSize: 17, fontWeight: 600, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.name}</p>
+              <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.email}</p>
             </div>
           </button>
           <button
             onClick={() => { setShowSearch(v => !v); setSearch(""); }}
-            className="w-9 h-9 rounded-xl flex items-center justify-center active:opacity-60"
-            style={{ color: showSearch ? theme.receivedText : theme.subText }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: showSearch ? "white" : "rgba(255,255,255,0.6)", padding: 8, flexShrink: 0 }}
           >
-            <Search className="w-4 h-4" />
+            <Search style={{ width: 16, height: 16 }} />
           </button>
           <button
             onClick={() => load()}
             disabled={loading}
-            className="w-9 h-9 rounded-xl flex items-center justify-center active:opacity-60"
-            style={{ color: theme.subText }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", padding: 8, flexShrink: 0 }}
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw style={{ width: 16, height: 16 }} className={loading ? "animate-spin" : ""} />
           </button>
         </div>
         {showSearch && (
-          <div className="px-4 pb-3">
+          <div style={{ padding: "0 12px 10px" }}>
             <input
               autoFocus
               type="text"
               placeholder="Search messages…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full h-9 px-3 rounded-xl text-sm outline-none"
-              style={{ background: theme.searchBg, color: theme.receivedText, border: `1px solid ${theme.border}` }}
+              style={{ width: "100%", height: 34, borderRadius: 10, border: "none", outline: "none", background: "rgba(255,255,255,0.1)", color: "white", padding: "0 12px", fontSize: 14, boxSizing: "border-box" }}
             />
           </div>
         )}
@@ -1592,6 +1590,7 @@ function ContactList({
     try { return JSON.parse(localStorage.getItem("docera_contact_overrides") ?? "{}"); } catch { return {}; }
   });
   const [longPressTarget, setLongPressTarget] = useState<Contact | null>(null);
+  const [blockTaps, setBlockTaps] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
@@ -1638,8 +1637,8 @@ function ContactList({
   );
 
   const autoSuggest = [...importantContacts]
-    .filter(c => c.hasAttachments)
-    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+    .filter(c => c.hasAttachments || c.messageCount > 3)
+    .sort((a, b) => b.messageCount - a.messageCount)
     .slice(0, 5);
 
   const smartContacts = [...tabContacts]
@@ -1662,6 +1661,8 @@ function ContactList({
     setOverrides(next);
     localStorage.setItem("docera_contact_overrides", JSON.stringify(next));
     setLongPressTarget(null);
+    setBlockTaps(true);
+    setTimeout(() => setBlockTaps(false), 400);
   };
 
   const filtered = search
@@ -1673,11 +1674,11 @@ function ContactList({
     : base;
 
   return (
-    <div className="flex flex-col h-full" style={{ background: theme.bg }}>
+    <div className="flex flex-col h-full" style={{ background: "#000000" }}>
       {/* Long-press action sheet */}
       {longPressTarget && (
         <div className="fixed inset-0 z-50 flex items-end">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setLongPressTarget(null)} />
+          <div className="absolute inset-0 bg-black/60" onClick={() => { setLongPressTarget(null); setBlockTaps(true); setTimeout(() => setBlockTaps(false), 400); }} />
           <div
             className="relative w-full rounded-t-3xl shadow-2xl"
             style={{ background: theme.header, paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
@@ -1708,64 +1709,35 @@ function ContactList({
           </div>
         </div>
       )}
-      {/* Header */}
-      <div
-        className="flex-shrink-0 px-4 pb-2"
-        style={{ paddingTop: "max(3rem, env(safe-area-inset-top))", background: theme.header }}
-      >
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={onBack}
-              className="w-9 h-9 rounded-xl flex items-center justify-center active:opacity-60"
-              style={{ color: theme.receivedText }}
-            >
-              <ArrowLeft className="w-5 h-5" />
+      {/* iOS-style header */}
+      <div style={{ background: "#000000", paddingTop: "max(3rem, env(safe-area-inset-top))", borderBottom: "1px solid rgba(255,255,255,0.1)", flexShrink: 0 }}>
+        {/* Top row */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px 6px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: "white", padding: "4px 4px", display: "flex", alignItems: "center" }}>
+              <ArrowLeft style={{ width: 20, height: 20 }} />
             </button>
-            <h1 className="text-2xl font-bold" style={{ color: theme.receivedText }}>Inbox</h1>
+            <h1 style={{ color: "white", fontSize: 34, fontWeight: 700, letterSpacing: -0.5, margin: 0, lineHeight: 1.1 }}>Inbox</h1>
           </div>
-
-          <div className="flex items-center gap-1">
-            {/* Sun/moon toggle */}
-            <button
-              onClick={onToggleDark}
-              className="w-9 h-9 rounded-xl flex items-center justify-center active:opacity-60"
-              style={{ color: theme.subText }}
-            >
-              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <button onClick={onToggleDark} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", padding: 8 }}>
+              {darkMode ? <Sun style={{ width: 16, height: 16 }} /> : <Moon style={{ width: 16, height: 16 }} />}
             </button>
-
-            <button
-              onClick={load}
-              disabled={loading}
-              className="w-9 h-9 rounded-xl flex items-center justify-center active:opacity-60"
-              style={{ color: theme.subText }}
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            <button onClick={load} disabled={loading} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", padding: 8 }}>
+              <RefreshCw style={{ width: 16, height: 16 }} className={loading ? "animate-spin" : ""} />
             </button>
-
-            {/* ⋯ menu */}
-            <div className="relative">
-              <button
-                onClick={() => setShowMenu(v => !v)}
-                className="w-9 h-9 rounded-xl flex items-center justify-center active:opacity-60 text-lg leading-none"
-                style={{ color: theme.subText }}
-              >
-                ⋯
-              </button>
+            <button onClick={() => setSmartMode(v => !v)} style={{ background: smartMode ? "#1a3a5c" : "rgba(255,255,255,0.1)", border: "none", cursor: "pointer", color: smartMode ? "white" : "rgba(255,255,255,0.6)", padding: "5px 10px", borderRadius: 8, fontSize: 12, fontWeight: 600 }}>
+              ✦
+            </button>
+            <div style={{ position: "relative" }}>
+              <button onClick={() => setShowMenu(v => !v)} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", padding: 8, fontSize: 18, lineHeight: 1 }}>⋯</button>
               {showMenu && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
-                  <div
-                    className="absolute right-0 top-10 z-20 rounded-2xl shadow-xl py-2 min-w-[160px]"
-                    style={{ background: theme.cardBg, border: `1px solid ${theme.border}` }}
-                  >
-                    <button
-                      onClick={() => { setShowMenu(false); onDisconnect(); }}
-                      className="w-full flex items-center gap-2 px-4 py-3 text-left active:opacity-60"
-                    >
-                      <X className="w-4 h-4 text-red-500" />
-                      <span className="text-sm font-medium text-red-500">Disconnect Gmail</span>
+                  <div style={{ position: "absolute", right: 0, top: 40, zIndex: 20, background: "#1c1c1e", borderRadius: 14, boxShadow: "0 4px 24px rgba(0,0,0,0.6)", minWidth: 180, overflow: "hidden" }}>
+                    <button onClick={() => { setShowMenu(false); onDisconnect(); }} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", background: "none", border: "none", cursor: "pointer", color: "#ff453a" }}>
+                      <X style={{ width: 16, height: 16 }} />
+                      <span style={{ fontSize: 14, fontWeight: 500 }}>Disconnect Gmail</span>
                     </button>
                   </div>
                 </>
@@ -1774,206 +1746,167 @@ function ContactList({
           </div>
         </div>
 
-        {/* Search + Smart tab */}
-        <div className="flex items-center gap-2 mb-2">
+        {/* Search bar */}
+        <div style={{ padding: "2px 16px 10px", position: "relative" }}>
+          <div style={{ position: "absolute", left: 28, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", display: "flex", alignItems: "center" }}>
+            <Search style={{ width: 14, height: 14, color: "rgba(255,255,255,0.4)" }} />
+          </div>
           <input
             type="text"
-            placeholder="Search contacts…"
+            placeholder="Search"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="flex-1 h-9 px-3 rounded-xl text-sm outline-none"
             style={{
-              background: theme.searchBg,
-              color: theme.receivedText,
-              border: `1px solid ${theme.border}`,
+              width: "100%", height: 36, borderRadius: 10, border: "none", outline: "none",
+              background: "rgba(255,255,255,0.1)", color: "white",
+              paddingLeft: 32, paddingRight: 12, fontSize: 15,
+              boxSizing: "border-box",
             }}
           />
-          <button
-            onClick={() => setSmartMode(v => !v)}
-            className="flex-shrink-0 px-3 h-9 rounded-xl text-xs font-semibold transition-colors"
-            style={{
-              background: smartMode ? "#1a3a5c" : theme.pillBg,
-              color: smartMode ? "white" : theme.subText,
-            }}
-          >
-            ✦ Smart
-          </button>
         </div>
-        {/* Important / Other tabs */}
-        <div className="flex gap-2 mb-1">
-          <button
-            onClick={() => setInboxTab("important")}
-            className="px-4 py-1.5 rounded-full text-xs font-semibold transition-colors"
-            style={{
-              background: inboxTab === "important" ? "white" : "transparent",
-              color: inboxTab === "important" ? "#000" : theme.subText,
-            }}
-          >
-            📬 Important
-          </button>
-          <button
-            onClick={() => setInboxTab("other")}
-            className="px-4 py-1.5 rounded-full text-xs font-semibold transition-colors"
-            style={{
-              background: inboxTab === "other" ? "white" : "transparent",
-              color: inboxTab === "other" ? "#000" : theme.subText,
-            }}
-          >
-            🗂 Other
-          </button>
+
+        {/* iOS segmented tabs */}
+        <div style={{ padding: "0 16px 12px" }}>
+          <div style={{ display: "flex", background: "rgba(255,255,255,0.1)", borderRadius: 9, padding: 2 }}>
+            <button
+              onClick={() => setInboxTab("important")}
+              style={{
+                flex: 1, borderRadius: 7, padding: "6px 0", border: "none", cursor: "pointer",
+                fontSize: 13, fontWeight: 600, transition: "all 0.15s",
+                background: inboxTab === "important" ? "white" : "transparent",
+                color: inboxTab === "important" ? "#000" : "rgba(255,255,255,0.5)",
+                boxShadow: inboxTab === "important" ? "0 1px 3px rgba(0,0,0,0.3)" : "none",
+              }}
+            >
+              📬 Important
+            </button>
+            <button
+              onClick={() => setInboxTab("other")}
+              style={{
+                flex: 1, borderRadius: 7, padding: "6px 0", border: "none", cursor: "pointer",
+                fontSize: 13, fontWeight: 600, transition: "all 0.15s",
+                background: inboxTab === "other" ? "white" : "transparent",
+                color: inboxTab === "other" ? "#000" : "rgba(255,255,255,0.5)",
+                boxShadow: inboxTab === "other" ? "0 1px 3px rgba(0,0,0,0.3)" : "none",
+              }}
+            >
+              🗂 Other
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Contact list */}
-      <div className="flex-1 overflow-y-auto pb-8">
+      <div style={{ flex: 1, overflowY: "auto", background: "#000000", paddingBottom: 32 }}>
         {loading && contacts.length === 0 ? (
-          <div className="flex flex-col gap-1 mt-2 px-4">
+          <div style={{ padding: "8px 16px" }}>
             {[1, 2, 3, 4, 5].map(i => (
-              <div key={i} className="flex items-center gap-3 p-3 rounded-2xl animate-pulse" style={{ background: theme.cardBg }}>
-                <div className="w-12 h-12 rounded-full flex-shrink-0" style={{ background: theme.pillBg }} />
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 rounded w-32" style={{ background: theme.pillBg }} />
-                  <div className="h-3 rounded w-48" style={{ background: theme.border }} />
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0" }}>
+                <div style={{ width: 20, flexShrink: 0 }} />
+                <div style={{ width: 44, height: 44, borderRadius: 22, background: "rgba(255,255,255,0.1)", flexShrink: 0 }} className="animate-pulse" />
+                <div style={{ flex: 1 }}>
+                  <div style={{ height: 14, borderRadius: 7, background: "rgba(255,255,255,0.1)", width: "55%", marginBottom: 6 }} className="animate-pulse" />
+                  <div style={{ height: 12, borderRadius: 6, background: "rgba(255,255,255,0.07)", width: "75%" }} className="animate-pulse" />
                 </div>
               </div>
             ))}
           </div>
         ) : error ? (
-          <div className="flex flex-col items-center justify-center h-48 text-center px-6">
-            <AlertCircle className="w-10 h-10 mb-3" style={{ color: theme.subText }} />
-            <p className="font-medium" style={{ color: theme.receivedText }}>Couldn't load inbox</p>
-            <p className="text-sm mt-1" style={{ color: theme.subText }}>{error}</p>
-            <button
-              onClick={load}
-              className="mt-4 px-5 py-2 rounded-xl text-white text-sm font-semibold"
-              style={{ background: "#1a3a5c" }}
-            >
-              Try again
-            </button>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 200, textAlign: "center", padding: "0 24px" }}>
+            <AlertCircle style={{ width: 40, height: 40, marginBottom: 12, color: "rgba(255,255,255,0.3)" }} />
+            <p style={{ color: "white", fontWeight: 600, margin: "0 0 4px" }}>Couldn't load inbox</p>
+            <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 14, margin: "0 0 16px" }}>{error}</p>
+            <button onClick={load} style={{ background: "#1a3a5c", color: "white", border: "none", borderRadius: 12, padding: "10px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Try again</button>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-48 text-center">
-            <Mail className="w-12 h-12 mb-3" style={{ color: theme.subText }} />
-            <p style={{ color: theme.subText }}>
-              {search ? "No contacts match" : smartMode ? "No important conversations yet" : "No emails found"}
-            </p>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 200, textAlign: "center" }}>
+            <Mail style={{ width: 48, height: 48, marginBottom: 12, color: "rgba(255,255,255,0.2)" }} />
+            <p style={{ color: "rgba(255,255,255,0.4)" }}>{search ? "No contacts match" : smartMode ? "No important conversations yet" : "No emails found"}</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-0.5 mt-2 px-4">
-            {/* Auto-suggest row — top attachment contacts, important tab only */}
+          <div>
+            {/* FREQUENT auto-suggest row */}
             {inboxTab === "important" && !smartMode && !search && autoSuggest.length > 0 && (
-              <div style={{ overflowX: "auto", display: "flex", gap: 16, padding: "8px 4px 12px", marginBottom: 4 }}>
-                {autoSuggest.map(c => (
-                  <button
-                    key={c.email}
-                    onClick={() => onSelect(c)}
-                    style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0, background: "none", border: "none", cursor: "pointer" }}
-                  >
-                    <div
-                      style={{
-                        width: 48, height: 48, borderRadius: "50%",
-                        background: "#1a3a5c", color: "white",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 16, fontWeight: 700,
-                      }}
+              <div style={{ padding: "16px 16px 8px" }}>
+                <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, letterSpacing: 1, marginBottom: 10, fontWeight: 600, margin: "0 0 10px" }}>FREQUENT</p>
+                <div style={{ overflowX: "auto", display: "flex", gap: 16, paddingBottom: 8 }}>
+                  {autoSuggest.map(c => (
+                    <button
+                      key={c.email}
+                      onClick={() => { if (blockTaps) return; onSelect(c); }}
+                      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0, background: "none", border: "none", cursor: "pointer" }}
                     >
-                      {initials(c.name)}
-                    </div>
-                    <span style={{ fontSize: 11, color: theme.receivedText, fontWeight: 500, maxWidth: 52, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {c.name.split(" ")[0]}
-                    </span>
-                  </button>
-                ))}
+                      <div style={{ width: 52, height: 52, borderRadius: 26, background: "#1a3a5c", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 18, fontWeight: 600 }}>
+                        {initials(c.name)}
+                      </div>
+                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", maxWidth: 56, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {c.name.split(" ")[0]}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
+            {/* Contact rows */}
             {filtered.map(c => inboxTab === "other" ? (
-              /* Compact row for Other tab */
-              <button
-                key={c.email}
-                onClick={() => onSelect(c)}
-                onTouchStart={() => startLongPress(c)}
-                onTouchEnd={endLongPress}
-                onTouchMove={endLongPress}
-                className="w-full flex items-center gap-3 p-2.5 rounded-2xl active:opacity-70 text-left"
-                style={{ background: theme.cardBg, opacity: 0.85 }}
-              >
-                <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-xs flex-shrink-0"
-                  style={{ background: "#2a4a6c" }}
+              <div key={c.email} style={{ position: "relative" }}>
+                <button
+                  onClick={() => { if (blockTaps) return; onSelect(c); }}
+                  onTouchStart={() => startLongPress(c)}
+                  onTouchEnd={endLongPress}
+                  onTouchMove={endLongPress}
+                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "none", border: "none", cursor: "pointer", opacity: 0.7 }}
                 >
-                  {initials(c.name)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm truncate" style={{ color: theme.subText, fontWeight: 500 }}>{c.name}</p>
-                  <p className="text-xs truncate" style={{ color: theme.subText, opacity: 0.6 }}>{c.email}</p>
-                </div>
-              </button>
-            ) : (
-              /* Full card for Important tab */
-              <button
-                key={c.email}
-                onClick={() => onSelect(c)}
-                onTouchStart={() => startLongPress(c)}
-                onTouchEnd={endLongPress}
-                onTouchMove={endLongPress}
-                className="w-full flex items-center gap-3 p-3 rounded-2xl active:opacity-70 text-left"
-                style={{ background: theme.cardBg }}
-              >
-                <div className="relative flex-shrink-0">
-                  <div
-                    className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-sm"
-                    style={{ background: "#1a3a5c" }}
-                  >
+                  <div style={{ width: 20, flexShrink: 0 }} />
+                  <div style={{ width: 36, height: 36, borderRadius: 18, background: "#2a4a6c", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
                     {initials(c.name)}
                   </div>
-                  {c.hasUnread && (
-                    <span
-                      className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2"
-                      style={{ background: "#007aff", borderColor: theme.cardBg }}
-                    />
-                  )}
-                  {c.hasAttachments && (
-                    <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: theme.header }}>
-                      <Paperclip className="w-2.5 h-2.5" style={{ color: theme.subText }} />
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <span
-                      className="text-sm truncate"
-                      style={{ color: theme.receivedText, fontWeight: c.hasUnread ? 700 : 600 }}
-                    >
-                      {c.name}
-                    </span>
-                    <span className="text-[11px] flex-shrink-0" style={{ color: theme.subText }}>
-                      {fmtMsgTime(c.lastDate)}
-                    </span>
+                  <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+                    <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 15, fontWeight: 400, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</p>
+                    <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 12, margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.email}</p>
                   </div>
-                  <p className="text-xs truncate mt-0.5" style={{ color: theme.subText }}>{c.email}</p>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    {c.lastDirection === "sent" && (
-                      <Send className="w-3 h-3 flex-shrink-0" style={{ color: theme.subText }} />
-                    )}
-                    <p
-                      className="text-[11px] truncate flex-1"
-                      style={{ color: c.hasUnread ? theme.receivedText : theme.subText, fontWeight: c.hasUnread ? 600 : 400 }}
-                    >
-                      {c.lastMessage || c.lastSubject}
-                    </p>
-                    {c.messageCount > 3 && (
-                      <span
-                        className="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
-                        style={{ background: "#1a3a5c", color: "white" }}
-                      >
-                        {c.messageCount}
+                </button>
+                <div style={{ position: "absolute", bottom: 0, left: 72, right: 0, height: 1, background: "rgba(255,255,255,0.08)" }} />
+              </div>
+            ) : (
+              <div key={c.email} style={{ position: "relative" }}>
+                <button
+                  onClick={() => { if (blockTaps) return; onSelect(c); }}
+                  onTouchStart={() => startLongPress(c)}
+                  onTouchEnd={endLongPress}
+                  onTouchMove={endLongPress}
+                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "none", border: "none", cursor: "pointer" }}
+                >
+                  {/* Unread dot — left of avatar */}
+                  <div style={{ width: 8, flexShrink: 0, display: "flex", justifyContent: "center" }}>
+                    {c.hasUnread && <div style={{ width: 8, height: 8, borderRadius: 4, background: "#007AFF" }} />}
+                  </div>
+                  {/* Avatar */}
+                  <div style={{ width: 44, height: 44, borderRadius: 22, background: "#1a3a5c", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 17, fontWeight: 600, flexShrink: 0 }}>
+                    {initials(c.name)}
+                  </div>
+                  {/* Content */}
+                  <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 3 }}>
+                      <span style={{ color: "white", fontSize: 16, fontWeight: c.hasUnread ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {c.name}
                       </span>
-                    )}
+                      <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                        <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>{fmtMsgTime(c.lastDate)}</span>
+                        <ChevronRight style={{ width: 12, height: 12, color: "rgba(255,255,255,0.2)" }} />
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      {c.hasAttachments && <Paperclip style={{ width: 12, height: 12, color: "rgba(255,255,255,0.4)", flexShrink: 0 }} />}
+                      <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 14, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {decodeHtml(c.lastMessage || c.lastSubject)}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </button>
+                </button>
+                <div style={{ position: "absolute", bottom: 0, left: 72, right: 0, height: 1, background: "rgba(255,255,255,0.08)" }} />
+              </div>
             ))}
           </div>
         )}
