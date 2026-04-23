@@ -55,7 +55,7 @@ function getTheme(dark: boolean): Theme {
         cardBg: "#1a1a1a",
         receivedBg: "#1e1e1e",
         receivedText: "#ffffff",
-        sentBg: "#1a3a5c",
+        sentBg: "#007AFF",
         sentText: "#ffffff",
         subText: "rgba(255,255,255,0.45)",
         inputBg: "#1a1a1a",
@@ -69,7 +69,7 @@ function getTheme(dark: boolean): Theme {
         cardBg: "#ffffff",
         receivedBg: "#e5e5ea",
         receivedText: "#000000",
-        sentBg: "#1a3a5c",
+        sentBg: "#007AFF",
         sentText: "#ffffff",
         subText: "rgba(0,0,0,0.45)",
         inputBg: "#ffffff",
@@ -248,6 +248,17 @@ function fmtDateSep(dateStr: string): string {
 
 function initials(name: string) {
   return name.split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "?";
+}
+
+const IOS_AVATAR_COLORS = [
+  "#FF3B30","#FF9500","#FFCC00","#34C759",
+  "#00C7BE","#32ADE6","#007AFF","#5856D6",
+  "#AF52DE","#FF2D55",
+];
+function contactColor(email: string): string {
+  let hash = 0;
+  for (let i = 0; i < email.length; i++) hash = (hash * 31 + email.charCodeAt(i)) >>> 0;
+  return IOS_AVATAR_COLORS[hash % IOS_AVATAR_COLORS.length];
 }
 
 async function gmailPost<T>(
@@ -591,7 +602,7 @@ function ForwardSheet({
             >
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-                style={{ background: "#1a3a5c" }}
+                style={{ background: contactColor(c.email) }}
               >
                 {initials(c.name)}
               </div>
@@ -970,7 +981,7 @@ function ChatInput({
                 className="flex items-center gap-3 p-4 rounded-2xl active:opacity-70"
                 style={{ background: theme.cardBg }}
               >
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "#1a3a5c" }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "#007AFF" }}>
                   <FileText className="w-5 h-5 text-white" />
                 </div>
                 <span className="font-semibold" style={{ color: theme.receivedText }}>From Docera</span>
@@ -981,7 +992,7 @@ function ChatInput({
                 className="flex items-center gap-3 p-4 rounded-2xl active:opacity-70"
                 style={{ background: theme.cardBg }}
               >
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "#1a3a5c" }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "#007AFF" }}>
                   <Paperclip className="w-5 h-5 text-white" />
                 </div>
                 <span className="font-semibold" style={{ color: theme.receivedText }}>Photo / File from iPhone</span>
@@ -1085,7 +1096,7 @@ function ChatInput({
           onClick={sendText}
           disabled={!text.trim() || sending}
           className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-60 mb-1 disabled:opacity-40"
-          style={{ background: "#1a3a5c" }}
+          style={{ background: "#007AFF" }}
         >
           {sending
             ? <Loader2 className="w-4 h-4 animate-spin text-white" />
@@ -1415,7 +1426,7 @@ function ThreadView({
             onClick={() => setShowProfile(true)}
             style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0, background: "none", border: "none", cursor: "pointer", padding: 0 }}
           >
-            <div style={{ width: 36, height: 36, borderRadius: 18, background: "#1a3a5c", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 14, fontWeight: 600, flexShrink: 0 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 18, background: contactColor(contact.email), display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 14, fontWeight: 600, flexShrink: 0 }}>
               {initials(contact.name)}
             </div>
             <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
@@ -1486,7 +1497,7 @@ function ThreadView({
             <button
               onClick={() => load()}
               className="px-5 py-2 rounded-xl text-white text-sm font-semibold"
-              style={{ background: "#1a3a5c" }}
+              style={{ background: "#007AFF" }}
             >
               Retry
             </button>
@@ -1696,7 +1707,6 @@ function ContactList({
                   className="w-full flex items-center gap-3 p-4 rounded-2xl active:opacity-70 mb-2"
                   style={{ background: theme.cardBg }}
                 >
-                  <span style={{ fontSize: 18 }}>📬</span>
                   <span className="font-semibold" style={{ color: theme.receivedText }}>Move to Important</span>
                 </button>
               ) : (
@@ -1705,7 +1715,6 @@ function ContactList({
                   className="w-full flex items-center gap-3 p-4 rounded-2xl active:opacity-70 mb-2"
                   style={{ background: theme.cardBg }}
                 >
-                  <span style={{ fontSize: 18 }}>🗂</span>
                   <span className="font-semibold" style={{ color: theme.receivedText }}>Move to Other</span>
                 </button>
               )}
@@ -1718,7 +1727,7 @@ function ContactList({
         {/* Top row */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px 6px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: "white", padding: "4px 4px", display: "flex", alignItems: "center" }}>
+            <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: "#007AFF", padding: "4px 4px", display: "flex", alignItems: "center" }}>
               <ArrowLeft style={{ width: 20, height: 20 }} />
             </button>
             <h1 style={{ color: "white", fontSize: 34, fontWeight: 700, letterSpacing: -0.5, margin: 0, lineHeight: 1.1 }}>Inbox</h1>
@@ -1730,7 +1739,7 @@ function ContactList({
             <button onClick={load} disabled={loading} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", padding: 8 }}>
               <RefreshCw style={{ width: 16, height: 16 }} className={loading ? "animate-spin" : ""} />
             </button>
-            <button onClick={() => setSmartMode(v => !v)} style={{ background: smartMode ? "#1a3a5c" : "rgba(255,255,255,0.1)", border: "none", cursor: "pointer", color: smartMode ? "white" : "rgba(255,255,255,0.6)", padding: "5px 10px", borderRadius: 8, fontSize: 12, fontWeight: 600 }}>
+            <button onClick={() => setSmartMode(v => !v)} style={{ background: smartMode ? "#007AFF" : "rgba(255,255,255,0.1)", border: "none", cursor: "pointer", color: smartMode ? "white" : "rgba(255,255,255,0.6)", padding: "5px 10px", borderRadius: 8, fontSize: 12, fontWeight: 600 }}>
               ✦
             </button>
             <div style={{ position: "relative" }}>
@@ -1782,7 +1791,7 @@ function ContactList({
                 boxShadow: inboxTab === "important" ? "0 1px 3px rgba(0,0,0,0.3)" : "none",
               }}
             >
-              📬 Important
+              Important
             </button>
             <button
               onClick={() => setInboxTab("other")}
@@ -1794,7 +1803,7 @@ function ContactList({
                 boxShadow: inboxTab === "other" ? "0 1px 3px rgba(0,0,0,0.3)" : "none",
               }}
             >
-              🗂 Other
+              Other
             </button>
           </div>
         </div>
@@ -1820,7 +1829,7 @@ function ContactList({
             <AlertCircle style={{ width: 40, height: 40, marginBottom: 12, color: "rgba(255,255,255,0.3)" }} />
             <p style={{ color: "white", fontWeight: 600, margin: "0 0 4px" }}>Couldn't load inbox</p>
             <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 14, margin: "0 0 16px" }}>{error}</p>
-            <button onClick={load} style={{ background: "#1a3a5c", color: "white", border: "none", borderRadius: 12, padding: "10px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Try again</button>
+            <button onClick={load} style={{ background: "#007AFF", color: "white", border: "none", borderRadius: 12, padding: "10px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Try again</button>
           </div>
         ) : filtered.length === 0 ? (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 200, textAlign: "center" }}>
@@ -1840,7 +1849,7 @@ function ContactList({
                       onClick={() => { if (blockTaps) return; onSelect(c); }}
                       style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0, background: "none", border: "none", cursor: "pointer" }}
                     >
-                      <div style={{ width: 52, height: 52, borderRadius: 26, background: "#1a3a5c", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 18, fontWeight: 600 }}>
+                      <div style={{ width: 52, height: 52, borderRadius: 26, background: contactColor(c.email), display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 18, fontWeight: 600 }}>
                         {initials(c.name)}
                       </div>
                       <span style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", maxWidth: 56, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -1863,7 +1872,7 @@ function ContactList({
                   style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "none", border: "none", cursor: "pointer", opacity: 0.7 }}
                 >
                   <div style={{ width: 20, flexShrink: 0 }} />
-                  <div style={{ width: 36, height: 36, borderRadius: 18, background: "#2a4a6c", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 18, background: contactColor(c.email), display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
                     {initials(c.name)}
                   </div>
                   <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
@@ -1871,7 +1880,7 @@ function ContactList({
                     <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 12, margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.email}</p>
                   </div>
                 </button>
-                <div style={{ position: "absolute", bottom: 0, left: 72, right: 0, height: 1, background: "rgba(255,255,255,0.08)" }} />
+                <div style={{ position: "absolute", bottom: 0, left: 76, right: 0, height: 1, background: "rgba(255,255,255,0.08)" }} />
               </div>
             ) : (
               <div key={c.email} style={{ position: "relative" }}>
@@ -1883,11 +1892,11 @@ function ContactList({
                   style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "none", border: "none", cursor: "pointer" }}
                 >
                   {/* Unread dot — left of avatar */}
-                  <div style={{ width: 8, flexShrink: 0, display: "flex", justifyContent: "center" }}>
+                  <div style={{ width: 12, flexShrink: 0, display: "flex", justifyContent: "center" }}>
                     {c.hasUnread && <div style={{ width: 8, height: 8, borderRadius: 4, background: "#007AFF" }} />}
                   </div>
                   {/* Avatar */}
-                  <div style={{ width: 44, height: 44, borderRadius: 22, background: "#1a3a5c", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 17, fontWeight: 600, flexShrink: 0 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 22, background: contactColor(c.email), display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 17, fontWeight: 600, flexShrink: 0 }}>
                     {initials(c.name)}
                   </div>
                   {/* Content */}
@@ -1897,7 +1906,7 @@ function ContactList({
                         {c.name}
                       </span>
                       <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-                        <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>{fmtMsgTime(c.lastDate)}</span>
+                        <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 12 }}>{fmtMsgTime(c.lastDate)}</span>
                         <ChevronRight style={{ width: 12, height: 12, color: "rgba(255,255,255,0.2)" }} />
                       </div>
                     </div>
@@ -1909,7 +1918,7 @@ function ContactList({
                     </div>
                   </div>
                 </button>
-                <div style={{ position: "absolute", bottom: 0, left: 72, right: 0, height: 1, background: "rgba(255,255,255,0.08)" }} />
+                <div style={{ position: "absolute", bottom: 0, left: 76, right: 0, height: 1, background: "rgba(255,255,255,0.08)" }} />
               </div>
             ))}
           </div>
@@ -1954,7 +1963,7 @@ function ConnectPrompt({
           onClick={onConnect}
           disabled={connecting}
           className="w-full max-w-xs py-4 rounded-2xl text-white text-base font-bold active:opacity-80 disabled:opacity-50 flex items-center justify-center gap-2"
-          style={{ background: "#1a3a5c" }}
+          style={{ background: "#007AFF" }}
         >
           {connecting
             ? <><Loader2 className="w-5 h-5 animate-spin" /> Connecting…</>
