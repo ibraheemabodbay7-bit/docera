@@ -1358,7 +1358,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
 
     try {
       const resend = new Resend(process.env.RESEND_API_KEY);
-      await resend.emails.send({
+      const result = await resend.emails.send({
         from: "Docera Chat <chat@docera.app>",
         to,
         reply_to: senderEmail,
@@ -1369,6 +1369,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
           attachments: [{ filename: attachmentName, content: attachmentBase64 }],
         } : {}),
       });
+      if (result.error) throw new Error(result.error.message ?? "Resend error");
       res.json({ ok: true });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to send";
