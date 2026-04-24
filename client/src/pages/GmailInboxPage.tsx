@@ -827,7 +827,7 @@ function MessageBubble({
 function ChatInput({
   contact, token, refreshToken, onSent, onTokenExpired, theme,
 }: {
-  contact: Contact; token: string; refreshToken?: string | null; onSent: (msg?: { body: string; attachmentName?: string }) => void; onTokenExpired: () => void; theme: Theme;
+  contact: Contact; token: string; refreshToken?: string | null; onSent: () => void; onTokenExpired: () => void; theme: Theme;
 }) {
   const { toast } = useToast();
   const [text, setText] = useState("");
@@ -853,9 +853,10 @@ function ChatInput({
 
   const sendText = async () => {
     if (!text.trim() || sending) return;
+    const messageText = text.trim();
+    setText("");
     setSending(true);
     try {
-      const messageText = text.trim();
       const senderEmail = localStorage.getItem("gmail_sender_email") ?? "";
       await gmailPost(
         "/api/gmail/send-message",
@@ -863,9 +864,7 @@ function ChatInput({
         token,
         refreshToken,
       );
-      const sentBody = messageText;
-      setText("");
-      onSent({ body: sentBody });
+      onSent();
     } catch (err) {
       const e = err as Error & { status?: number };
       console.error("[sendText] caught:", e.name, e.message);
@@ -923,7 +922,7 @@ function ChatInput({
       }, token, refreshToken);
       setShowDocPicker(false);
       toast({ title: "Sent!", description: `${doc.name} → ${contact.name}` });
-      onSent({ body: "", attachmentName: doc.name });
+      onSent();
     } catch (err) {
       toast({ title: "Failed to send", description: (err as Error).message, variant: "destructive" });
     } finally {
@@ -1347,25 +1346,12 @@ function ThreadView({
         contact={contact}
         token={token}
         refreshToken={refreshToken}
-        onSent={(msg) => {
-          if (msg) {
-            const senderEmail = localStorage.getItem("gmail_sender_email") ?? "";
-            const optimistic: GmailMessage = {
-              id: `optimistic_${Date.now()}`,
-              direction: "sent",
-              fromName: "Me",
-              fromEmail: senderEmail,
-              toEmail: contact.email,
-              date: new Date().toISOString(),
-              subject: "",
-              body: msg.attachmentName ? `📎 ${msg.attachmentName}` : msg.body,
-              snippet: msg.attachmentName ? `📎 ${msg.attachmentName}` : msg.body,
-              attachments: [],
-            };
-            setMessages(prev => [...prev, optimistic]);
-          }
-          // Reload after delay to let Gmail index the inserted message
-          setTimeout(() => load(), 3000);
+        onSent={() => {
+          load();
+          setTimeout(() => {
+            load();
+            setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+          }, 1500);
         }}
         onTokenExpired={onTokenExpired}
         theme={theme}

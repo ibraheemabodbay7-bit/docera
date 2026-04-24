@@ -41,6 +41,7 @@ const config: CapacitorConfig = {
     // Permissions plugin — ensures iOS camera/photo-library prompts appear
     Permissions: {},
   },
+
 };
 
 export default config;

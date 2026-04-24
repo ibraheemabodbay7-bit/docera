@@ -25,6 +25,7 @@
 		"CAPCameraPlugin",
 		"FilesystemPlugin",
 		"SharePlugin",
-		"PurchasesPlugin"
+		"PurchasesPlugin",
+		"QuickLookPlugin"
 	]
 }

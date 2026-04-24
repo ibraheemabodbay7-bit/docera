@@ -10,15 +10,15 @@
 				<string>arm64</string>
 			</array>
 			<key>buildNumber</key>
-			<string>33</string>
+			<string>47</string>
 			<key>certificate</key>
 			<dict>
 				<key>SHA1</key>
-				<string>353021930C0E4235629D582537A871B79188439B</string>
+				<string>1514C3CFB780F4EDD40881D6668A079CBB270780</string>
 				<key>dateExpires</key>
-				<string>21/04/2027</string>
+				<string>24/04/2027</string>
 				<key>type</key>
-				<string>Cloud Managed Apple Distribution</string>
+				<string>Apple Distribution</string>
 			</dict>
 			<key>embeddedBinaries</key>
 			<array>
@@ -32,11 +32,11 @@
 					<key>certificate</key>
 					<dict>
 						<key>SHA1</key>
-						<string>353021930C0E4235629D582537A871B79188439B</string>
+						<string>1514C3CFB780F4EDD40881D6668A079CBB270780</string>
 						<key>dateExpires</key>
-						<string>21/04/2027</string>
+						<string>24/04/2027</string>
 						<key>type</key>
-						<string>Cloud Managed Apple Distribution</string>
+						<string>Apple Distribution</string>
 					</dict>
 					<key>name</key>
 					<string>Capacitor.framework</string>
@@ -62,11 +62,11 @@
 					<key>certificate</key>
 					<dict>
 						<key>SHA1</key>
-						<string>353021930C0E4235629D582537A871B79188439B</string>
+						<string>1514C3CFB780F4EDD40881D6668A079CBB270780</string>
 						<key>dateExpires</key>
-						<string>21/04/2027</string>
+						<string>24/04/2027</string>
 						<key>type</key>
-						<string>Cloud Managed Apple Distribution</string>
+						<string>Apple Distribution</string>
 					</dict>
 					<key>name</key>
 					<string>Cordova.framework</string>
@@ -99,9 +99,9 @@
 			<key>profile</key>
 			<dict>
 				<key>UUID</key>
-				<string>960dafec-2eb2-45ed-a866-603eaeefdb3b</string>
+				<string>bffdc493-4653-4381-969c-ae0870e96884</string>
 				<key>dateExpires</key>
-				<string>21/04/2027</string>
+				<string>24/04/2027</string>
 				<key>name</key>
 				<string>iOS Team Store Provisioning Profile: com.docera.app</string>
 			</dict>

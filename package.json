@@ -9,6 +9,7 @@
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
     "db:push": "drizzle-kit push",
+    "sync:ios": "npx cap sync ios && node -e \"const fs=require('fs'),p='ios/App/App/capacitor.config.json',c=JSON.parse(fs.readFileSync(p,'utf8'));if(!c.packageClassList.includes('QuickLookPlugin')){c.packageClassList.push('QuickLookPlugin');fs.writeFileSync(p,JSON.stringify(c,null,'\\t'))}\"",
     "deploy": "bash scripts/deploy-testflight.sh"
   },
   "dependencies": {

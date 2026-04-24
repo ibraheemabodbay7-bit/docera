@@ -8,7 +8,10 @@
       "Bash(npx cap *)",
       "Bash(npx tsc *)",
       "Bash(git init *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(python3 *)",
+      "Bash(node *)",
+      "Bash(awk '/Begin PBXSourcesBuildPhase/,/End PBXSourcesBuildPhase/' /Users/user/Downloads/app_output/ios/App/App.xcodeproj/project.pbxproj)"
     ]
   }
 }
