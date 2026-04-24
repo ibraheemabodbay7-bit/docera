@@ -1344,7 +1344,6 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid input" });
 
     const { to, senderEmail, body, attachmentBase64, attachmentName } = parsed.data;
-    const fromAddr = process.env.EMAIL_FROM ?? "no-reply@docera.app";
     const subject = `New message from ${senderEmail}`;
 
     let text: string;
@@ -1360,7 +1359,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     try {
       const resend = new Resend(process.env.RESEND_API_KEY);
       await resend.emails.send({
-        from: `Docera <${fromAddr}>`,
+        from: "Docera Chat <chat@docera.app>",
         to,
         reply_to: senderEmail,
         subject,
