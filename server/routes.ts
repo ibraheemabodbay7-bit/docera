@@ -1343,7 +1343,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid input" });
 
-    const { to, senderEmail, body, attachmentBase64, attachmentName } = parsed.data;
+    const { accessToken, to, senderEmail, body, attachmentBase64, attachmentName, attachmentMimeType } = parsed.data;
     const subject = `New message from ${senderEmail}`;
 
     let text: string;
@@ -1357,6 +1357,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     }
 
     try {
+      // Send via Resend
       const resendApiKey = process.env.RESEND_API_KEY;
       if (!resendApiKey) throw new Error("RESEND_API_KEY not configured");
       const resend = new Resend(resendApiKey);
@@ -1373,6 +1374,64 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         } : {}),
       });
       if (result.error) throw new Error(result.error.message ?? "Resend error");
+
+      // Insert a copy into Gmail Sent so it shows in the chat thread
+      try {
+        const oauth2Client = new google.auth.OAuth2(GMAIL_WEB_CLIENT_ID, GMAIL_WEB_CLIENT_SECRET);
+        oauth2Client.setCredentials({ access_token: accessToken });
+        const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+        const sentBody = attachmentBase64 && attachmentName ? `${senderEmail} sent you a document.` : body;
+        let mime: string;
+        if (attachmentBase64 && attachmentName) {
+          const boundary = `docera_${Date.now()}`;
+          const mimeType = attachmentMimeType ?? "application/octet-stream";
+          mime = [
+            `MIME-Version: 1.0`,
+            `To: ${to}`,
+            `From: ${senderEmail}`,
+            `Date: ${new Date().toUTCString()}`,
+            `Subject: =?UTF-8?B?${Buffer.from(subject, "utf-8").toString("base64")}?=`,
+            `Content-Type: multipart/mixed; boundary="${boundary}"`,
+            ``,
+            `--${boundary}`,
+            `Content-Type: text/plain; charset=UTF-8`,
+            `Content-Transfer-Encoding: base64`,
+            ``,
+            Buffer.from(sentBody, "utf-8").toString("base64"),
+            ``,
+            `--${boundary}`,
+            `Content-Type: ${mimeType}`,
+            `Content-Transfer-Encoding: base64`,
+            `Content-Disposition: attachment; filename="${attachmentName}"`,
+            ``,
+            attachmentBase64,
+            `--${boundary}--`,
+          ].join("\r\n");
+        } else {
+          mime = [
+            `MIME-Version: 1.0`,
+            `To: ${to}`,
+            `From: ${senderEmail}`,
+            `Date: ${new Date().toUTCString()}`,
+            `Subject: =?UTF-8?B?${Buffer.from(subject, "utf-8").toString("base64")}?=`,
+            `Content-Type: text/plain; charset=UTF-8`,
+            `Content-Transfer-Encoding: base64`,
+            ``,
+            Buffer.from(sentBody || " ", "utf-8").toString("base64"),
+          ].join("\r\n");
+        }
+        await gmail.users.messages.insert({
+          userId: "me",
+          requestBody: {
+            raw: Buffer.from(mime).toString("base64url"),
+            labelIds: ["SENT"],
+          },
+        });
+      } catch (gmailErr) {
+        // Non-fatal: email was sent, just couldn't store in Gmail
+        console.warn("[gmail/send-message] Gmail insert failed:", (gmailErr as Error).message);
+      }
+
       res.json({ ok: true });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to send";
