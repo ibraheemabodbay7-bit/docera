@@ -90,6 +90,159 @@ function getBaseUrl(req: Request): string {
 export async function registerRoutes(httpServer: Server, app: Express) {
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
+  app.get('/privacy', (_req, res) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Privacy Policy — Docera</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #ffffff;
+      color: #1a1a1a;
+      line-height: 1.7;
+      font-size: 16px;
+    }
+    header {
+      background: #113e61;
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header .logo {
+      font-size: 22px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.02em;
+    }
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      color: #113e61;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+    .updated {
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 40px;
+    }
+    h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #113e61;
+      margin-top: 36px;
+      margin-bottom: 10px;
+    }
+    p { margin-bottom: 14px; color: #333; }
+    ul {
+      margin: 0 0 14px 20px;
+      color: #333;
+    }
+    ul li { margin-bottom: 6px; }
+    a { color: #113e61; }
+    hr {
+      border: none;
+      border-top: 1px solid #e8e8e8;
+      margin: 40px 0;
+    }
+    .contact-box {
+      background: #f5f8fb;
+      border: 1px solid #d6e4ef;
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-top: 12px;
+    }
+    .contact-box p { margin: 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="logo">Docera</span>
+  </header>
+  <div class="container">
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: April 2026</p>
+
+    <p>Docera ("we", "our", or "us") is committed to protecting your privacy. This policy explains what information we collect, how we use it, and your rights regarding your data.</p>
+
+    <h2>1. Data We Collect</h2>
+    <p>When you use Docera, we may access or process the following types of data:</p>
+    <ul>
+      <li><strong>Email messages</strong> — subject lines, sender/recipient addresses, and body content from your Gmail inbox, used to organise your communications.</li>
+      <li><strong>PDF files and documents</strong> — files you scan, import, or send through the app.</li>
+      <li><strong>Photos</strong> — images captured via your device camera for document scanning, or retrieved from Gmail attachments.</li>
+      <li><strong>Account information</strong> — your name and email address when you create a Docera account.</li>
+    </ul>
+
+    <h2>2. How We Use Your Data</h2>
+    <ul>
+      <li>Organising and displaying your Gmail emails and threads in the app.</li>
+      <li>Sending documents and files to your clients on your behalf.</li>
+      <li>Classifying emails using AI to surface relevant messages.</li>
+      <li>Storing documents locally on your device for offline access.</li>
+    </ul>
+
+    <h2>3. Gmail Data Usage</h2>
+    <p>Docera uses the Google Gmail API to:</p>
+    <ul>
+      <li><strong>Read emails</strong> — to display your inbox and conversation threads inside the app.</li>
+      <li><strong>Send emails on your behalf</strong> — when you compose or forward documents to clients.</li>
+    </ul>
+    <p>Docera's use of Gmail data complies with the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">Google API Services User Data Policy</a>, including the Limited Use requirements. We do not use Gmail data to serve advertising, and we do not share Gmail data with third parties except as described in this policy.</p>
+
+    <h2>4. Data Storage</h2>
+    <p>Docera is designed with a <strong>local-first</strong> architecture:</p>
+    <ul>
+      <li>Your emails and documents are stored <strong>locally on your device</strong> using IndexedDB.</li>
+      <li>We do <strong>not</strong> store your email content or documents on our servers.</li>
+      <li>Authentication tokens required to access Gmail are stored securely on your device and used only to communicate with Google's APIs on your behalf.</li>
+    </ul>
+
+    <h2>5. Third-Party Services</h2>
+    <ul>
+      <li><strong>Google Gmail API</strong> — used to read and send emails. Subject to <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's Privacy Policy</a>.</li>
+      <li><strong>OpenAI</strong> — used for AI-powered email classification and organisation. Only minimal, non-identifying metadata may be sent. Subject to <a href="https://openai.com/policies/privacy-policy" target="_blank" rel="noopener">OpenAI's Privacy Policy</a>.</li>
+      <li><strong>RevenueCat</strong> — used to manage in-app subscriptions. Subject to <a href="https://www.revenuecat.com/privacy" target="_blank" rel="noopener">RevenueCat's Privacy Policy</a>.</li>
+    </ul>
+
+    <h2>6. Data Sharing</h2>
+    <p>We do not sell, rent, or share your personal data with third parties for marketing purposes. Data is only shared with the third-party services listed above, and only to the extent necessary to provide the app's functionality.</p>
+
+    <h2>7. Data Retention & Deletion</h2>
+    <p>Because email and document data is stored locally on your device, you can delete it at any time by removing the app. If you delete your Docera account, any server-side account data (name, email address) is permanently deleted.</p>
+
+    <h2>8. Security</h2>
+    <p>We use industry-standard practices to protect your data, including secure HTTPS connections and OAuth 2.0 for Gmail authentication. We never store your Google account password.</p>
+
+    <h2>9. Children's Privacy</h2>
+    <p>Docera is not directed at children under 13. We do not knowingly collect personal information from children under 13.</p>
+
+    <h2>10. Changes to This Policy</h2>
+    <p>We may update this privacy policy from time to time. We will notify you of significant changes by updating the "Last updated" date at the top of this page.</p>
+
+    <hr/>
+
+    <h2>Contact Us</h2>
+    <div class="contact-box">
+      <p>If you have any questions or concerns about this privacy policy, please contact us at:<br/>
+      <strong><a href="mailto:privacy@docera.app">privacy@docera.app</a></strong></p>
+    </div>
+  </div>
+</body>
+</html>`);
+  });
+
   // ── Auth ──────────────────────────────────────────────────────────────────
 
   app.post("/api/auth/signup", async (req, res) => {
