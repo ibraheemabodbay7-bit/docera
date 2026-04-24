@@ -848,17 +848,18 @@ function ChatInput({
     return () => { vv.removeEventListener("resize", handler); vv.removeEventListener("scroll", handler); };
   }, []);
 
-  const baseSubject = (s: string) => s.replace(/^(Re|Fwd):\s*/gi, '').trim();
-
-  const defaultSubject = () =>
-    contact.lastSubject ? `Re: ${baseSubject(contact.lastSubject)}` : "Message from Docera";
+  const defaultSubject = () => {
+    const cleanSubject = (contact.lastSubject ?? '').replace(/^(Re:\s*)+/i, '').trim();
+    return cleanSubject ? `Re: ${cleanSubject}` : 'Message from Docera';
+  };
 
   const sendText = async () => {
     if (!text.trim() || sending) return;
     setSending(true);
     try {
       const body = text.trim() || " ";
-      const subject = contact.lastSubject ? `Re: ${baseSubject(contact.lastSubject)}` : "Message from Docera";
+      const cleanSubject = (contact.lastSubject ?? '').replace(/^(Re:\s*)+/i, '').trim();
+      const subject = cleanSubject ? `Re: ${cleanSubject}` : 'Message';
       console.log("[sendText] to:", contact.email, "subject:", subject);
       await gmailPost(
         "/api/gmail/send-message",

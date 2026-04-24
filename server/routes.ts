@@ -23,6 +23,17 @@ const sp = (v: string | string[]): string => Array.isArray(v) ? (v[0] ?? "") : v
 const encodeSubject = (s: string) =>
   `=?UTF-8?B?${Buffer.from(s, "utf8").toString("base64")}?=`;
 
+// Quoted-printable encode body text so non-ASCII chars survive MIME transport
+function toQuotedPrintable(str: string): string {
+  return str.split('').map(char => {
+    const code = char.charCodeAt(0);
+    if (code > 127) {
+      return encodeURIComponent(char).replace(/%/g, '=').toUpperCase();
+    }
+    return char;
+  }).join('');
+}
+
 const GMAIL_WEB_CLIENT_ID = process.env.GMAIL_WEB_CLIENT_ID ?? "";
 const GMAIL_WEB_CLIENT_SECRET = process.env.GMAIL_WEB_CLIENT_SECRET ?? "";
 const GMAIL_RAILWAY_REDIRECT = process.env.GMAIL_REDIRECT_URI ?? "https://docera-production.up.railway.app/api/gmail/callback";
@@ -1014,9 +1025,10 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       `Content-Type: multipart/mixed; boundary="${boundary}"`,
       ``,
       `--${boundary}`,
-      `Content-Type: text/plain; charset=utf-8`,
+      `Content-Type: text/plain; charset=UTF-8`,
+      `Content-Transfer-Encoding: quoted-printable`,
       ``,
-      body,
+      toQuotedPrintable(body),
       ``,
       `--${boundary}`,
       `Content-Type: application/pdf`,
@@ -1347,9 +1359,10 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         `Content-Type: multipart/mixed; boundary="${boundary}"`,
         ``,
         `--${boundary}`,
-        `Content-Type: text/plain; charset=utf-8`,
+        `Content-Type: text/plain; charset=UTF-8`,
+        `Content-Transfer-Encoding: quoted-printable`,
         ``,
-        body || " ",
+        toQuotedPrintable(body || " "),
         ``,
         `--${boundary}`,
         `Content-Type: ${mimeType}`,
@@ -1364,9 +1377,10 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         `MIME-Version: 1.0`,
         `To: ${to}`,
         `Subject: ${encodeSubject(subject)}`,
-        `Content-Type: text/plain; charset=utf-8`,
+        `Content-Type: text/plain; charset=UTF-8`,
+        `Content-Transfer-Encoding: quoted-printable`,
         ``,
-        body || " ",
+        toQuotedPrintable(body || " "),
       ].join("\r\n");
     }
 
