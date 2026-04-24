@@ -566,10 +566,11 @@ function ForwardSheet({
       const attData = await gmailPost<{ base64: string }>(
         "/api/gmail/attachment", { messageId, attachmentId: attachment.id }, token, refreshToken,
       );
+      const senderEmail = localStorage.getItem("gmail_sender_email") ?? "";
       await gmailPost("/api/gmail/send-message", {
         to: contact.email,
-        subject: `Fwd: ${attachment.name}`,
-        body: `Forwarding ${attachment.name}`,
+        senderEmail,
+        body: "",
         attachmentBase64: attData.base64,
         attachmentName: attachment.name,
         attachmentMimeType: attachment.mimeType || "application/octet-stream",
@@ -855,12 +856,10 @@ function ChatInput({
     setSending(true);
     try {
       const messageText = text.trim();
-      const subject = `New message from ${contact.name} (via Docera)`;
-      const body = `Hi,\n\n${contact.name} sent you a message:\n\n"${messageText}"\n\nReply directly to continue the conversation.\n\n— Docera`;
-      console.log("[sendText] to:", contact.email, "subject:", subject);
+      const senderEmail = localStorage.getItem("gmail_sender_email") ?? "";
       await gmailPost(
         "/api/gmail/send-message",
-        { to: contact.email, subject, body },
+        { to: contact.email, senderEmail, body: messageText },
         token,
         refreshToken,
       );
@@ -912,10 +911,11 @@ function ChatInput({
     setSendingDocId(doc.id);
     try {
       const pdfBase64 = doc.dataUrl.includes(",") ? doc.dataUrl.split(",")[1] : doc.dataUrl;
+      const senderEmail = localStorage.getItem("gmail_sender_email") ?? "";
       await gmailPost("/api/gmail/send-message", {
         to: contact.email,
-        subject: defaultSubject(),
-        body: `Hi,\n\n${contact.name} shared a document with you:\n\n${doc.name}\n\nOpen the app to view and reply.\n\n— Docera`,
+        senderEmail,
+        body: "",
         attachmentBase64: pdfBase64,
         attachmentName: `${doc.name}.pdf`,
         attachmentMimeType: "application/pdf",
@@ -1392,7 +1392,8 @@ function ContactList({
     setLoading(true);
     setError(null);
     try {
-      const data = await gmailPost<{ contacts: Contact[] }>("/api/gmail/messages", {}, token, refreshToken);
+      const data = await gmailPost<{ myEmail?: string; contacts: Contact[] }>("/api/gmail/messages", {}, token, refreshToken);
+      if (data.myEmail) localStorage.setItem("gmail_sender_email", data.myEmail);
       setContacts(data.contacts);
       onContactsLoaded(data.contacts);
     } catch (err) {

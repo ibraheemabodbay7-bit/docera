@@ -1329,12 +1329,12 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     }
   });
 
-  // ── Gmail: send message (text only or with attachment) ────────────────────
+  // ── Gmail: send message via Resend ────────────────────────────────────────
   app.post("/api/gmail/send-message", async (req, res) => {
     const schema = z.object({
       accessToken: z.string().min(1),
       to: z.string().min(1),
-      subject: z.string().min(1),
+      senderEmail: z.string().email(),
       body: z.string().default(""),
       attachmentBase64: z.string().optional(),
       attachmentName: z.string().optional(),
@@ -1343,52 +1343,32 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid input" });
 
-    const { accessToken, to, subject, body, attachmentBase64, attachmentName, attachmentMimeType } = parsed.data;
-    const oauth2Client = new google.auth.OAuth2(GMAIL_WEB_CLIENT_ID, GMAIL_WEB_CLIENT_SECRET);
-    oauth2Client.setCredentials({ access_token: accessToken });
-    const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+    const { to, senderEmail, body, attachmentBase64, attachmentName } = parsed.data;
+    const fromAddr = process.env.EMAIL_FROM ?? "no-reply@docera.app";
+    const subject = `New message from ${senderEmail}`;
 
-    let mime: string;
+    let text: string;
+    let html: string;
     if (attachmentBase64 && attachmentName) {
-      const boundary = `docera_${Date.now()}`;
-      const mimeType = attachmentMimeType ?? "application/octet-stream";
-      mime = [
-        `MIME-Version: 1.0`,
-        `To: ${to}`,
-        `Subject: ${encodeSubject(subject)}`,
-        `Content-Type: multipart/mixed; boundary="${boundary}"`,
-        ``,
-        `--${boundary}`,
-        `Content-Type: text/plain; charset=UTF-8`,
-        `Content-Transfer-Encoding: base64`,
-        ``,
-        Buffer.from(body || " ", "utf-8").toString("base64"),
-        ``,
-        `--${boundary}`,
-        `Content-Type: ${mimeType}`,
-        `Content-Transfer-Encoding: base64`,
-        `Content-Disposition: attachment; filename="${attachmentName}"`,
-        ``,
-        attachmentBase64,
-        `--${boundary}--`,
-      ].join("\r\n");
+      text = `${senderEmail} sent you a document.\n\n— Sent via Docera`;
+      html = `<p><strong>${senderEmail}</strong> sent you a document.</p><p style="color:#888;font-size:12px">— Sent via Docera</p>`;
     } else {
-      const encodedBody = Buffer.from(body || " ", "utf-8").toString("base64");
-      mime = [
-        `MIME-Version: 1.0`,
-        `To: ${to}`,
-        `Subject: =?UTF-8?B?${Buffer.from(subject, "utf-8").toString("base64")}?=`,
-        `Content-Type: text/plain; charset=UTF-8`,
-        `Content-Transfer-Encoding: base64`,
-        ``,
-        encodedBody,
-      ].join("\r\n");
+      text = `${body}\n\n— Sent via Docera`;
+      html = `<p>${body.replace(/\n/g, "<br/>")}</p><p style="color:#888;font-size:12px">— Sent via Docera</p>`;
     }
 
     try {
-      await gmail.users.messages.send({
-        userId: "me",
-        requestBody: { raw: Buffer.from(mime).toString("base64url") },
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      await resend.emails.send({
+        from: `Docera <${fromAddr}>`,
+        to,
+        reply_to: senderEmail,
+        subject,
+        text,
+        html,
+        ...(attachmentBase64 && attachmentName ? {
+          attachments: [{ filename: attachmentName, content: attachmentBase64 }],
+        } : {}),
       });
       res.json({ ok: true });
     } catch (err: unknown) {
