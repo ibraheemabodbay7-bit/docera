@@ -1334,7 +1334,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const schema = z.object({
       accessToken: z.string().min(1),
       to: z.string().min(1),
-      senderEmail: z.string().email().optional().default(""),
+      senderEmail: z.string().optional().default(""),
       body: z.string().default(""),
       attachmentBase64: z.string().optional(),
       attachmentName: z.string().optional(),
