@@ -848,18 +848,15 @@ function ChatInput({
     return () => { vv.removeEventListener("resize", handler); vv.removeEventListener("scroll", handler); };
   }, []);
 
-  const defaultSubject = () => {
-    const cleanSubject = (contact.lastSubject ?? '').replace(/^(Re:\s*)+/i, '').trim();
-    return cleanSubject ? `Re: ${cleanSubject}` : 'Message from Docera';
-  };
+  const defaultSubject = () => `${contact.name} sent you a document (Docera)`;
 
   const sendText = async () => {
     if (!text.trim() || sending) return;
     setSending(true);
     try {
-      const body = text.trim() || " ";
-      const cleanSubject = (contact.lastSubject ?? '').replace(/^(Re:\s*)+/i, '').trim();
-      const subject = cleanSubject ? `Re: ${cleanSubject}` : 'Message';
+      const messageText = text.trim();
+      const subject = `New message from ${contact.name} (via Docera)`;
+      const body = `Hi,\n\n${contact.name} sent you a message:\n\n"${messageText}"\n\nReply directly to continue the conversation.\n\n— Docera`;
       console.log("[sendText] to:", contact.email, "subject:", subject);
       await gmailPost(
         "/api/gmail/send-message",
@@ -918,7 +915,7 @@ function ChatInput({
       await gmailPost("/api/gmail/send-message", {
         to: contact.email,
         subject: defaultSubject(),
-        body: `Please find the attached document: ${doc.name}`,
+        body: `Hi,\n\n${contact.name} shared a document with you:\n\n${doc.name}\n\nOpen the app to view and reply.\n\n— Docera`,
         attachmentBase64: pdfBase64,
         attachmentName: `${doc.name}.pdf`,
         attachmentMimeType: "application/pdf",

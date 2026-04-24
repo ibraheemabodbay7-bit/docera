@@ -1021,7 +1021,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const mime = [
       `MIME-Version: 1.0`,
       `To: ${to}`,
-      `Subject: ${encodeSubject(subject)}`,
+      `Subject: =?UTF-8?B?${Buffer.from(subject, "utf-8").toString("base64")}?=`,
       `Content-Type: multipart/mixed; boundary="${boundary}"`,
       ``,
       `--${boundary}`,
