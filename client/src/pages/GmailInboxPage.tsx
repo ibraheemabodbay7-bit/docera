@@ -336,12 +336,9 @@ function DateSeparator({ dateStr, theme }: { dateStr: string; theme: Theme }) {
   if (!label) return null;
   return (
     <div className="flex items-center justify-center my-3">
-      <span
-        className="px-3 py-1 rounded-full text-[11px] font-medium"
-        style={{ background: theme.pillBg, color: theme.subText }}
-      >
+      <div style={{ fontSize: 10, letterSpacing: '0.22em', color: theme.subText, textTransform: 'uppercase' }}>
         {label}
-      </span>
+      </div>
     </div>
   );
 }
@@ -1295,7 +1292,7 @@ function ThreadView({
       </div>
 
       {/* Messages */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-4" style={{ position: "relative" }}>
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-4 messages-scroll" style={{ position: "relative" }}>
         {showLoadPill && (
           <div
             style={{
