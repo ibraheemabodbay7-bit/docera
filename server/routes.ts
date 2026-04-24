@@ -102,13 +102,13 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #ffffff;
+      background: #fef7ed;
       color: #1a1a1a;
       line-height: 1.7;
       font-size: 16px;
     }
     header {
-      background: #113e61;
+      background: #00332a;
       padding: 20px 24px;
       display: flex;
       align-items: center;
@@ -128,7 +128,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     h1 {
       font-size: 32px;
       font-weight: 700;
-      color: #113e61;
+      color: #00332a;
       letter-spacing: -0.02em;
       margin-bottom: 8px;
     }
@@ -140,7 +140,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     h2 {
       font-size: 18px;
       font-weight: 600;
-      color: #113e61;
+      color: #00332a;
       margin-top: 36px;
       margin-bottom: 10px;
     }
@@ -150,15 +150,15 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       color: #333;
     }
     ul li { margin-bottom: 6px; }
-    a { color: #113e61; }
+    a { color: #00332a; }
     hr {
       border: none;
       border-top: 1px solid #e8e8e8;
       margin: 40px 0;
     }
     .contact-box {
-      background: #f5f8fb;
-      border: 1px solid #d6e4ef;
+      background: #f0e8dc;
+      border: 1px solid #d6c9b0;
       border-radius: 10px;
       padding: 20px 24px;
       margin-top: 12px;
@@ -236,7 +236,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     <h2>Contact Us</h2>
     <div class="contact-box">
       <p>If you have any questions or concerns about this privacy policy, please contact us at:<br/>
-      <strong><a href="mailto:privacy@docera.app">privacy@docera.app</a></strong></p>
+      <strong><a href="mailto:ibraheemabodbay7@gmail.com">ibraheemabodbay7@gmail.com</a></strong></p>
     </div>
   </div>
 </body>
