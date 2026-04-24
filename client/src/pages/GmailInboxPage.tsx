@@ -827,7 +827,7 @@ function MessageBubble({
 function ChatInput({
   contact, token, refreshToken, onSent, onTokenExpired, theme,
 }: {
-  contact: Contact; token: string; refreshToken?: string | null; onSent: () => void; onTokenExpired: () => void; theme: Theme;
+  contact: Contact; token: string; refreshToken?: string | null; onSent: (sentMessage?: GmailMessage) => void; onTokenExpired: () => void; theme: Theme;
 }) {
   const { toast } = useToast();
   const [text, setText] = useState("");
@@ -858,13 +858,13 @@ function ChatInput({
     setSending(true);
     try {
       const senderEmail = localStorage.getItem("gmail_sender_email") ?? "";
-      await gmailPost(
+      const result = await gmailPost<{ ok: boolean; sentMessage?: GmailMessage }>(
         "/api/gmail/send-message",
         { to: contact.email, senderEmail, body: messageText },
         token,
         refreshToken,
       );
-      onSent();
+      onSent(result.sentMessage);
     } catch (err) {
       const e = err as Error & { status?: number };
       console.error("[sendText] caught:", e.name, e.message);
@@ -912,7 +912,7 @@ function ChatInput({
     try {
       const pdfBase64 = doc.dataUrl.includes(",") ? doc.dataUrl.split(",")[1] : doc.dataUrl;
       const senderEmail = localStorage.getItem("gmail_sender_email") ?? "";
-      await gmailPost("/api/gmail/send-message", {
+      const result = await gmailPost<{ ok: boolean; sentMessage?: GmailMessage }>("/api/gmail/send-message", {
         to: contact.email,
         senderEmail,
         body: "",
@@ -922,7 +922,7 @@ function ChatInput({
       }, token, refreshToken);
       setShowDocPicker(false);
       toast({ title: "Sent!", description: `${doc.name} → ${contact.name}` });
-      onSent();
+      onSent(result.sentMessage);
     } catch (err) {
       toast({ title: "Failed to send", description: (err as Error).message, variant: "destructive" });
     } finally {
@@ -1346,12 +1346,12 @@ function ThreadView({
         contact={contact}
         token={token}
         refreshToken={refreshToken}
-        onSent={() => {
-          load();
-          setTimeout(() => {
-            load();
-            setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-          }, 1500);
+        onSent={(sentMessage) => {
+          if (sentMessage) {
+            setMessages(prev => [...prev, sentMessage]);
+            setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+          }
+          setTimeout(() => load(), 2000);
         }}
         onTokenExpired={onTokenExpired}
         theme={theme}
