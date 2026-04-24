@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { motion, AnimatePresence, useMotionValue, useTransform, animate } from "framer-motion";
 import {
   ArrowLeft, Mail, RefreshCw, FileText, Send, X, AlertCircle,
   Plus, Paperclip, Share2, Loader2, WifiOff, Sun, Moon, ImageOff, Search,
@@ -17,6 +18,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE } from "@/lib/queryClient";
 import ClientProfilePage from "./ClientProfilePage";
+import { GlassCard, GlassModal, AnimatedButton, PageTransition } from "@/components/Glass";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -203,6 +205,26 @@ async function openPdfNative(base64: string, name: string) {
     const a = document.createElement("a");
     a.href = url; a.download = name; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+}
+
+async function openWithQuickLook(att: GmailAttachment, msgId: string, token: string, refreshToken?: string | null) {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    let b64 = base64Cache.get(att.id);
+    if (!b64) {
+      const data = await gmailPost<{ base64: string }>(
+        "/api/gmail/attachment",
+        { messageId: msgId, attachmentId: att.id },
+        token,
+        refreshToken,
+      );
+      b64 = data.base64;
+      base64Cache.set(att.id, b64);
+    }
+    await openPdfNative(b64, att.name);
+  } catch (err) {
+    console.error("QuickLook open error:", err);
   }
 }
 
@@ -564,14 +586,8 @@ function ForwardSheet({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div
-        className="relative w-full rounded-t-3xl shadow-2xl max-h-[75vh] flex flex-col"
-        style={{ background: theme.header, paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
-      >
-        <div className="pt-3 pb-3 px-5 flex-shrink-0 border-b" style={{ borderColor: theme.border }}>
-          <div className="w-10 h-1 rounded-full mx-auto mb-4" style={{ background: theme.subText }} />
+    <GlassModal open={true} onClose={onClose} style={{ background: theme.header, maxHeight: "75vh", display: "flex", flexDirection: "column" }}>
+      <div className="pt-3 pb-3 px-5 flex-shrink-0 border-b" style={{ borderColor: theme.border }}>
           <div className="flex items-center justify-between mb-3">
             <p className="font-bold text-base" style={{ color: theme.receivedText }}>Forward</p>
             <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: theme.pillBg }}>
@@ -613,8 +629,7 @@ function ForwardSheet({
             <p className="text-center text-sm py-8" style={{ color: theme.subText }}>No contacts found</p>
           )}
         </div>
-      </div>
-    </div>
+    </GlassModal>
   );
 }
 
@@ -962,85 +977,67 @@ function ChatInput({
   return (
     <>
       {/* Action sheet */}
-      {showActionSheet && (
-        <div className="fixed inset-0 z-40 flex items-end">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowActionSheet(false)} />
-          <div
-            className="relative w-full rounded-t-3xl shadow-2xl"
-            style={{ background: theme.header, paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
+      <GlassModal open={showActionSheet} onClose={() => setShowActionSheet(false)} style={{ background: theme.header }}>
+        <div className="px-4 pb-2 flex flex-col gap-2 mt-4">
+          <button
+            onClick={openDocPicker}
+            disabled={loadingDocs}
+            className="flex items-center gap-3 p-4 rounded-2xl active:opacity-70"
+            style={{ background: theme.cardBg }}
           >
-            <div className="w-10 h-1 rounded-full mx-auto mt-3 mb-4" style={{ background: theme.subText }} />
-            <div className="px-4 pb-2 flex flex-col gap-2">
-              <button
-                onClick={openDocPicker}
-                disabled={loadingDocs}
-                className="flex items-center gap-3 p-4 rounded-2xl active:opacity-70"
-                style={{ background: theme.cardBg }}
-              >
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: theme.avatarBg }}>
-                  <FileText className="w-5 h-5" style={{ color: theme.avatarText }} />
-                </div>
-                <span className="font-semibold" style={{ color: theme.receivedText }}>From Docera</span>
-                {loadingDocs && <Loader2 className="w-4 h-4 animate-spin ml-auto" style={{ color: theme.subText }} />}
-              </button>
-              <button
-                onClick={() => { setShowActionSheet(false); fileInputRef.current?.click(); }}
-                className="flex items-center gap-3 p-4 rounded-2xl active:opacity-70"
-                style={{ background: theme.cardBg }}
-              >
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: theme.avatarBg }}>
-                  <Paperclip className="w-5 h-5" style={{ color: theme.avatarText }} />
-                </div>
-                <span className="font-semibold" style={{ color: theme.receivedText }}>Photo / File from iPhone</span>
-              </button>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: theme.avatarBg }}>
+              <FileText className="w-5 h-5" style={{ color: theme.avatarText }} />
             </div>
-          </div>
+            <span className="font-semibold" style={{ color: theme.receivedText }}>From Docera</span>
+            {loadingDocs && <Loader2 className="w-4 h-4 animate-spin ml-auto" style={{ color: theme.subText }} />}
+          </button>
+          <button
+            onClick={() => { setShowActionSheet(false); fileInputRef.current?.click(); }}
+            className="flex items-center gap-3 p-4 rounded-2xl active:opacity-70"
+            style={{ background: theme.cardBg }}
+          >
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: theme.avatarBg }}>
+              <Paperclip className="w-5 h-5" style={{ color: theme.avatarText }} />
+            </div>
+            <span className="font-semibold" style={{ color: theme.receivedText }}>Photo / File from iPhone</span>
+          </button>
         </div>
-      )}
+      </GlassModal>
 
       {/* Doc picker */}
-      {showDocPicker && (
-        <div className="fixed inset-0 z-40 flex items-end">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowDocPicker(false)} />
-          <div
-            className="relative w-full rounded-t-3xl shadow-2xl max-h-[70vh] flex flex-col"
-            style={{ background: theme.header, paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
-          >
-            <div className="pt-3 pb-4 px-5 flex-shrink-0 border-b" style={{ borderColor: theme.border }}>
-              <div className="w-10 h-1 rounded-full mx-auto mb-4" style={{ background: theme.subText }} />
-              <div className="flex items-center justify-between">
-                <p className="font-bold" style={{ color: theme.receivedText }}>Send a Document</p>
-                <button onClick={() => setShowDocPicker(false)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: theme.pillBg }}>
-                  <X className="w-4 h-4" style={{ color: theme.subText }} />
-                </button>
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto px-5 py-3 flex flex-col gap-2">
-              {docs.length === 0
-                ? <p className="text-center text-sm py-8" style={{ color: theme.subText }}>No documents found</p>
-                : docs.map(doc => (
-                  <button
-                    key={doc.id}
-                    onClick={() => sendDoc(doc)}
-                    disabled={!!sendingDocId}
-                    className="flex items-center gap-3 p-3 rounded-2xl active:opacity-70 disabled:opacity-50 text-left"
-                    style={{ background: theme.cardBg }}
-                  >
-                    <div className="w-10 h-10 rounded-xl bg-red-500 flex items-center justify-center flex-shrink-0">
-                      <span className="text-white text-[9px] font-bold">PDF</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate" style={{ color: theme.receivedText }}>{doc.name}</p>
-                      <p className="text-xs uppercase" style={{ color: theme.subText }}>{doc.type}</p>
-                    </div>
-                    {sendingDocId === doc.id && <Loader2 className="w-4 h-4 animate-spin" style={{ color: theme.subText }} />}
-                  </button>
-                ))
-              }
-            </div>
+      <GlassModal open={showDocPicker} onClose={() => setShowDocPicker(false)} style={{ background: theme.header, maxHeight: "70vh", display: "flex", flexDirection: "column" }}>
+        <div className="pt-3 pb-4 px-5 flex-shrink-0 border-b" style={{ borderColor: theme.border }}>
+          <div className="flex items-center justify-between">
+            <p className="font-bold" style={{ color: theme.receivedText }}>Send a Document</p>
+            <button onClick={() => setShowDocPicker(false)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: theme.pillBg }}>
+              <X className="w-4 h-4" style={{ color: theme.subText }} />
+            </button>
           </div>
         </div>
-      )}
+        <div className="flex-1 overflow-y-auto px-5 py-3 flex flex-col gap-2">
+          {docs.length === 0
+            ? <p className="text-center text-sm py-8" style={{ color: theme.subText }}>No documents found</p>
+            : docs.map(doc => (
+              <button
+                key={doc.id}
+                onClick={() => sendDoc(doc)}
+                disabled={!!sendingDocId}
+                className="flex items-center gap-3 p-3 rounded-2xl active:opacity-70 disabled:opacity-50 text-left"
+                style={{ background: theme.cardBg }}
+              >
+                <div className="w-10 h-10 rounded-xl bg-red-500 flex items-center justify-center flex-shrink-0">
+                  <span className="text-white text-[9px] font-bold">PDF</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate" style={{ color: theme.receivedText }}>{doc.name}</p>
+                  <p className="text-xs uppercase" style={{ color: theme.subText }}>{doc.type}</p>
+                </div>
+                {sendingDocId === doc.id && <Loader2 className="w-4 h-4 animate-spin" style={{ color: theme.subText }} />}
+              </button>
+            ))
+          }
+        </div>
+      </GlassModal>
 
       <input
         ref={fileInputRef}
@@ -1088,7 +1085,7 @@ function ChatInput({
           }}
         />
 
-        <button
+        <AnimatedButton
           onClick={sendText}
           disabled={!text.trim() || sending}
           className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-60 mb-1 disabled:opacity-40"
@@ -1098,160 +1095,11 @@ function ChatInput({
             ? <Loader2 className="w-4 h-4 animate-spin" style={{ color: theme.avatarText }} />
             : <Send className="w-4 h-4 text-white" />
           }
-        </button>
+        </AnimatedButton>
       </div>
     </>
   );
 }
-
-// ─── PDF Viewer ───────────────────────────────────────────────────────────────
-
-function PdfViewer({ attachment, messageId, token, refreshToken, onClose }: {
-  attachment: GmailAttachment;
-  messageId: string;
-  token: string;
-  refreshToken?: string | null;
-  onClose: () => void;
-}) {
-  const [pages, setPages] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        let b64 = base64Cache.get(attachment.id);
-        if (!b64) {
-          const data = await gmailPost<{ base64: string }>(
-            "/api/gmail/attachment",
-            { messageId, attachmentId: attachment.id },
-            token,
-            refreshToken,
-          );
-          b64 = data.base64;
-          base64Cache.set(attachment.id, b64);
-        }
-        if (cancelled) return;
-        const pdfjsLib = await import("pdfjs-dist");
-        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-          "pdfjs-dist/build/pdf.worker.min.mjs",
-          import.meta.url,
-        ).href;
-        const binary = atob(b64);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
-        const pageDataUrls: string[] = [];
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const viewport = page.getViewport({ scale: 2.0 });
-          const canvas = document.createElement("canvas");
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
-          const ctx = canvas.getContext("2d")!;
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          await page.render({ canvasContext: ctx, viewport }).promise;
-          pageDataUrls.push(canvas.toDataURL("image/jpeg", 0.85));
-        }
-        if (!cancelled) setPages(pageDataUrls);
-      } catch {
-        if (!cancelled) setError(true);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [attachment.id]);
-
-  const share = async () => {
-    try {
-      const { Filesystem, Directory } = await import("@capacitor/filesystem");
-      const { Share } = await import("@capacitor/share");
-      const b64 = base64Cache.get(attachment.id) ?? "";
-      const safe = attachment.name.replace(/[^a-z0-9._-]/gi, "_");
-      const fileName = safe.endsWith(".pdf") ? safe : `${safe}.pdf`;
-      await Filesystem.writeFile({ path: fileName, data: b64, directory: Directory.Cache, recursive: true });
-      const { uri } = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
-      await Share.share({ url: uri, title: attachment.name });
-    } catch (err) { console.error(err); }
-  };
-
-  return (
-    <div style={{
-      position: 'fixed',
-      top: 0, left: 0, right: 0, bottom: 0,
-      zIndex: 99999,
-      background: '#000',
-      display: 'flex',
-      flexDirection: 'column',
-    }}>
-      <div style={{
-        flexShrink: 0,
-        paddingTop: 'max(3rem, env(safe-area-inset-top))',
-        paddingBottom: 12,
-        paddingLeft: 16,
-        paddingRight: 16,
-        background: '#111',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-      }}>
-        <button onClick={onClose} style={{
-          color: 'white', background: 'none', border: 'none',
-          fontSize: 17, fontWeight: 600, cursor: 'pointer', padding: '4px 8px'
-        }}>
-          Done
-        </button>
-        <span style={{
-          color: 'white', fontSize: 14, fontWeight: 600,
-          flex: 1, textAlign: 'center', overflow: 'hidden',
-          textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: '0 12px'
-        }}>
-          {attachment.name}
-        </span>
-        <div style={{ width: 60 }} />
-      </div>
-
-      <div style={{ flex: 1, overflowY: 'auto', background: '#1a1a1a' }}>
-        {loading ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
-            <Loader2 style={{ color: 'rgba(255,255,255,0.4)', width: 32, height: 32 }} className="animate-spin" />
-          </div>
-        ) : error ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
-            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>Could not load PDF</p>
-          </div>
-        ) : (
-          pages.map((dataUrl, i) => (
-            <img key={i} src={dataUrl} style={{ width: '100%', display: 'block', marginBottom: 4 }} alt={`Page ${i + 1}`} />
-          ))
-        )}
-      </div>
-
-      <div style={{
-        flexShrink: 0,
-        paddingBottom: 'max(2rem, env(safe-area-inset-bottom))',
-        paddingTop: 12,
-        background: '#111',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-around',
-      }}>
-        <button onClick={share} style={{
-          background: 'none', border: 'none', color: 'white',
-          display: 'flex', flexDirection: 'column', alignItems: 'center',
-          gap: 4, cursor: 'pointer'
-        }}>
-          <Share2 style={{ width: 24, height: 24 }} />
-          <span style={{ fontSize: 11 }}>Share</span>
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ─── Thread view ──────────────────────────────────────────────────────────────
 
 function ThreadView({
@@ -1270,10 +1118,7 @@ function ThreadView({
   const [showSearch, setShowSearch] = useState(false);
   const [search, setSearch] = useState("");
   const [showLoadPill, setShowLoadPill] = useState(false);
-  const [viewerAtt, setViewerAtt] = useState<GmailAttachment | null>(null);
-  const [viewerMsgId, setViewerMsgId] = useState<string>("");
   const [showProfile, setShowProfile] = useState(false);
-  const [filesExpanded, setFilesExpanded] = useState(false);
   const loadFailCountRef = useRef(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -1324,7 +1169,7 @@ function ThreadView({
   useEffect(() => {
     const el = messagesContainerRef.current;
     if (!el) return;
-    const handler = () => setShowLoadPill(el.scrollTop < 80 && hasMore);
+    const handler = () => setShowLoadPill(el.scrollTop < 60 && hasMore);
     el.addEventListener("scroll", handler);
     return () => el.removeEventListener("scroll", handler);
   }, [hasMore]);
@@ -1380,7 +1225,7 @@ function ThreadView({
       }
       nodes.push(
         <MessageBubble key={msg.id} msg={msg} token={token} refreshToken={refreshToken} contacts={contacts} theme={theme} searchQuery={search}
-          onOpenPdf={(att, msgId) => { setViewerAtt(att); setViewerMsgId(msgId); }} />,
+          onOpenPdf={(att, msgId) => openWithQuickLook(att, msgId, token, refreshToken)} />,
       );
     }
     return nodes;
@@ -1395,17 +1240,8 @@ function ThreadView({
         token={token}
         refreshToken={refreshToken}
         onBack={() => setShowProfile(false)}
-        onOpenPdf={(att, msgId) => { setViewerAtt(att); setViewerMsgId(msgId); setShowProfile(false); }}
+        onOpenPdf={(att, msgId) => { openWithQuickLook(att, msgId, token, refreshToken); setShowProfile(false); }}
         onOpenConversation={() => setShowProfile(false)}
-      />
-    )}
-    {viewerAtt && (
-      <PdfViewer
-        attachment={viewerAtt}
-        messageId={viewerMsgId}
-        token={token}
-        refreshToken={refreshToken}
-        onClose={() => setViewerAtt(null)}
       />
     )}
     <div className="flex flex-col h-full" style={{ background: theme.bg }}>
@@ -1463,15 +1299,16 @@ function ThreadView({
         {showLoadPill && (
           <div
             style={{
-              position: "absolute", top: 8, left: "50%", transform: "translateX(-50%)",
-              zIndex: 10, background: "rgba(0,0,0,0.7)", borderRadius: 20,
-              padding: "6px 16px", cursor: "pointer", color: "white", fontSize: 12,
-              display: "flex", alignItems: "center", gap: 6,
+              position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)',
+              zIndex: 10, background: 'rgba(255,255,255,0.9)', borderRadius: 20,
+              padding: '6px 14px', cursor: 'pointer', color: '#000', fontSize: 13,
+              fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6,
+              boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
             }}
             onClick={loadOlder}
           >
-            {loadingOlder ? <Loader2 size={12} className="animate-spin" /> : "↑"}
-            {" "}Load older messages
+            {loadingOlder && <Loader2 size={12} className="animate-spin" />}
+            Load Earlier Messages
           </div>
         )}
         {loading && messages.length === 0 ? (
@@ -1510,49 +1347,6 @@ function ThreadView({
           </div>
         ) : (
           <>
-            {/* Collapsible Files section */}
-            {allAttachments.length > 0 && (
-              <div style={{ marginBottom: 12 }}>
-                <button
-                  onClick={() => setFilesExpanded(v => !v)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl w-full text-left"
-                  style={{ background: theme.pillBg }}
-                >
-                  <Paperclip className="w-4 h-4 flex-shrink-0" style={{ color: theme.subText }} />
-                  <span className="text-sm font-medium flex-1" style={{ color: theme.subText }}>
-                    📎 {allAttachments.length} {allAttachments.length === 1 ? "File" : "Files"}
-                  </span>
-                  {filesExpanded
-                    ? <ChevronDown className="w-4 h-4" style={{ color: theme.subText }} />
-                    : <ChevronRight className="w-4 h-4" style={{ color: theme.subText }} />
-                  }
-                </button>
-                {filesExpanded && (
-                  <div className="mt-2 flex flex-col gap-1.5">
-                    {allAttachments.map((att, i) => {
-                      const isPdf = att.mimeType === "application/pdf" || att.name.toLowerCase().endsWith(".pdf");
-                      return (
-                        <button
-                          key={`${att.id}-${i}`}
-                          onClick={() => { if (isPdf) { setViewerAtt(att); setViewerMsgId(att.msgId); } }}
-                          disabled={!isPdf}
-                          className="flex items-center gap-3 p-3 rounded-xl active:opacity-70 disabled:opacity-60 text-left"
-                          style={{ background: theme.cardBg }}
-                        >
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isPdf ? "bg-red-500" : "bg-blue-500"}`}>
-                            <span className="text-white text-[8px] font-bold">{isPdf ? "PDF" : "IMG"}</span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold truncate" style={{ color: theme.receivedText }}>{att.name}</p>
-                            <p className="text-[11px]" style={{ color: theme.subText }}>{fmtSize(att.size)}</p>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
             {renderMessages()}
           </>
         )}
@@ -1597,6 +1391,7 @@ function ContactList({
   const [showMenu, setShowMenu] = useState(false);
   const [smartMode, setSmartMode] = useState(false);
   const [inboxTab, setInboxTab] = useState<"important" | "other">("important");
+  const [tabDir, setTabDir] = useState<1 | -1>(1);
   const [overrides, setOverrides] = useState<Record<string, 'important' | 'other'>>(() => {
     try { return JSON.parse(localStorage.getItem("docera_contact_overrides") ?? "{}"); } catch { return {}; }
   });
@@ -1687,37 +1482,32 @@ function ContactList({
   return (
     <div className="flex flex-col h-full" style={{ background: theme.bg }}>
       {/* Long-press action sheet */}
-      {longPressTarget && (
-        <div className="fixed inset-0 z-50 flex items-end">
-          <div className="absolute inset-0 bg-black/60" onClick={() => { setLongPressTarget(null); setBlockTaps(true); setTimeout(() => setBlockTaps(false), 400); }} />
-          <div
-            className="relative w-full rounded-t-3xl shadow-2xl"
-            style={{ background: theme.header, paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
-          >
-            <div className="w-10 h-1 rounded-full mx-auto mt-3 mb-4" style={{ background: theme.subText }} />
-            <div className="px-4 pb-2">
-              <p className="text-sm font-semibold px-2 mb-3" style={{ color: theme.subText }}>{longPressTarget.name}</p>
-              {inboxTab === "other" ? (
-                <button
-                  onClick={() => moveContact(longPressTarget.email, 'important')}
-                  className="w-full flex items-center gap-3 p-4 rounded-2xl active:opacity-70 mb-2"
-                  style={{ background: theme.cardBg }}
-                >
-                  <span className="font-semibold" style={{ color: theme.receivedText }}>Move to Important</span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => moveContact(longPressTarget.email, 'other')}
-                  className="w-full flex items-center gap-3 p-4 rounded-2xl active:opacity-70 mb-2"
-                  style={{ background: theme.cardBg }}
-                >
-                  <span className="font-semibold" style={{ color: theme.receivedText }}>Move to Other</span>
-                </button>
-              )}
-            </div>
-          </div>
+      <GlassModal
+        open={!!longPressTarget}
+        onClose={() => { setLongPressTarget(null); setBlockTaps(true); setTimeout(() => setBlockTaps(false), 400); }}
+        style={{ background: theme.header }}
+      >
+        <div className="px-4 pb-2 mt-4">
+          <p className="text-sm font-semibold px-2 mb-3" style={{ color: theme.subText }}>{longPressTarget?.name}</p>
+          {inboxTab === "other" ? (
+            <button
+              onClick={() => moveContact(longPressTarget!.email, 'important')}
+              className="w-full flex items-center gap-3 p-4 rounded-2xl active:opacity-70 mb-2"
+              style={{ background: theme.cardBg }}
+            >
+              <span className="font-semibold" style={{ color: theme.receivedText }}>Move to Important</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => moveContact(longPressTarget!.email, 'other')}
+              className="w-full flex items-center gap-3 p-4 rounded-2xl active:opacity-70 mb-2"
+              style={{ background: theme.cardBg }}
+            >
+              <span className="font-semibold" style={{ color: theme.receivedText }}>Move to Other</span>
+            </button>
+          )}
         </div>
-      )}
+      </GlassModal>
       {/* Header */}
       <div style={{ background: theme.header, paddingTop: "max(3rem, env(safe-area-inset-top))", borderBottom: `1px solid ${theme.border}`, flexShrink: 0 }}>
         {/* Top row */}
@@ -1748,12 +1538,12 @@ function ContactList({
               {showMenu && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
-                  <div style={{ position: "absolute", right: 0, top: 40, zIndex: 20, background: theme.cardBg, borderRadius: 14, boxShadow: "0 4px 24px rgba(0,0,0,0.18)", minWidth: 180, overflow: "hidden", border: `1px solid ${theme.border}` }}>
+                  <GlassCard style={{ position: "absolute", right: 0, top: 40, zIndex: 20, borderRadius: 14, minWidth: 180, overflow: "hidden" }}>
                     <button onClick={() => { setShowMenu(false); onDisconnect(); }} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", background: "none", border: "none", cursor: "pointer", color: "#ff453a" }}>
                       <X style={{ width: 16, height: 16 }} />
                       <span style={{ fontSize: 14, fontWeight: 500 }}>Disconnect Gmail</span>
                     </button>
-                  </div>
+                  </GlassCard>
                 </>
               )}
             </div>
@@ -1781,29 +1571,39 @@ function ContactList({
 
         {/* Segmented tabs */}
         <div style={{ padding: "0 16px 12px" }}>
-          <div style={{ display: "flex", background: darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,51,42,0.10)", borderRadius: 9, padding: 2 }}>
+          <div style={{ display: "flex", background: darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,51,42,0.10)", borderRadius: 9, padding: 2, position: "relative" }}>
+            <motion.div
+              animate={{ x: inboxTab === "important" ? 2 : "calc(100% + 4px)" }}
+              transition={{ type: "spring", stiffness: 400, damping: 35 }}
+              style={{
+                position: "absolute", top: 2, bottom: 2, left: 0,
+                width: "calc(50% - 2px)", borderRadius: 7,
+                background: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
+                pointerEvents: "none",
+              }}
+            />
             <button
-              onClick={() => setInboxTab("important")}
+              onClick={() => { setTabDir(-1); setInboxTab("important"); }}
               style={{
                 flex: 1, borderRadius: 7, padding: "6px 0", border: "none", cursor: "pointer",
-                fontSize: 13, fontWeight: 600, transition: "all 0.15s",
+                fontSize: 13, fontWeight: 600,
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-                background: inboxTab === "important" ? "white" : "transparent",
+                background: "transparent",
                 color: inboxTab === "important" ? "#00332a" : theme.subText,
-                boxShadow: inboxTab === "important" ? "0 1px 3px rgba(0,0,0,0.12)" : "none",
+                position: "relative", zIndex: 1,
               }}
             >
               <Inbox size={13} />Important
             </button>
             <button
-              onClick={() => setInboxTab("other")}
+              onClick={() => { setTabDir(1); setInboxTab("other"); }}
               style={{
                 flex: 1, borderRadius: 7, padding: "6px 0", border: "none", cursor: "pointer",
-                fontSize: 13, fontWeight: 600, transition: "all 0.15s",
+                fontSize: 13, fontWeight: 600,
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-                background: inboxTab === "other" ? "white" : "transparent",
+                background: "transparent",
                 color: inboxTab === "other" ? "#00332a" : theme.subText,
-                boxShadow: inboxTab === "other" ? "0 1px 3px rgba(0,0,0,0.12)" : "none",
+                position: "relative", zIndex: 1,
               }}
             >
               <Folder size={13} />Other
@@ -1813,7 +1613,16 @@ function ContactList({
       </div>
 
       {/* Contact list */}
-      <div style={{ flex: 1, overflowY: "auto", background: theme.bg, paddingBottom: 80 }}>
+      <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+      <AnimatePresence initial={false}>
+        <motion.div
+          key={inboxTab}
+          initial={{ opacity: 0, x: tabDir * 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: tabDir * -20, pointerEvents: "none" }}
+          transition={{ type: "spring", stiffness: 380, damping: 40 }}
+          style={{ position: "absolute", inset: 0, overflowY: "auto", background: theme.bg, paddingBottom: 80 }}
+        >
         {loading && contacts.length === 0 ? (
           <div style={{ padding: "8px 16px" }}>
             {[1, 2, 3, 4, 5].map(i => (
@@ -1847,7 +1656,7 @@ function ContactList({
                 <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, letterSpacing: 1, marginBottom: 10, fontWeight: 600, margin: "0 0 10px" }}>FREQUENT</p>
                 <div style={{ overflowX: "auto", display: "flex", gap: 16, paddingBottom: 8 }}>
                   {autoSuggest.map(c => (
-                    <button
+                    <AnimatedButton
                       key={c.email}
                       onClick={() => { if (blockTaps) return; onSelect(c); }}
                       style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0, background: "none", border: "none", cursor: "pointer" }}
@@ -1858,7 +1667,7 @@ function ContactList({
                       <span style={{ fontSize: 11, color: theme.subText, maxWidth: 56, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {c.name.split(" ")[0]}
                       </span>
-                    </button>
+                    </AnimatedButton>
                   ))}
                 </div>
               </div>
@@ -1870,7 +1679,7 @@ function ContactList({
               const earlierRows = filtered.filter(c => { try { return !isToday(new Date(c.lastDate)); } catch { return true; } });
               const renderRow = (c: typeof filtered[0]) => inboxTab === "other" ? (
                 <div key={c.email} style={{ position: "relative" }}>
-                  <button
+                  <AnimatedButton
                     onClick={() => { if (blockTaps) return; onSelect(c); }}
                     onTouchStart={() => startLongPress(c)}
                     onTouchEnd={endLongPress}
@@ -1885,12 +1694,12 @@ function ContactList({
                       <p style={{ color: theme.subText, fontSize: 15, fontWeight: 400, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</p>
                       <p style={{ color: theme.subText, fontSize: 12, margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", opacity: 0.6 }}>{c.email}</p>
                     </div>
-                  </button>
+                  </AnimatedButton>
                   <div style={{ position: "absolute", bottom: 0, left: 76, right: 0, height: 1, background: theme.border }} />
                 </div>
               ) : (
                 <div key={c.email} style={{ position: "relative" }}>
-                  <button
+                  <AnimatedButton
                     onClick={() => { if (blockTaps) return; onSelect(c); }}
                     onTouchStart={() => startLongPress(c)}
                     onTouchEnd={endLongPress}
@@ -1920,7 +1729,7 @@ function ContactList({
                         </p>
                       </div>
                     </div>
-                  </button>
+                  </AnimatedButton>
                   <div style={{ position: "absolute", bottom: 0, left: 76, right: 0, height: 1, background: theme.border }} />
                 </div>
               );
@@ -1943,10 +1752,12 @@ function ContactList({
             })()}
           </div>
         )}
+        </motion.div>
+      </AnimatePresence>
       </div>
 
       {/* FAB compose button */}
-      <button
+      <AnimatedButton
         style={{
           position: "fixed",
           bottom: "max(24px, env(safe-area-inset-bottom))",
@@ -1957,7 +1768,7 @@ function ContactList({
         }}
       >
         <PenLine style={{ width: 22, height: 22, color: theme.avatarText }} />
-      </button>
+      </AnimatedButton>
     </div>
   );
 }
@@ -2047,6 +1858,73 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
   });
   const theme = getTheme(darkMode);
 
+  // ─── iOS nav stack ────────────────────────────────────────────────────────────
+  const navProgress = useMotionValue(0);
+  const bgScale = useTransform(navProgress, [0, 1], [1, 0.93]);
+  const bgOpacity = useTransform(navProgress, [0, 1], [1, 0.7]);
+  const threadX = useTransform(navProgress, [0, 1], [typeof window !== "undefined" ? window.innerWidth : 390, 0]);
+  const edgeSwipeActive = useRef(false);
+  const edgeSwipeStartX = useRef(0);
+  const edgeSwipeStartY = useRef(0);
+  const edgeSwipeLastX = useRef(0);
+  const edgeSwipeLastTime = useRef(0);
+  const edgeSwipeVelocity = useRef(0);
+
+  useEffect(() => {
+    if (selectedContact) {
+      animate(navProgress, 1, { type: "spring", stiffness: 280, damping: 32, mass: 0.85 });
+    }
+  }, [selectedContact]);
+
+  const handleEdgeTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!selectedContact) return;
+    const x = e.touches[0].clientX;
+    if (x < 24 && !(e.target as HTMLElement).closest("button")) {
+      edgeSwipeActive.current = true;
+      edgeSwipeStartX.current = x;
+      edgeSwipeStartY.current = e.touches[0].clientY;
+      edgeSwipeLastX.current = x;
+      edgeSwipeLastTime.current = Date.now();
+      edgeSwipeVelocity.current = 0;
+    }
+  }, [selectedContact]);
+
+  const handleEdgeTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!edgeSwipeActive.current) return;
+    const dx = e.touches[0].clientX - edgeSwipeStartX.current;
+    const dy = e.touches[0].clientY - edgeSwipeStartY.current;
+    if (Math.abs(dy) > Math.abs(dx) + 10 && Math.abs(dx) < 12) {
+      edgeSwipeActive.current = false;
+      animate(navProgress, 1, { type: "spring", stiffness: 300, damping: 30 });
+      return;
+    }
+    if (dx > 0) {
+      const now = Date.now();
+      const dt = now - edgeSwipeLastTime.current;
+      const prevDx = edgeSwipeLastX.current - edgeSwipeStartX.current;
+      if (dt > 0) edgeSwipeVelocity.current = (dx - prevDx) / dt * 1000;
+      edgeSwipeLastX.current = e.touches[0].clientX;
+      edgeSwipeLastTime.current = now;
+      const w = typeof window !== "undefined" ? window.innerWidth : 390;
+      navProgress.set(1 - dx / w);
+    }
+  }, [navProgress]);
+
+  const handleEdgeTouchEnd = useCallback(() => {
+    if (!edgeSwipeActive.current) return;
+    edgeSwipeActive.current = false;
+    const progress = navProgress.get();
+    const vel = edgeSwipeVelocity.current;
+    edgeSwipeVelocity.current = 0;
+    if (progress < 0.62 || vel > 600) {
+      animate(navProgress, 0, { type: "tween", duration: 0.22, ease: "easeOut" }).then(() => {
+        setSelectedContact(null);
+      });
+    } else {
+      animate(navProgress, 1, { type: "spring", stiffness: 300, damping: 30 });
+    }
+  }, [navProgress]);
+
   const toggleDark = () =>
     setDarkMode(prev => {
       const next = !prev;
@@ -2119,41 +1997,52 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
     return <ConnectPrompt onBack={onBack} onConnect={handleConnect} connecting={connecting} />;
   }
 
-  if (selectedContact) {
-    return (
-      <>
-        <OfflineBanner />
-        <div className="flex flex-col" style={{ height: "100dvh", background: theme.bg }}>
-          <ThreadView
-            contact={selectedContact}
-            token={gmailToken}
-            refreshToken={gmailRefreshToken}
-            contacts={contacts}
-            onBack={() => setSelectedContact(null)}
-            onTokenExpired={handleTokenExpired}
-            theme={theme}
-          />
-        </div>
-      </>
-    );
-  }
-
   return (
     <>
       <OfflineBanner />
-      <div className="flex flex-col" style={{ height: "100dvh", background: theme.bg }}>
-        <ContactList
-          token={gmailToken}
-          refreshToken={gmailRefreshToken}
-          onBack={onBack}
-          onSelect={setSelectedContact}
-          onTokenExpired={handleTokenExpired}
-          onDisconnect={handleDisconnect}
-          onContactsLoaded={loaded => { setContacts(loaded); onUnreadCount?.(loaded.filter(c => c.hasUnread).length); }}
-          darkMode={darkMode}
-          onToggleDark={toggleDark}
-          theme={theme}
-        />
+      <div
+        className="flex flex-col"
+        style={{ height: "100dvh", background: theme.bg }}
+        onTouchStart={handleEdgeTouchStart}
+        onTouchMove={handleEdgeTouchMove}
+        onTouchEnd={handleEdgeTouchEnd}
+      >
+        <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
+          {/* ContactList — always rendered, dims/scales when ThreadView overlays */}
+          <motion.div style={{ position: "absolute", inset: 0, scale: bgScale, opacity: bgOpacity, transformOrigin: "top center", pointerEvents: selectedContact ? "none" : "auto" }}>
+            <ContactList
+              token={gmailToken}
+              refreshToken={gmailRefreshToken}
+              onBack={onBack}
+              onSelect={contact => { setSelectedContact(contact); }}
+              onTokenExpired={handleTokenExpired}
+              onDisconnect={handleDisconnect}
+              onContactsLoaded={loaded => { setContacts(loaded); onUnreadCount?.(loaded.filter(c => c.hasUnread).length); }}
+              darkMode={darkMode}
+              onToggleDark={toggleDark}
+              theme={theme}
+            />
+          </motion.div>
+
+          {/* ThreadView — slides in/out from right */}
+          {selectedContact && (
+            <motion.div style={{ position: "absolute", inset: 0, x: threadX }}>
+              <ThreadView
+                contact={selectedContact}
+                token={gmailToken}
+                refreshToken={gmailRefreshToken}
+                contacts={contacts}
+                onBack={() => {
+                  animate(navProgress, 0, { type: "tween", duration: 0.22, ease: "easeOut" }).then(() => {
+                    setSelectedContact(null);
+                  });
+                }}
+                onTokenExpired={handleTokenExpired}
+                theme={theme}
+              />
+            </motion.div>
+          )}
+        </div>
       </div>
     </>
   );
