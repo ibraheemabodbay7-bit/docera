@@ -310,6 +310,7 @@ async function gmailPost<T>(
           const refreshData = await refreshRes.json();
           if (refreshData.accessToken) {
             localStorage.setItem("gmail_access_token", refreshData.accessToken);
+            localStorage.setItem("gmail_token_expiry", String(Date.now() + 55 * 60 * 1000));
             res = await makeRequest(refreshData.accessToken);
           }
         }
@@ -853,24 +854,16 @@ function ChatInput({
   const sendText = async () => {
     if (!text.trim() || sending) return;
     setSending(true);
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
     try {
       const body = text.trim() || " ";
       const subject = contact.lastSubject ? `Re: ${contact.lastSubject}` : "Message from Docera";
       console.log("[sendText] to:", contact.email, "subject:", subject);
-      const res = await fetch(`${API_BASE}/api/gmail/send-message`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken: token, to: contact.email, subject, body }),
-        credentials: Capacitor.isNativePlatform() ? "omit" : "include",
-        signal: controller.signal,
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({ error: res.statusText }));
-        console.error("[sendText] server error:", res.status, errData);
-        throw Object.assign(new Error(errData.error ?? "Send failed"), { status: res.status });
-      }
+      await gmailPost(
+        "/api/gmail/send-message",
+        { to: contact.email, subject, body },
+        token,
+        refreshToken,
+      );
       setText("");
       onSent();
     } catch (err) {
@@ -885,7 +878,6 @@ function ChatInput({
         toast({ title: "Failed to send", description: e.message, variant: "destructive" });
       }
     } finally {
-      clearTimeout(timeoutId);
       setSending(false);
     }
   };
@@ -1848,6 +1840,33 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [connecting, setConnecting] = useState(false);
 
+  // Proactive token refresh — keeps the access token fresh before it expires
+  useEffect(() => {
+    const proactiveRefresh = async () => {
+      const rt = localStorage.getItem("gmail_refresh_token");
+      const expiry = Number(localStorage.getItem("gmail_token_expiry") ?? 0);
+      if (!rt) return;
+      if (expiry - Date.now() > 10 * 60 * 1000) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/gmail/refresh-token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken: rt }),
+          credentials: "omit",
+        });
+        if (!res.ok) return;
+        const { accessToken } = await res.json();
+        if (!accessToken) return;
+        localStorage.setItem("gmail_access_token", accessToken);
+        localStorage.setItem("gmail_token_expiry", String(Date.now() + 55 * 60 * 1000));
+        setGmailToken(accessToken);
+      } catch {}
+    };
+    proactiveRefresh();
+    const id = setInterval(proactiveRefresh, 45 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
   // Dark mode — default true, persisted to localStorage
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem(DARK_MODE_KEY);
@@ -1948,6 +1967,7 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
         .then((data: { accessToken?: string; refreshToken?: string; error?: string }) => {
           if (data.accessToken) {
             localStorage.setItem("gmail_access_token", data.accessToken);
+            localStorage.setItem("gmail_token_expiry", String(Date.now() + 55 * 60 * 1000));
             if (data.refreshToken) localStorage.setItem("gmail_refresh_token", data.refreshToken);
             setGmailToken(data.accessToken);
           }
