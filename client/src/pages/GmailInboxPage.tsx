@@ -1351,7 +1351,6 @@ function ThreadView({
             setMessages(prev => [...prev, sentMessage]);
             setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
           }
-          setTimeout(() => load(), 2000);
         }}
         onTokenExpired={onTokenExpired}
         theme={theme}
