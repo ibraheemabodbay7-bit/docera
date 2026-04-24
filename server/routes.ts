@@ -1360,9 +1360,9 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         ``,
         `--${boundary}`,
         `Content-Type: text/plain; charset=UTF-8`,
-        `Content-Transfer-Encoding: quoted-printable`,
+        `Content-Transfer-Encoding: base64`,
         ``,
-        toQuotedPrintable(body || " "),
+        Buffer.from(body || " ", "utf-8").toString("base64"),
         ``,
         `--${boundary}`,
         `Content-Type: ${mimeType}`,
@@ -1373,14 +1373,15 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         `--${boundary}--`,
       ].join("\r\n");
     } else {
+      const encodedBody = Buffer.from(body || " ", "utf-8").toString("base64");
       mime = [
         `MIME-Version: 1.0`,
         `To: ${to}`,
-        `Subject: ${encodeSubject(subject)}`,
+        `Subject: =?UTF-8?B?${Buffer.from(subject, "utf-8").toString("base64")}?=`,
         `Content-Type: text/plain; charset=UTF-8`,
-        `Content-Transfer-Encoding: quoted-printable`,
+        `Content-Transfer-Encoding: base64`,
         ``,
-        toQuotedPrintable(body || " "),
+        encodedBody,
       ].join("\r\n");
     }
 
