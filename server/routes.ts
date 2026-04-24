@@ -1357,9 +1357,12 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     }
 
     try {
-      const resend = new Resend(process.env.RESEND_API_KEY);
+      const resendApiKey = process.env.RESEND_API_KEY;
+      if (!resendApiKey) throw new Error("RESEND_API_KEY not configured");
+      const resend = new Resend(resendApiKey);
+      const fromAddr = process.env.EMAIL_FROM ?? "no-reply@docera.app";
       const result = await resend.emails.send({
-        from: "Docera Chat <chat@docera.app>",
+        from: `Docera Chat <${fromAddr}>`,
         to,
         reply_to: senderEmail,
         subject,
