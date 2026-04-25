@@ -1390,7 +1390,7 @@ function ComposeSheet({
     : [];
 
   const showSendToOption = autocompleteResults.length === 0 && isValidEmail(toValue);
-  const canSend = isValidEmail(toValue) && subject.trim().length > 0;
+  const canSend = isValidEmail(toValue);
 
   const handleSend = async () => {
     if (!canSend || sending) return;
