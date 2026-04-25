@@ -419,7 +419,10 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 /* GPU-composited scrolling for the main document list */
-.overflow-y-auto {
+.overflow-y-auto,
+[style*="overflow-y: auto"],
+[style*="overflowY"] {
   -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
   will-change: scroll-position;
 }

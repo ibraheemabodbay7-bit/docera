@@ -17,6 +17,7 @@ import {
 } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE } from "@/lib/queryClient";
+import { hapticLight, hapticMedium, hapticSuccess } from "@/lib/haptics";
 import ClientProfilePage from "./ClientProfilePage";
 import { GlassCard, GlassModal, AnimatedButton, PageTransition } from "@/components/Glass";
 
@@ -853,6 +854,7 @@ function ChatInput({
 
   const sendText = async () => {
     if (!text.trim() || sending) return;
+    hapticMedium();
     const messageText = text.trim();
     setText("");
     setSending(true);
@@ -864,6 +866,7 @@ function ChatInput({
         token,
         refreshToken,
       );
+      hapticSuccess();
       onSent(result.sentMessage);
     } catch (err) {
       const e = err as Error & { status?: number };
@@ -1214,7 +1217,7 @@ function ThreadView({
       }
       nodes.push(
         <MessageBubble key={msg.id} msg={msg} token={token} refreshToken={refreshToken} contacts={contacts} theme={theme} searchQuery={search}
-          onOpenPdf={(att, msgId) => openWithQuickLook(att, msgId, token, refreshToken)} />,
+          onOpenPdf={(att, msgId) => { hapticLight(); openWithQuickLook(att, msgId, token, refreshToken); }} />,
       );
     }
     return nodes;
@@ -1394,10 +1397,12 @@ function ComposeSheet({
 
   const handleSend = async () => {
     if (!canSend || sending) return;
+    hapticMedium();
     setSending(true);
     try {
       const senderEmail = localStorage.getItem("gmail_sender_email") ?? "";
       await gmailPost("/api/gmail/send-message", { to: toValue, senderEmail, subject, body }, token, refreshToken);
+      hapticSuccess();
       onClose();
       toast({ title: "Message sent" });
       const existing = contacts.find(c => c.email.toLowerCase() === toValue.toLowerCase());
@@ -1640,7 +1645,7 @@ function ContactList({
   const base = smartMode ? smartContacts : (inboxTab === "important" ? sortedImportant : sortedOther);
 
   const startLongPress = (c: Contact) => {
-    longPressTimer.current = setTimeout(() => setLongPressTarget(c), 500);
+    longPressTimer.current = setTimeout(() => { hapticMedium(); setLongPressTarget(c); }, 500);
   };
   const endLongPress = () => {
     if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
@@ -1763,7 +1768,7 @@ function ContactList({
               }}
             />
             <button
-              onClick={() => { setTabDir(-1); setInboxTab("important"); }}
+              onClick={() => { hapticLight(); setTabDir(-1); setInboxTab("important"); }}
               style={{
                 flex: 1, borderRadius: 7, padding: "6px 0", border: "none", cursor: "pointer",
                 fontSize: 13, fontWeight: 600,
@@ -1776,7 +1781,7 @@ function ContactList({
               <Inbox size={13} />Important
             </button>
             <button
-              onClick={() => { setTabDir(1); setInboxTab("other"); }}
+              onClick={() => { hapticLight(); setTabDir(1); setInboxTab("other"); }}
               style={{
                 flex: 1, borderRadius: 7, padding: "6px 0", border: "none", cursor: "pointer",
                 fontSize: 13, fontWeight: 600,
@@ -1838,7 +1843,7 @@ function ContactList({
                   {autoSuggest.map(c => (
                     <AnimatedButton
                       key={c.email}
-                      onClick={() => { if (blockTaps) return; onSelect(c); }}
+                      onClick={() => { if (blockTaps) return; hapticLight(); onSelect(c); }}
                       style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0, background: "none", border: "none", cursor: "pointer" }}
                     >
                       <div style={{ width: 52, height: 52, borderRadius: 26, background: theme.avatarBg, display: "flex", alignItems: "center", justifyContent: "center", color: theme.avatarText, fontSize: 18, fontWeight: 600 }}>
@@ -1860,7 +1865,7 @@ function ContactList({
               const renderRow = (c: typeof filtered[0]) => inboxTab === "other" ? (
                 <div key={c.email} style={{ position: "relative" }}>
                   <AnimatedButton
-                    onClick={() => { if (blockTaps) return; onSelect(c); }}
+                    onClick={() => { if (blockTaps) return; hapticLight(); onSelect(c); }}
                     onTouchStart={() => startLongPress(c)}
                     onTouchEnd={endLongPress}
                     onTouchMove={endLongPress}
@@ -1880,7 +1885,7 @@ function ContactList({
               ) : (
                 <div key={c.email} style={{ position: "relative" }}>
                   <AnimatedButton
-                    onClick={() => { if (blockTaps) return; onSelect(c); }}
+                    onClick={() => { if (blockTaps) return; hapticLight(); onSelect(c); }}
                     onTouchStart={() => startLongPress(c)}
                     onTouchEnd={endLongPress}
                     onTouchMove={endLongPress}
