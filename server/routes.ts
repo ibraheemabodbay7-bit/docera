@@ -87,17 +87,20 @@ function extractGmailBody(payload: Record<string, unknown>): string {
 
 function stripEmailQuotes(body: string): string {
   if (!body) return body;
-  const quoteHeaderPattern = /\n?\s*On\s+.{5,100}wrote:\s*$/im;
-  const match = quoteHeaderPattern.exec(body);
-  if (match && match.index > 0) {
-    return body.slice(0, match.index).trim();
-  }
   const lines = body.split("\n");
-  let lastNonQuote = lines.length - 1;
-  while (lastNonQuote >= 0 && /^\s*>/.test(lines[lastNonQuote])) {
-    lastNonQuote--;
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (/^On\s+(Mon|Tue|Wed|Thu|Fri|Sat|Sun|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|\d)/.test(trimmed)) {
+      const lookahead = lines.slice(i, i + 5).join(" ");
+      if (/wrote:/i.test(lookahead)) {
+        return lines.slice(0, i).join("\n").trim();
+      }
+    }
+    if (i > 0 && /^\s*>/.test(lines[i])) {
+      return lines.slice(0, i).join("\n").trim();
+    }
   }
-  return lines.slice(0, lastNonQuote + 1).join("\n").trim();
+  return body.trim();
 }
 
 function makeGmailClient(accessToken: string) {
