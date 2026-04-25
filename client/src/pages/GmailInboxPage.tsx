@@ -1630,10 +1630,6 @@ function ContactList({
     new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime()
   );
 
-  const autoSuggest = [...importantContacts]
-    .filter(c => c.hasAttachments || c.messageCount > 3)
-    .sort((a, b) => b.messageCount - a.messageCount)
-    .slice(0, 5);
 
   const smartContacts = [...tabContacts]
     .filter(c => c.hasAttachments || c.messageCount >= 3)
@@ -1835,41 +1831,18 @@ function ContactList({
           </div>
         ) : (
           <div>
-            {/* FREQUENT auto-suggest row */}
-            {inboxTab === "important" && !smartMode && !search && autoSuggest.length > 0 && (
-              <div style={{ padding: "16px 16px 8px" }}>
-                <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, letterSpacing: 1, marginBottom: 10, fontWeight: 600, margin: "0 0 10px" }}>FREQUENT</p>
-                <div style={{ overflowX: "auto", display: "flex", gap: 16, paddingBottom: 8 }}>
-                  {autoSuggest.map(c => (
-                    <AnimatedButton
-                      key={c.email}
-                      onClick={() => { if (blockTaps) return; hapticLight(); onSelect(c); }}
-                      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0, background: "none", border: "none", cursor: "pointer" }}
-                    >
-                      <div style={{ width: 52, height: 52, borderRadius: 26, background: theme.avatarBg, display: "flex", alignItems: "center", justifyContent: "center", color: theme.avatarText, fontSize: 18, fontWeight: 600 }}>
-                        {initials(c.name)}
-                      </div>
-                      <span style={{ fontSize: 11, color: theme.subText, maxWidth: 56, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {c.name.split(" ")[0]}
-                      </span>
-                    </AnimatedButton>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Contact rows with TODAY / EARLIER section headers */}
             {(() => {
               const todayRows = filtered.filter(c => { try { return isToday(new Date(c.lastDate)); } catch { return false; } });
               const earlierRows = filtered.filter(c => { try { return !isToday(new Date(c.lastDate)); } catch { return true; } });
               const renderRow = (c: typeof filtered[0]) => inboxTab === "other" ? (
-                <div key={c.email} style={{ position: "relative" }}>
-                  <AnimatedButton
+                <div key={c.email} style={{ position: "relative", zIndex: 1 }}>
+                  <button
                     onClick={() => { if (blockTaps) return; hapticLight(); onSelect(c); }}
                     onTouchStart={() => startLongPress(c)}
                     onTouchEnd={endLongPress}
                     onTouchMove={endLongPress}
-                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "none", border: "none", cursor: "pointer" }}
+                    style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "none", border: "none", cursor: "pointer", width: "100%" }}
                   >
                     <div style={{ width: 12, flexShrink: 0 }} />
                     <div style={{ width: 36, height: 36, borderRadius: 18, background: theme.avatarBg, display: "flex", alignItems: "center", justifyContent: "center", color: theme.avatarText, fontSize: 13, fontWeight: 600, flexShrink: 0, opacity: 0.7 }}>
@@ -1879,17 +1852,17 @@ function ContactList({
                       <p style={{ color: theme.subText, fontSize: 15, fontWeight: 400, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</p>
                       <p style={{ color: theme.subText, fontSize: 12, margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", opacity: 0.6 }}>{c.email}</p>
                     </div>
-                  </AnimatedButton>
-                  <div style={{ position: "absolute", bottom: 0, left: 76, right: 0, height: 1, background: theme.border }} />
+                  </button>
+                  <div style={{ marginLeft: 76, height: 1, background: theme.border }} />
                 </div>
               ) : (
-                <div key={c.email} style={{ position: "relative" }}>
-                  <AnimatedButton
+                <div key={c.email} style={{ position: "relative", zIndex: 1 }}>
+                  <button
                     onClick={() => { if (blockTaps) return; hapticLight(); onSelect(c); }}
                     onTouchStart={() => startLongPress(c)}
                     onTouchEnd={endLongPress}
                     onTouchMove={endLongPress}
-                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "none", border: "none", cursor: "pointer" }}
+                    style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "none", border: "none", cursor: "pointer", width: "100%" }}
                   >
                     <div style={{ width: 12, flexShrink: 0, display: "flex", justifyContent: "center" }}>
                       {c.hasUnread && <div style={{ width: 8, height: 8, borderRadius: 4, background: theme.avatarBg }} />}
@@ -1902,7 +1875,7 @@ function ContactList({
                         <span style={{ color: theme.receivedText, fontSize: 16, fontWeight: c.hasUnread ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {c.name}
                         </span>
-                        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                           <span style={{ color: theme.subText, fontSize: 12 }}>{fmtMsgTime(c.lastDate)}</span>
                           <ChevronRight style={{ width: 12, height: 12, color: theme.subText, opacity: 0.5 }} />
                         </div>
@@ -1914,8 +1887,8 @@ function ContactList({
                         </p>
                       </div>
                     </div>
-                  </AnimatedButton>
-                  <div style={{ position: "absolute", bottom: 0, left: 76, right: 0, height: 1, background: theme.border }} />
+                  </button>
+                  <div style={{ marginLeft: 76, height: 1, background: theme.border }} />
                 </div>
               );
               return (
