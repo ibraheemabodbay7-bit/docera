@@ -85,6 +85,21 @@ function extractGmailBody(payload: Record<string, unknown>): string {
   return "";
 }
 
+function stripEmailQuotes(body: string): string {
+  if (!body) return body;
+  const quoteHeaderPattern = /\n?\s*On\s+.{5,100}wrote:\s*$/im;
+  const match = quoteHeaderPattern.exec(body);
+  if (match && match.index > 0) {
+    return body.slice(0, match.index).trim();
+  }
+  const lines = body.split("\n");
+  let lastNonQuote = lines.length - 1;
+  while (lastNonQuote >= 0 && /^\s*>/.test(lines[lastNonQuote])) {
+    lastNonQuote--;
+  }
+  return lines.slice(0, lastNonQuote + 1).join("\n").trim();
+}
+
 function makeGmailClient(accessToken: string) {
   const oauth2Client = new google.auth.OAuth2(GMAIL_WEB_CLIENT_ID, GMAIL_WEB_CLIENT_SECRET);
   oauth2Client.setCredentials({ access_token: accessToken });
@@ -1255,7 +1270,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         const isSent = from.email === myEmail;
         const attachments = extractGmailAttachments(msg!.payload as Record<string, unknown> ?? {});
         const rawBody = extractGmailBody(msg!.payload as Record<string, unknown> ?? {});
-        const body = rawBody.replace(/\s*—\s*Sent via Docera\s*/gi, "").trim();
+        const body = stripEmailQuotes(rawBody.replace(/\s*—\s*Sent via Docera\s*/gi, "").trim());
         return {
           id: msg!.id as string,
           direction: isSent ? "sent" : "received",
@@ -1301,7 +1316,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         const subject = getGmailHeader(h, "Subject");
         const isSent = from.email === myEmail;
         const payload = (msg!.payload as Record<string, unknown>) ?? {};
-        return { id: msg!.id as string, direction: isSent ? "sent" : "received", fromName: from.name, fromEmail: from.email, toEmail: to.email, date, subject, body: extractGmailBody(payload), snippet: (msg!.snippet as string) ?? "", attachments: extractGmailAttachments(payload) };
+        return { id: msg!.id as string, direction: isSent ? "sent" : "received", fromName: from.name, fromEmail: from.email, toEmail: to.email, date, subject, body: stripEmailQuotes(extractGmailBody(payload).replace(/\s*—\s*Sent via Docera\s*/gi, "").trim()), snippet: (msg!.snippet as string) ?? "", attachments: extractGmailAttachments(payload) };
       }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       res.json({ myEmail, messages });
     } catch (err: unknown) {
