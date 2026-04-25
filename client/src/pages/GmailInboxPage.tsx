@@ -1836,13 +1836,13 @@ function ContactList({
               const todayRows = filtered.filter(c => { try { return isToday(new Date(c.lastDate)); } catch { return false; } });
               const earlierRows = filtered.filter(c => { try { return !isToday(new Date(c.lastDate)); } catch { return true; } });
               const renderRow = (c: typeof filtered[0]) => inboxTab === "other" ? (
-                <div key={c.email} style={{ position: "relative", zIndex: 1 }}>
+                <div style={{ display: "block" }}>
                   <button
                     onClick={() => { if (blockTaps) return; hapticLight(); onSelect(c); }}
                     onTouchStart={() => startLongPress(c)}
                     onTouchEnd={endLongPress}
                     onTouchMove={endLongPress}
-                    style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "none", border: "none", cursor: "pointer", width: "100%" }}
+                    style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "none", border: "none", cursor: "pointer", width: "100%" }}
                   >
                     <div style={{ width: 12, flexShrink: 0 }} />
                     <div style={{ width: 36, height: 36, borderRadius: 18, background: theme.avatarBg, display: "flex", alignItems: "center", justifyContent: "center", color: theme.avatarText, fontSize: 13, fontWeight: 600, flexShrink: 0, opacity: 0.7 }}>
@@ -1856,13 +1856,13 @@ function ContactList({
                   <div style={{ marginLeft: 76, height: 1, background: theme.border }} />
                 </div>
               ) : (
-                <div key={c.email} style={{ position: "relative", zIndex: 1 }}>
+                <div style={{ display: "block" }}>
                   <button
                     onClick={() => { if (blockTaps) return; hapticLight(); onSelect(c); }}
                     onTouchStart={() => startLongPress(c)}
                     onTouchEnd={endLongPress}
                     onTouchMove={endLongPress}
-                    style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "none", border: "none", cursor: "pointer", width: "100%" }}
+                    style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "none", border: "none", cursor: "pointer", width: "100%" }}
                   >
                     <div style={{ width: 12, flexShrink: 0, display: "flex", justifyContent: "center" }}>
                       {c.hasUnread && <div style={{ width: 8, height: 8, borderRadius: 4, background: theme.avatarBg }} />}
@@ -1898,13 +1898,13 @@ function ContactList({
                       Today · Recent
                     </div>
                   )}
-                  {todayRows.map(renderRow)}
+                  {todayRows.map(c => <div key={c.email}>{renderRow(c)}</div>)}
                   {earlierRows.length > 0 && todayRows.length > 0 && (
                     <div style={{ padding: "12px 16px 4px", fontSize: 11, fontWeight: 600, letterSpacing: 0.8, color: theme.subText, textTransform: "uppercase" }}>
                       Earlier
                     </div>
                   )}
-                  {earlierRows.map(renderRow)}
+                  {earlierRows.map(c => <div key={c.email}>{renderRow(c)}</div>)}
                 </>
               );
             })()}
