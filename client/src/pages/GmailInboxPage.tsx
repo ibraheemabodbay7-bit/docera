@@ -1383,7 +1383,6 @@ function ContactList({
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [showMenu, setShowMenu] = useState(false);
-  const [smartMode, setSmartMode] = useState(false);
   const [inboxTab, setInboxTab] = useState<"important" | "other">("important");
   const [tabDir, setTabDir] = useState<1 | -1>(1);
   const [overrides, setOverrides] = useState<Record<string, 'important' | 'other'>>(() => {
@@ -1442,14 +1441,7 @@ function ContactList({
     .sort((a, b) => b.messageCount - a.messageCount)
     .slice(0, 5);
 
-  const smartContacts = [...tabContacts]
-    .filter(c => c.hasAttachments || c.messageCount >= 3)
-    .sort((a, b) => {
-      if (a.hasAttachments !== b.hasAttachments) return a.hasAttachments ? -1 : 1;
-      return b.messageCount - a.messageCount;
-    });
-
-  const base = smartMode ? smartContacts : (inboxTab === "important" ? sortedImportant : sortedOther);
+  const base = inboxTab === "important" ? sortedImportant : sortedOther;
 
   const startLongPress = (c: Contact) => {
     longPressTimer.current = setTimeout(() => setLongPressTarget(c), 500);
@@ -1524,9 +1516,6 @@ function ContactList({
             </button>
             <button onClick={load} disabled={loading} style={{ background: "none", border: "none", cursor: "pointer", color: theme.subText, padding: 8 }}>
               <RefreshCw style={{ width: 16, height: 16 }} className={loading ? "animate-spin" : ""} />
-            </button>
-            <button onClick={() => setSmartMode(v => !v)} style={{ background: smartMode ? theme.avatarBg : theme.pillBg, border: "none", cursor: "pointer", color: smartMode ? theme.avatarText : theme.subText, padding: "5px 10px", borderRadius: 8, fontSize: 12, fontWeight: 600 }}>
-              ✦
             </button>
             <div style={{ position: "relative" }}>
               <button onClick={() => setShowMenu(v => !v)} style={{ background: "none", border: "none", cursor: "pointer", color: theme.subText, padding: 8, fontSize: 18, lineHeight: 1 }}>⋯</button>
@@ -1641,7 +1630,7 @@ function ContactList({
         ) : filtered.length === 0 ? (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 200, textAlign: "center" }}>
             <Mail style={{ width: 48, height: 48, marginBottom: 12, color: theme.subText }} />
-            <p style={{ color: theme.subText }}>{search ? "No contacts match" : smartMode ? "No important conversations yet" : "No emails found"}</p>
+            <p style={{ color: theme.subText }}>{search ? "No contacts match" : "No emails found"}</p>
           </div>
         ) : (
           <div>
