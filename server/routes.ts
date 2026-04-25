@@ -1254,7 +1254,8 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         const subject = getGmailHeader(h, "Subject");
         const isSent = from.email === myEmail;
         const attachments = extractGmailAttachments(msg!.payload as Record<string, unknown> ?? {});
-        const body = extractGmailBody(msg!.payload as Record<string, unknown> ?? {});
+        const rawBody = extractGmailBody(msg!.payload as Record<string, unknown> ?? {});
+        const body = rawBody.replace(/\s*—\s*Sent via Docera\s*/gi, "").trim();
         return {
           id: msg!.id as string,
           direction: isSent ? "sent" : "received",
@@ -1368,7 +1369,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         const mimeType = attachmentMimeType ?? "application/octet-stream";
         const boundary = `boundary_${Date.now()}`;
         const htmlBody = `<p><strong>${senderEmail}</strong> sent you a document.</p><p style="color:#888;font-size:12px">— Sent via Docera</p>`;
-        const textBody = `${senderEmail} sent you a document.\n\n— Sent via Docera`;
+        const textBody = attachmentName ?? "Document";
         rawEmail = [
           `From: ${myEmail}`,
           `To: ${to}`,
@@ -1401,15 +1402,26 @@ export async function registerRoutes(httpServer: Server, app: Express) {
           `--${boundary}--`,
         ].join('\r\n');
       } else {
+        const textBoundary = `boundary_txt_${Date.now()}`;
         const htmlBody = `<p>${body.replace(/\n/g, "<br/>")}</p><p style="color:#888;font-size:12px">— Sent via Docera</p>`;
         rawEmail = [
           `From: ${myEmail}`,
           `To: ${to}`,
           `Subject: ${subject}`,
           `MIME-Version: 1.0`,
+          `Content-Type: multipart/alternative; boundary="${textBoundary}"`,
+          ``,
+          `--${textBoundary}`,
+          `Content-Type: text/plain; charset=utf-8`,
+          ``,
+          body,
+          ``,
+          `--${textBoundary}`,
           `Content-Type: text/html; charset=utf-8`,
           ``,
           htmlBody,
+          ``,
+          `--${textBoundary}--`,
         ].join('\r\n');
       }
 
