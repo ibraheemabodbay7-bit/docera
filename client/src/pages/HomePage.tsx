@@ -6,7 +6,7 @@ import { Capacitor } from "@capacitor/core";
 import {
   Camera, FileText, FolderOpen, Plus, Search, MoreVertical, Trash2, Edit2, X,
   Check, User, Pencil, Copy, FolderInput, FolderMinus, Tag, Mail, Send, AlertCircle, Users, UserCheck, Star,
-  Share2, Download, ChevronRight, SlidersHorizontal, Settings,
+  Share2, Download, ChevronRight, SlidersHorizontal, Settings, Moon,
 } from "lucide-react";
 import { dataUrlToBlob, docFilename, docMime } from "@/lib/docUtils";
 import { DaceraLogo } from "@/components/DaceraLogo";
@@ -609,371 +609,219 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
   }), [docs]);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <div className="flex-shrink-0 bg-background border-b border-border px-4 pt-3 pb-3">
-        <div className="flex items-center justify-between mb-2.5">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <DaceraLogo variant="full" />
-          </div>
+    <div className="min-h-screen flex flex-col" style={{ background: '#fef7ed' }}>
 
+      {/* ── Header ── */}
+      <div style={{ background: '#fef7ed', paddingTop: 'max(3rem, env(safe-area-inset-top))', paddingBottom: 16, paddingLeft: 20, paddingRight: 20, flexShrink: 0 }}>
+        {/* Top row: branding + moon */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: '#00332a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ color: '#fef7ed', fontSize: 14, fontWeight: 700 }}>D</span>
+            </div>
+            <span style={{ fontSize: 16, fontWeight: 600, color: '#00332a' }}>Docera</span>
+          </div>
+          <button onClick={onProfile} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+            <Moon style={{ width: 20, height: 20, color: '#00332a' }} />
+          </button>
         </div>
-        <div className="flex items-center gap-2 bg-muted rounded-xl px-3 py-2.5">
-          <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+
+        {/* Title + date */}
+        <h1 style={{ fontSize: 34, fontWeight: 700, color: '#00332a', margin: '0 0 2px', letterSpacing: -0.5 }}>Documents</h1>
+        <p style={{ fontSize: 14, color: 'rgba(0,51,42,0.5)', margin: '0 0 16px' }}>{format(new Date(), 'EEEE, d MMMM')}</p>
+
+        {/* Search */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(0,51,42,0.08)', borderRadius: 12, padding: '10px 14px', marginBottom: 12 }}>
+          <Search style={{ width: 16, height: 16, color: 'rgba(0,51,42,0.4)', flexShrink: 0 }} />
           <input
             data-testid="input-search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search documents…"
-            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground border-0 outline-none"
+            placeholder="Search"
+            style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: 15, color: '#00332a' }}
           />
           {search && (
-            <button onClick={() => setSearch("")} className="text-muted-foreground">
-              <X className="w-3.5 h-3.5" />
+            <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+              <X style={{ width: 14, height: 14, color: 'rgba(0,51,42,0.4)' }} />
             </button>
           )}
         </div>
 
-        {/* Filter pills — Starred + Status */}
-        <div className="flex gap-2 overflow-x-auto pt-2.5 scrollbar-none -mx-1 px-1">
-          {/* Starred pill */}
+        {/* All / Starred segmented control */}
+        <div style={{ display: 'flex', background: 'rgba(0,51,42,0.08)', borderRadius: 10, padding: 3, position: 'relative' }}>
+          <div style={{
+            position: 'absolute', top: 3, bottom: 3,
+            left: showFavoritesOnly ? 'calc(50% + 1.5px)' : 3,
+            width: 'calc(50% - 4.5px)', borderRadius: 7,
+            background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+            transition: 'left 0.2s ease', pointerEvents: 'none',
+          }} />
           <button
-            data-testid="filter-favorites"
-            onClick={() => setShowFavoritesOnly((v) => !v)}
-            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-              showFavoritesOnly
-                ? "bg-amber-400 text-white"
-                : "bg-muted text-muted-foreground"
-            }`}
+            onClick={() => setShowFavoritesOnly(false)}
+            style={{ flex: 1, borderRadius: 7, padding: '7px 0', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, background: 'transparent', color: !showFavoritesOnly ? '#00332a' : 'rgba(0,51,42,0.45)', position: 'relative', zIndex: 1 }}
           >
-            <Star className={`w-3 h-3 ${showFavoritesOnly ? "fill-white text-white" : ""}`} />
+            All
+          </button>
+          <button
+            onClick={() => setShowFavoritesOnly(true)}
+            style={{ flex: 1, borderRadius: 7, padding: '7px 0', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, background: 'transparent', color: showFavoritesOnly ? '#00332a' : 'rgba(0,51,42,0.45)', position: 'relative', zIndex: 1 }}
+          >
             Starred
           </button>
-          {/* Status pills */}
-          {([
-            ["all",      "All"],
-            ["draft",    "Draft"],
-            ["sent",     "Sent"],
-            ["pending",  "Waiting for Reply"],
-            ["approved", "Approved"],
-            ["rejected", "Rejected"],
-          ] as [string, string][]).map(([value, label]) => (
-            <button
-              key={value}
-              data-testid={`filter-${value}`}
-              onClick={() => setStatusFilter(value as "all" | DocStatus)}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                statusFilter === value
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
         </div>
-
-        {/* Client filter pills — only shown when clients exist */}
-        {clientsData.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pt-2 scrollbar-none -mx-1 px-1">
-            <button
-              data-testid="filter-client-all"
-              onClick={() => setClientFilter("all")}
-              className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                clientFilter === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-              }`}
-            >
-              <Users className="w-3 h-3" />
-              All Clients
-            </button>
-            {clientsData.map((c) => (
-              <button
-                key={c.id}
-                data-testid={`filter-client-${c.id}`}
-                onClick={() => setClientFilter(clientFilter === c.id ? "all" : c.id)}
-                className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                  clientFilter === c.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {c.name}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
-      <div className="flex-1 overflow-y-auto pb-28">
+      {/* ── Scrollable content ── */}
+      <div className="flex-1 overflow-y-auto pb-28" style={{ background: '#fef7ed' }}>
 
-        {/* ── Hero section — only shown to first-time users with no documents ── */}
-        {docs.length === 0 && (
-          <div className="px-8 pt-12 pb-8 flex flex-col items-center text-center">
-            <h1 className="text-[1.65rem] font-extrabold text-foreground leading-tight max-w-[280px] tracking-tight">
-              Turn handwritten notes into clean documents
-            </h1>
-            <p className="text-sm text-muted-foreground mt-3 leading-relaxed max-w-[240px]">
-              Tap the camera below to scan your first document
-            </p>
+        {/* Stat card */}
+        {docs.length > 0 && (
+          <div style={{ padding: '0 20px 20px' }}>
+            <button
+              onClick={() => { setStatusFilter('all'); setShowFavoritesOnly(false); }}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 16, background: 'rgba(0,51,42,0.06)', borderRadius: 16, padding: '18px 20px', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+            >
+              <span style={{ fontSize: 52, fontWeight: 700, color: '#00332a', lineHeight: 1, fontVariantNumeric: 'tabular-nums', minWidth: 68 }}>
+                {String(statCounts.total).padStart(2, '0')}
+              </span>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#00332a' }}>Total documents</p>
+                <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(0,51,42,0.5)' }}>Across all folders</p>
+              </div>
+              <span style={{ fontSize: 13, color: 'rgba(0,51,42,0.4)', flexShrink: 0 }}>{format(new Date(), 'MMM yyyy')}</span>
+            </button>
           </div>
         )}
 
-        {/* ── Dashboard summary strip — only shown once there are documents ── */}
-        {docs.length > 0 && <div className="px-4 pt-4 pb-1">
-          <div className="flex gap-2 overflow-x-auto scrollbar-none -mx-0.5 px-0.5">
-            {([
-              { key: "total",    label: "Total",    dot: "bg-muted-foreground/50", value: statCounts.total },
-              { key: "draft",    label: "Draft",    dot: "bg-gray-400",            value: statCounts.draft },
-              { key: "pending",  label: "Waiting",  dot: "bg-amber-400",           value: statCounts.pending },
-              { key: "sent",     label: "Sent",     dot: "bg-blue-400",            value: statCounts.sent },
-              { key: "approved", label: "Approved", dot: "bg-green-400",           value: statCounts.approved },
-            ] as { key: string; label: string; dot: string; value: number }[]).map(({ key, label, dot, value }) => {
-              const isActive = key === "total"
-                ? statusFilter === "all" && !showFavoritesOnly
-                : statusFilter === key && !showFavoritesOnly;
+        {/* Collections */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px 12px' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#00332a', textTransform: 'uppercase' }}>Collections</span>
+            <button onClick={() => setShowNewFolder(true)} style={{ fontSize: 13, fontWeight: 600, color: '#00332a', background: 'none', border: 'none', cursor: 'pointer' }}>
+              See All
+            </button>
+          </div>
+          <div className="scrollbar-none" style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingLeft: 20, paddingRight: 20, paddingBottom: 4 }}>
+            {foldersData.map((folder) => {
+              const count = docs.filter(d => d.folderId === folder.id).length;
               return (
                 <button
-                  key={key}
-                  data-testid={`stat-${key}`}
-                  onClick={() => {
-                    if (key === "total") { setStatusFilter("all"); setShowFavoritesOnly(false); }
-                    else { setStatusFilter(key as DocStatus); setShowFavoritesOnly(false); }
-                  }}
-                  className={`flex-shrink-0 w-[70px] flex flex-col items-center justify-center gap-1 py-3 rounded-2xl border transition-colors ${
-                    isActive
-                      ? "bg-primary border-primary text-primary-foreground"
-                      : "bg-card border-border text-foreground"
-                  }`}
+                  key={folder.id}
+                  data-testid={`folder-chip-${folder.id}`}
+                  onClick={() => onOpenFolder(folder.id, folder.name)}
+                  style={{ flexShrink: 0, width: 130, background: 'rgba(0,51,42,0.06)', borderRadius: 16, padding: '16px 14px', border: 'none', cursor: 'pointer', textAlign: 'left' }}
                 >
-                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isActive ? "bg-primary-foreground/50" : dot}`} />
-                  <span className={`text-[22px] font-bold leading-none tabular-nums ${isActive ? "text-primary-foreground" : "text-foreground"}`}>{value}</span>
-                  <span className={`text-[9px] font-semibold leading-none ${isActive ? "text-primary-foreground/75" : "text-muted-foreground"}`}>{label}</span>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(0,51,42,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                    <FolderOpen style={{ width: 18, height: 18, color: '#00332a' }} />
+                  </div>
+                  <p style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 700, color: '#00332a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{folder.name}</p>
+                  <p style={{ margin: 0, fontSize: 12, color: 'rgba(0,51,42,0.45)' }}>{count} {count === 1 ? 'item' : 'items'}</p>
                 </button>
               );
             })}
-
-            {/* Starred */}
-            <button
-              data-testid="stat-starred"
-              onClick={() => setShowFavoritesOnly((v) => !v)}
-              className={`flex-shrink-0 w-[70px] flex flex-col items-center justify-center gap-1 py-3 rounded-2xl border transition-colors ${
-                showFavoritesOnly
-                  ? "bg-amber-400 border-amber-400"
-                  : "bg-card border-border"
-              }`}
-            >
-              <Star className={`w-3.5 h-3.5 ${showFavoritesOnly ? "fill-white text-white" : "text-amber-400"}`} />
-              <span className={`text-[22px] font-bold leading-none tabular-nums ${showFavoritesOnly ? "text-white" : "text-foreground"}`}>
-                {statCounts.starred}
-              </span>
-              <span className={`text-[9px] font-semibold leading-none ${showFavoritesOnly ? "text-white/75" : "text-muted-foreground"}`}>Starred</span>
-            </button>
-
-            {/* Clients */}
-            {clientsData.length > 0 && (
-              <button
-                data-testid="stat-clients"
-                onClick={onOpenClients}
-                className="flex-shrink-0 w-[70px] flex flex-col items-center justify-center gap-1 py-3 rounded-2xl border bg-card border-border"
-              >
-                <Users className="w-3.5 h-3.5 text-primary" />
-                <span className="text-[22px] font-bold leading-none tabular-nums text-foreground">{clientsData.length}</span>
-                <span className="text-[9px] font-semibold leading-none text-muted-foreground">Clients</span>
-              </button>
-            )}
-          </div>
-        </div>}
-
-        <div className="pt-4 px-4 mb-4">
-          <div className="flex items-center justify-between mb-2.5">
-            <h2 className="text-sm font-bold text-foreground">Folders</h2>
             <button
               data-testid="button-new-folder"
-              onClick={(e) => { e.stopPropagation(); setShowNewFolder(true); }}
-              className="text-xs text-primary font-semibold flex items-center gap-1"
+              onClick={() => setShowNewFolder(true)}
+              style={{ flexShrink: 0, width: 100, background: 'rgba(0,51,42,0.03)', borderRadius: 16, padding: '16px 14px', border: '1.5px dashed rgba(0,51,42,0.2)', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}
             >
-              <Plus className="w-3.5 h-3.5" /> New
+              <Plus style={{ width: 20, height: 20, color: 'rgba(0,51,42,0.35)' }} />
+              <p style={{ margin: 0, fontSize: 11, color: 'rgba(0,51,42,0.4)', fontWeight: 500 }}>New folder</p>
             </button>
           </div>
-
           {showNewFolder && (
-            <div className="flex gap-2 mb-3" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', gap: 8, padding: '10px 20px 0' }} onClick={(e) => e.stopPropagation()}>
               <input
                 autoFocus
                 value={newFolderName}
                 onChange={(e) => setNewFolderName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && newFolderName.trim()) createFolder.mutate(newFolderName.trim()); if (e.key === "Escape") { setShowNewFolder(false); setNewFolderName(""); } }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && newFolderName.trim()) createFolder.mutate(newFolderName.trim()); if (e.key === 'Escape') { setShowNewFolder(false); setNewFolderName(''); } }}
                 placeholder="Folder name…"
-                className="flex-1 px-3 py-2 rounded-xl bg-muted text-sm text-foreground border-0 outline-none"
+                style={{ flex: 1, padding: '10px 14px', borderRadius: 12, border: '1.5px solid rgba(0,51,42,0.2)', outline: 'none', fontSize: 14, color: '#00332a', background: 'white' }}
               />
               <button onClick={() => { if (newFolderName.trim()) createFolder.mutate(newFolderName.trim()); }}
-                className="px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium">Add</button>
-              <button onClick={() => { setShowNewFolder(false); setNewFolderName(""); }}
-                className="px-2.5 py-2 rounded-xl bg-muted text-muted-foreground"><X className="w-4 h-4" /></button>
+                style={{ padding: '10px 14px', borderRadius: 12, background: '#00332a', color: '#fef7ed', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Add</button>
+              <button onClick={() => { setShowNewFolder(false); setNewFolderName(''); }}
+                style={{ padding: '10px 12px', borderRadius: 12, background: 'rgba(0,51,42,0.08)', border: 'none', cursor: 'pointer' }}>
+                <X style={{ width: 16, height: 16, color: 'rgba(0,51,42,0.5)' }} />
+              </button>
             </div>
           )}
-
-          <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
-            {foldersData.length === 0 && !showNewFolder ? (
-              <button
-                onClick={() => setShowNewFolder(true)}
-                className="flex-shrink-0 w-24 flex flex-col items-center gap-1.5 p-3 bg-card rounded-2xl border border-dashed border-border"
-              >
-                <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
-                  <Plus className="w-5 h-5 text-muted-foreground" />
-                </div>
-                <p className="text-[11px] text-muted-foreground font-medium">New folder</p>
-              </button>
-            ) : (
-              <>
-                {foldersData.map((folder) => (
-                  <FolderChip
-                    key={folder.id}
-                    folder={folder}
-                    onOpen={() => onOpenFolder(folder.id, folder.name)}
-                    onDelete={() => deleteFolder.mutate(folder.id)}
-                    onRename={(name) => renameFolder.mutate({ id: folder.id, name })}
-                  />
-                ))}
-                <button
-                  onClick={() => setShowNewFolder(true)}
-                  className="flex-shrink-0 w-24 flex flex-col items-center gap-1.5 p-3 bg-card rounded-2xl border border-dashed border-border"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
-                    <Plus className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                  <p className="text-[11px] text-muted-foreground font-medium">New folder</p>
-                </button>
-              </>
-            )}
-          </div>
         </div>
 
+        {/* Recent — 2-column grid */}
         {recent.length > 0 && !isFiltering && (
-          <div className="mb-4">
-            <div className="flex items-center justify-between px-4 mb-2.5">
-              <h2 className="text-sm font-bold text-foreground">Recent</h2>
-              <span className="text-xs text-muted-foreground">{recent.length} doc{recent.length !== 1 ? "s" : ""}</span>
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px 12px' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#00332a', textTransform: 'uppercase' }}>Recent</span>
+              <button
+                onClick={() => docsRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                style={{ fontSize: 13, fontWeight: 600, color: '#00332a', background: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                See All
+              </button>
             </div>
-            <div className="flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-none">
-              {recent.slice(0, 10).map((doc) => (
-                <DocCard
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '0 20px' }}>
+              {recent.slice(0, 6).map((doc) => (
+                <button
                   key={doc.id}
-                  doc={doc}
-                  variant="recent"
-                  folders={foldersData}
-                  clients={clientsData}
-                  clientName={doc.clientId ? clientMap.get(doc.clientId)?.name : undefined}
-                  onOpen={() => onOpenDoc(doc.id)}
-                  onEdit={() => onEditDoc(doc.id)}
-                  onDelete={() => deleteDoc.mutate(doc.id)}
-                  onRename={(name) => renameDoc.mutate({ id: doc.id, name })}
-                  onDuplicate={() => duplicateDoc.mutate(doc.id)}
-                  onMoveToFolder={(folderId) => moveToFolder.mutate({ id: doc.id, folderId })}
-                  onSetStatus={(status) => setDocStatus.mutate({ id: doc.id, status })}
-                  onSetClient={(clientId) => setDocClient.mutate({ id: doc.id, clientId })}
-                  onToggleFavorite={() => toggleFavorite.mutate({ id: doc.id, isFavorite: !doc.isFavorite })}
-                  onShare={() => handleCardShare(doc.id)}
-                  onDownload={() => handleCardDownload(doc.id)}
-                  onSendEmail={(clientEmail) => {
-                    setCardEmailError("");
-                    setCardEmailTo(clientEmail || "");
-                    setSendingDoc({ id: doc.id, name: doc.name, clientId: doc.clientId ?? null });
-                  }}
-                />
+                  onClick={() => onOpenDoc(doc.id)}
+                  style={{ background: 'rgba(0,51,42,0.05)', borderRadius: 16, overflow: 'hidden', border: 'none', cursor: 'pointer', textAlign: 'left', display: 'flex', flexDirection: 'column' }}
+                >
+                  <div style={{ height: 110, overflow: 'hidden', background: 'rgba(0,51,42,0.07)', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '12px 14px' }}>
+                    {doc.thumbUrl ? (
+                      <img src={doc.thumbUrl} alt={doc.name} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', borderRadius: 6 }} />
+                    ) : (
+                      [80, 100, 65, 90, 55].map((w, i) => (
+                        <div key={i} style={{ height: 6, borderRadius: 3, background: 'rgba(0,51,42,0.12)', width: `${w}%`, marginBottom: i < 4 ? 7 : 0 }} />
+                      ))
+                    )}
+                  </div>
+                  <div style={{ padding: '10px 12px 12px' }}>
+                    <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: '#00332a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.name}</p>
+                    <p style={{ margin: '2px 0 0', fontSize: 11, color: 'rgba(0,51,42,0.4)' }}>
+                      {doc.createdAt ? format(new Date(doc.createdAt), 'MMM d') : ''}
+                    </p>
+                  </div>
+                </button>
               ))}
             </div>
           </div>
         )}
 
-        <div ref={docsRef} className="px-4">
-          <div className="flex items-center justify-between mb-2.5">
-            <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5">
-              {showFavoritesOnly ? (
-                <>
-                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                  Starred
-                </>
-              ) : isFiltering ? "Results" : "Your Documents"}
+        {/* All documents grid */}
+        <div ref={docsRef} style={{ padding: '0 20px' }}>
+          {(filteredDocs.length > 0 || isFiltering) && (
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#00332a', textTransform: 'uppercase' }}>
+                {showFavoritesOnly ? 'Starred' : isFiltering ? 'Results' : 'All Documents'}
+              </span>
               {filteredDocs.length > 0 && (
-                <span className="text-muted-foreground font-normal ml-0.5">({filteredDocs.length})</span>
+                <span style={{ fontWeight: 400, marginLeft: 6, color: 'rgba(0,51,42,0.4)', fontSize: 12 }}>({filteredDocs.length})</span>
               )}
-            </h2>
-          </div>
+            </div>
+          )}
           {filteredDocs.length === 0 ? (
             docs.length === 0 ? (
-              /* ── First-time user onboarding ── */
-              <div className="flex flex-col items-center px-5 pt-6 pb-8">
-                <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center mb-5">
-                  <FileText className="w-10 h-10 text-primary" />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ width: 64, height: 64, borderRadius: 20, background: 'rgba(0,51,42,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                  <FileText style={{ width: 30, height: 30, color: '#00332a' }} />
                 </div>
-                <h2 className="text-xl font-bold text-foreground mb-2 text-center">Welcome to Docera</h2>
-                <p className="text-sm text-muted-foreground leading-relaxed text-center mb-7 max-w-xs">
-                  Scan any physical document with your camera, organize it by client, and send it — all in one place.
-                </p>
-
-                {/* Workflow strip */}
-                <div className="w-full bg-card border border-border rounded-2xl px-4 pt-4 pb-5 mb-6">
-                  <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-4 text-center">How it works</p>
-                  <div className="flex items-center justify-center gap-1">
-                    {([
-                      { icon: Camera, label: "Scan" },
-                      { icon: SlidersHorizontal, label: "Edit" },
-                      { icon: FileText, label: "Save" },
-                      { icon: Send, label: "Send" },
-                    ] as const).map((step, i) => (
-                      <div key={step.label} className="flex items-center gap-1">
-                        <div className="flex flex-col items-center gap-2">
-                          <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
-                            <step.icon className="w-5 h-5 text-primary" />
-                          </div>
-                          <span className="text-[11px] font-semibold text-foreground">{step.label}</span>
-                        </div>
-                        {i < 3 && <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/40 mb-3 flex-shrink-0" />}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <button
-                  data-testid="button-scan-first-doc"
-                  onClick={() => onScan()}
-                  className="w-full bg-primary text-primary-foreground font-bold py-4 rounded-2xl active:opacity-80 text-[15px]"
-                >
-                  Add your first document
-                </button>
-              </div>
-            ) : showFavoritesOnly ? (
-              /* ── No starred documents ── */
-              <div className="flex flex-col items-center justify-center py-16 px-8 text-center gap-3">
-                <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
-                  <Star className="w-7 h-7 text-muted-foreground/50" />
-                </div>
-                <p className="text-sm font-semibold text-foreground">No starred documents</p>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Tap the star on any document card to add it here for quick access.
-                </p>
+                <h2 style={{ fontSize: 20, fontWeight: 700, color: '#00332a', margin: '0 0 8px' }}>No documents yet</h2>
+                <p style={{ fontSize: 14, color: 'rgba(0,51,42,0.5)', margin: 0, maxWidth: 240 }}>Tap the camera below to scan your first document.</p>
               </div>
             ) : (
-              /* ── Active filter / search yields nothing ── */
-              <div className="flex flex-col items-center justify-center py-16 px-8 text-center gap-3">
-                <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
-                  <Search className="w-7 h-7 text-muted-foreground/50" />
-                </div>
-                <p className="text-sm font-semibold text-foreground">No documents found</p>
-                <p className="text-sm text-muted-foreground leading-relaxed">Try adjusting your search or filter.</p>
-                <button
-                  data-testid="button-clear-filters"
-                  onClick={() => { setSearch(""); setStatusFilter("all"); setClientFilter("all"); setShowFavoritesOnly(false); }}
-                  className="mt-1 text-sm font-semibold text-primary active:opacity-60"
-                >
-                  Clear filters
-                </button>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 20px', textAlign: 'center' }}>
+                <Search style={{ width: 36, height: 36, color: 'rgba(0,51,42,0.3)', marginBottom: 12 }} />
+                <p style={{ fontSize: 15, color: 'rgba(0,51,42,0.5)', margin: 0 }}>No documents match</p>
               </div>
             )
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {filteredDocs.map((doc) => (
                 <DocCard
                   key={doc.id}
                   doc={doc}
+                  variant="grid"
                   folders={foldersData}
                   clients={clientsData}
                   clientName={doc.clientId ? clientMap.get(doc.clientId)?.name : undefined}
@@ -989,8 +837,8 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
                   onShare={() => handleCardShare(doc.id)}
                   onDownload={() => handleCardDownload(doc.id)}
                   onSendEmail={(clientEmail) => {
-                    setCardEmailError("");
-                    setCardEmailTo(clientEmail || "");
+                    setCardEmailError('');
+                    setCardEmailTo(clientEmail || '');
                     setSendingDoc({ id: doc.id, name: doc.name, clientId: doc.clientId ?? null });
                   }}
                 />
@@ -1000,16 +848,16 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
         </div>
       </div>
 
-      {/* ── Send-by-email modal (triggered from DocCard menu) ─────────────── */}
+      {/* ── Send-by-email modal ── */}
       {sendingDoc && (
         <div
           className="fixed inset-0 z-[60] flex items-end"
-          onClick={() => { if (!sendEmailCard.isPending) { setSendingDoc(null); setCardEmailTo(""); setCardEmailMsg(""); setCardEmailError(""); setCardEmailSuccess(false); } }}
+          onClick={() => { if (!sendEmailCard.isPending) { setSendingDoc(null); setCardEmailTo(''); setCardEmailMsg(''); setCardEmailError(''); setCardEmailSuccess(false); } }}
         >
           <div className="absolute inset-0 bg-black/50" />
           <div
             className="relative w-full bg-card rounded-t-3xl shadow-2xl"
-            style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
+            style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="pt-3 pb-4 px-5 border-b border-border">
@@ -1021,7 +869,7 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
                 </div>
                 <button
                   data-testid="button-card-email-close"
-                  onClick={() => { setSendingDoc(null); setCardEmailTo(""); setCardEmailMsg(""); setCardEmailError(""); setCardEmailSuccess(false); }}
+                  onClick={() => { setSendingDoc(null); setCardEmailTo(''); setCardEmailMsg(''); setCardEmailError(''); setCardEmailSuccess(false); }}
                   disabled={sendEmailCard.isPending}
                   className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground active:opacity-60 disabled:opacity-40"
                 >
@@ -1030,8 +878,6 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
               </div>
             </div>
             <div className="px-5 pt-5 pb-2 flex flex-col gap-4">
-
-              {/* Document chip */}
               <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-primary/8 border border-primary/15">
                 <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center flex-shrink-0">
                   <FileText className="w-4 h-4 text-primary" />
@@ -1041,28 +887,24 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
                   <p className="text-sm font-semibold text-foreground truncate">{sendingDoc.name}</p>
                 </div>
               </div>
-
-              {/* Recipient email */}
               <div>
                 <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">Recipient email</label>
                 <ClientEmailSuggest
                   data-testid="input-card-email-to"
                   value={cardEmailTo}
-                  onChange={(v) => { setCardEmailTo(v); setCardEmailError(""); }}
+                  onChange={(v) => { setCardEmailTo(v); setCardEmailError(''); }}
                   linkedClientId={sendingDoc?.clientId}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") {
+                    if (e.key === 'Enter') {
                       const t = cardEmailTo.trim();
                       if (t && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) sendEmailCard.mutate({ id: sendingDoc!.id, to: t, message: cardEmailMsg.trim() || undefined });
-                      else setCardEmailError("Please enter a valid email address.");
+                      else setCardEmailError('Please enter a valid email address.');
                     }
                   }}
                   disabled={sendEmailCard.isPending || cardEmailSuccess}
                   inputClassName="w-full px-4 py-3 rounded-2xl bg-muted text-sm text-foreground placeholder:text-muted-foreground border-0 outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
                 />
               </div>
-
-              {/* Message */}
               <div>
                 <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">
                   Message <span className="text-muted-foreground/50 font-normal normal-case">(optional)</span>
@@ -1077,44 +919,31 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
                   className="w-full px-4 py-3 rounded-2xl bg-muted text-sm text-foreground placeholder:text-muted-foreground border-0 outline-none resize-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
                 />
               </div>
-
-              {/* Error */}
               {cardEmailError && (
-                <div className="flex items-start gap-2.5 px-4 py-3 rounded-2xl bg-red-50 dark:bg-red-950/30 border border-red-200/60 dark:border-red-800/30">
+                <div className="flex items-start gap-2.5 px-4 py-3 rounded-2xl bg-red-50 border border-red-200/60">
                   <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-red-600 dark:text-red-400 text-sm leading-snug">{cardEmailError}</span>
+                  <span className="text-red-600 text-sm leading-snug">{cardEmailError}</span>
                 </div>
               )}
-
-              {/* Send button / success */}
               {cardEmailSuccess ? (
                 <div className="w-full py-3.5 rounded-2xl bg-green-500/10 border border-green-500/20 text-green-600 text-sm font-bold flex items-center justify-center gap-2">
-                  <Check className="w-4 h-4" />
-                  Document sent successfully
+                  <Check className="w-4 h-4" /> Document sent successfully
                 </div>
               ) : (
                 <button
                   data-testid="button-card-email-send"
                   onClick={() => {
                     const t = cardEmailTo.trim();
-                    if (!t || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) { setCardEmailError("Please enter a valid email address."); return; }
-                    setCardEmailError("");
+                    if (!t || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) { setCardEmailError('Please enter a valid email address.'); return; }
+                    setCardEmailError('');
                     sendEmailCard.mutate({ id: sendingDoc.id, to: t, message: cardEmailMsg.trim() || undefined });
                   }}
                   disabled={sendEmailCard.isPending || !cardEmailTo.trim()}
                   className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 active:opacity-80 disabled:opacity-50 transition-opacity"
                 >
-                  {sendEmailCard.isPending ? (
-                    <>
-                      <div className="w-4 h-4 rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground animate-spin" />
-                      Sending…
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4" />
-                      Send Document
-                    </>
-                  )}
+                  {sendEmailCard.isPending
+                    ? <><div className="w-4 h-4 rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground animate-spin" /> Sending…</>
+                    : <><Send className="w-4 h-4" /> Send Document</>}
                 </button>
               )}
             </div>
@@ -1122,58 +951,38 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
         </div>
       )}
 
-      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-30">
-        <div
-          className="flex items-end justify-around"
-          style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
-        >
-          {/* Docs */}
-          <button
-            data-testid="tab-docs"
-            className="flex-1 flex flex-col items-center gap-0.5 pt-3 pb-1 text-primary relative"
-          >
-            <FileText className="w-[22px] h-[22px]" />
-            <span className="text-[9px] font-semibold tracking-tight">Docs</span>
-            <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
+      {/* ── Bottom tab bar ── */}
+      <div className="fixed bottom-0 left-0 right-0 z-30" style={{ background: '#fef7ed', borderTop: '1px solid rgba(0,51,42,0.1)' }}>
+        <div className="flex items-end justify-around" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
+          <button data-testid="tab-docs" className="flex-1 flex flex-col items-center gap-0.5 pt-3 pb-1 relative" style={{ color: '#00332a', background: 'none', border: 'none', cursor: 'pointer' }}>
+            <FileText style={{ width: 22, height: 22 }} />
+            <span style={{ fontSize: 9, fontWeight: 600 }}>Docs</span>
+            <span style={{ position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: 4, height: 4, borderRadius: 2, background: '#00332a' }} />
           </button>
-
-          {/* Inbox */}
-          <button
-            data-testid="tab-inbox"
-            onClick={onOpenInbox}
-            className="flex-1 flex flex-col items-center gap-0.5 pt-3 pb-1 text-muted-foreground active:opacity-60 relative"
-          >
-            <div className="relative">
-              <Mail className="w-[22px] h-[22px]" />
+          <button data-testid="tab-inbox" onClick={onOpenInbox} className="flex-1 flex flex-col items-center gap-0.5 pt-3 pb-1 active:opacity-60" style={{ color: 'rgba(0,51,42,0.4)', background: 'none', border: 'none', cursor: 'pointer', position: 'relative' }}>
+            <div style={{ position: 'relative' }}>
+              <Mail style={{ width: 22, height: 22 }} />
               {inboxUnreadCount > 0 && (
-                <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center px-0.5">
-                  {inboxUnreadCount > 9 ? "9+" : inboxUnreadCount}
+                <span style={{ position: 'absolute', top: -4, right: -6, minWidth: 14, height: 14, borderRadius: 7, background: '#ef4444', color: 'white', fontSize: 8, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 2px' }}>
+                  {inboxUnreadCount > 9 ? '9+' : inboxUnreadCount}
                 </span>
               )}
             </div>
-            <span className="text-[9px] font-semibold tracking-tight">Inbox</span>
+            <span style={{ fontSize: 9, fontWeight: 600 }}>Inbox</span>
           </button>
-
-          {/* Camera — elevated center FAB */}
           <div className="flex-1 flex flex-col items-center pb-1">
             <button
               data-testid="button-scan"
               onClick={() => onScan()}
-              className="-mt-7 w-[60px] h-[60px] rounded-full bg-primary flex items-center justify-center active:scale-95 transition-transform"
-              style={{ boxShadow: "0 4px 20px rgba(17,62,97,0.45)" }}
+              className="-mt-7 active:scale-95 transition-transform"
+              style={{ width: 60, height: 60, borderRadius: 30, background: '#00332a', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', boxShadow: '0 4px 20px rgba(0,51,42,0.45)' }}
             >
-              <Camera className="w-7 h-7 text-primary-foreground" />
+              <Camera style={{ width: 28, height: 28, color: '#fef7ed' }} />
             </button>
           </div>
-
-          {/* Settings */}
-          <button
-            data-testid="tab-settings"
-            onClick={onProfile}
-            className="flex-1 flex flex-col items-center gap-0.5 pt-3 pb-1 text-muted-foreground active:opacity-60"
-          >
-            <Settings className="w-[22px] h-[22px]" />
-            <span className="text-[9px] font-semibold tracking-tight">Settings</span>
+          <button data-testid="tab-settings" onClick={onProfile} className="flex-1 flex flex-col items-center gap-0.5 pt-3 pb-1 active:opacity-60" style={{ color: 'rgba(0,51,42,0.4)', background: 'none', border: 'none', cursor: 'pointer' }}>
+            <Settings style={{ width: 22, height: 22 }} />
+            <span style={{ fontSize: 9, fontWeight: 600 }}>Settings</span>
           </button>
         </div>
       </div>
