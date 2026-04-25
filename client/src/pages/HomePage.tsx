@@ -110,7 +110,8 @@ const DocCard = memo(function DocCard({ doc, onOpen, onDelete, onRename, onEdit,
       </button>
       {/* Footer — separate div so star button doesn't nest inside a button */}
       <div
-        className="px-2.5 pt-2 pb-2 cursor-pointer bg-primary"
+        className="px-2.5 pt-2 pb-2 cursor-pointer"
+        style={{ background: '#00332a' }}
         onClick={onOpen}
       >
         <div className="flex items-start gap-1">
@@ -123,12 +124,6 @@ const DocCard = memo(function DocCard({ doc, onOpen, onDelete, onRename, onEdit,
           >
             <Star className={`w-3.5 h-3.5 transition-colors ${doc.isFavorite ? "fill-amber-400 text-amber-400" : "fill-none text-white/30"}`} />
           </button>
-        </div>
-        <div className="flex items-center gap-1.5 mt-1">
-          <span className={`inline-block w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusMeta.dot}`} />
-          <span className="text-[10px] leading-tight text-primary-foreground/65">
-            {statusMeta.label}{dateToShow ? ` · ${dateToShow}` : ""}
-          </span>
         </div>
         {clientName && (
           <div className="flex items-center gap-1 mt-1.5">
@@ -747,46 +742,6 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
             </div>
           )}
         </div>
-
-        {/* Recent — 2-column grid */}
-        {recent.length > 0 && !isFiltering && (
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px 12px' }}>
-              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#00332a', textTransform: 'uppercase' }}>Recent</span>
-              <button
-                onClick={() => docsRef.current?.scrollIntoView({ behavior: 'smooth' })}
-                style={{ fontSize: 13, fontWeight: 600, color: '#00332a', background: 'none', border: 'none', cursor: 'pointer' }}
-              >
-                See All
-              </button>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '0 20px' }}>
-              {recent.slice(0, 6).map((doc) => (
-                <button
-                  key={doc.id}
-                  onClick={() => onOpenDoc(doc.id)}
-                  style={{ background: 'rgba(0,51,42,0.05)', borderRadius: 16, overflow: 'hidden', border: 'none', cursor: 'pointer', textAlign: 'left', display: 'flex', flexDirection: 'column' }}
-                >
-                  <div style={{ height: 110, overflow: 'hidden', background: 'rgba(0,51,42,0.07)', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '12px 14px' }}>
-                    {doc.thumbUrl ? (
-                      <img src={doc.thumbUrl} alt={doc.name} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', borderRadius: 6 }} />
-                    ) : (
-                      [80, 100, 65, 90, 55].map((w, i) => (
-                        <div key={i} style={{ height: 6, borderRadius: 3, background: 'rgba(0,51,42,0.12)', width: `${w}%`, marginBottom: i < 4 ? 7 : 0 }} />
-                      ))
-                    )}
-                  </div>
-                  <div style={{ padding: '10px 12px 12px' }}>
-                    <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: '#00332a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.name}</p>
-                    <p style={{ margin: '2px 0 0', fontSize: 11, color: 'rgba(0,51,42,0.4)' }}>
-                      {doc.createdAt ? format(new Date(doc.createdAt), 'MMM d') : ''}
-                    </p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* All documents grid */}
         <div ref={docsRef} style={{ padding: '0 20px' }}>
