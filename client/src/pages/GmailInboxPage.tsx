@@ -1360,6 +1360,193 @@ function ThreadView({
   );
 }
 
+// ─── Compose sheet ────────────────────────────────────────────────────────────
+
+function ComposeSheet({
+  contacts, token, refreshToken, onClose, onSent,
+}: {
+  contacts: Contact[];
+  token: string;
+  refreshToken?: string | null;
+  onClose: () => void;
+  onSent: (contact: Contact) => void;
+}) {
+  const { toast } = useToast();
+  const [toValue, setToValue] = useState("");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [sending, setSending] = useState(false);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+
+  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const autocompleteResults = toValue.length > 0
+    ? contacts
+        .filter(c =>
+          c.name.toLowerCase().includes(toValue.toLowerCase()) ||
+          c.email.toLowerCase().includes(toValue.toLowerCase()),
+        )
+        .slice(0, 5)
+    : [];
+
+  const showSendToOption = autocompleteResults.length === 0 && isValidEmail(toValue);
+  const canSend = isValidEmail(toValue) && subject.trim().length > 0;
+
+  const handleSend = async () => {
+    if (!canSend || sending) return;
+    setSending(true);
+    try {
+      const senderEmail = localStorage.getItem("gmail_sender_email") ?? "";
+      await gmailPost("/api/gmail/send-message", { to: toValue, senderEmail, subject, body }, token, refreshToken);
+      onClose();
+      toast({ title: "Message sent" });
+      const existing = contacts.find(c => c.email.toLowerCase() === toValue.toLowerCase());
+      if (existing) {
+        onSent(existing);
+      } else {
+        onSent({
+          email: toValue,
+          name: toValue.split("@")[0],
+          lastSubject: subject,
+          lastDate: new Date().toISOString(),
+          lastMessage: body,
+          messageCount: 1,
+          lastDirection: "sent",
+          hasUnread: false,
+          hasAttachments: false,
+        });
+      }
+    } catch (err) {
+      toast({ title: "Failed to send", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const selectContact = (contact: Contact) => {
+    setToValue(contact.email);
+    setShowAutocomplete(false);
+  };
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.5)", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <motion.div
+        initial={{ y: "100%" }}
+        animate={{ y: 0 }}
+        exit={{ y: "100%" }}
+        transition={{ type: "spring", stiffness: 320, damping: 32 }}
+        style={{
+          background: "white", borderRadius: "12px 12px 0 0",
+          display: "flex", flexDirection: "column", maxHeight: "90vh",
+          paddingBottom: "max(0px, env(safe-area-inset-bottom))",
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "12px 16px", background: "#f8f8f8",
+          borderBottom: "1px solid rgba(0,0,0,0.1)", borderRadius: "12px 12px 0 0", flexShrink: 0,
+        }}>
+          <button onClick={onClose} style={{ color: "#00332a", fontSize: 16, background: "none", border: "none", cursor: "pointer", padding: "4px 0" }}>
+            Cancel
+          </button>
+          <span style={{ fontSize: 16, fontWeight: 600, color: "#000" }}>New Message</span>
+          <button
+            onClick={handleSend}
+            disabled={!canSend || sending}
+            style={{
+              color: canSend && !sending ? "#00332a" : "rgba(0,51,42,0.3)",
+              fontSize: 16, fontWeight: 600, background: "none", border: "none",
+              cursor: canSend && !sending ? "pointer" : "default", padding: "4px 0",
+              display: "flex", alignItems: "center",
+            }}
+          >
+            {sending ? <Loader2 style={{ width: 18, height: 18 }} className="animate-spin" /> : "Send"}
+          </button>
+        </div>
+
+        {/* To: field */}
+        <div style={{ position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "center", padding: "10px 16px" }}>
+            <span style={{ color: "#999", fontSize: 16, marginRight: 8, flexShrink: 0 }}>To:</span>
+            <input
+              type="email"
+              value={toValue}
+              onChange={e => { setToValue(e.target.value); setShowAutocomplete(true); }}
+              onFocus={() => setShowAutocomplete(true)}
+              placeholder="recipient@example.com"
+              autoComplete="off"
+              style={{ flex: 1, border: "none", outline: "none", fontSize: 16, color: "#000", background: "transparent" }}
+            />
+          </div>
+          {showAutocomplete && (autocompleteResults.length > 0 || showSendToOption) && (
+            <div style={{
+              position: "absolute", top: "100%", left: 0, right: 0, zIndex: 10,
+              background: "white", borderBottom: "1px solid rgba(0,0,0,0.08)",
+              maxHeight: 220, overflowY: "auto", boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            }}>
+              {autocompleteResults.map(c => (
+                <button
+                  key={c.email}
+                  onClick={() => selectContact(c)}
+                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "none", border: "none", cursor: "pointer", textAlign: "left", borderBottom: "1px solid rgba(0,0,0,0.05)" }}
+                >
+                  <div style={{ width: 36, height: 36, borderRadius: 18, background: "#00332a", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
+                    {initials(c.name)}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: 15, fontWeight: 500, color: "#000", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</p>
+                    <p style={{ margin: 0, fontSize: 13, color: "#999", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.email}</p>
+                  </div>
+                </button>
+              ))}
+              {showSendToOption && (
+                <button
+                  onClick={() => setShowAutocomplete(false)}
+                  style={{ width: "100%", display: "flex", alignItems: "center", padding: "12px 16px", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
+                >
+                  <span style={{ fontSize: 15, color: "#00332a" }}>Send to <strong>{toValue}</strong></span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div style={{ height: 1, background: "rgba(0,0,0,0.08)", marginLeft: 16 }} />
+
+        {/* Subject field */}
+        <div style={{ display: "flex", alignItems: "center", padding: "10px 16px", flexShrink: 0 }}>
+          <span style={{ color: "#999", fontSize: 16, marginRight: 8, flexShrink: 0 }}>Subject:</span>
+          <input
+            type="text"
+            value={subject}
+            onChange={e => setSubject(e.target.value)}
+            placeholder="Subject"
+            style={{ flex: 1, border: "none", outline: "none", fontSize: 16, color: "#000", background: "transparent" }}
+          />
+        </div>
+
+        <div style={{ height: 1, background: "rgba(0,0,0,0.08)", marginLeft: 16 }} />
+
+        {/* Body */}
+        <textarea
+          value={body}
+          onChange={e => setBody(e.target.value)}
+          placeholder="Message"
+          style={{
+            flex: 1, border: "none", outline: "none", resize: "none",
+            fontSize: 16, color: "#000", background: "transparent",
+            padding: "12px 16px", minHeight: 200,
+          }}
+        />
+      </motion.div>
+    </div>
+  );
+}
+
 // ─── Contact list ─────────────────────────────────────────────────────────────
 
 function ContactList({
@@ -1383,6 +1570,7 @@ function ContactList({
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [showMenu, setShowMenu] = useState(false);
+  const [smartMode, setSmartMode] = useState(false);
   const [inboxTab, setInboxTab] = useState<"important" | "other">("important");
   const [tabDir, setTabDir] = useState<1 | -1>(1);
   const [overrides, setOverrides] = useState<Record<string, 'important' | 'other'>>(() => {
@@ -1390,6 +1578,7 @@ function ContactList({
   });
   const [longPressTarget, setLongPressTarget] = useState<Contact | null>(null);
   const [blockTaps, setBlockTaps] = useState(false);
+  const [showCompose, setShowCompose] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
@@ -1441,7 +1630,14 @@ function ContactList({
     .sort((a, b) => b.messageCount - a.messageCount)
     .slice(0, 5);
 
-  const base = inboxTab === "important" ? sortedImportant : sortedOther;
+  const smartContacts = [...tabContacts]
+    .filter(c => c.hasAttachments || c.messageCount >= 3)
+    .sort((a, b) => {
+      if (a.hasAttachments !== b.hasAttachments) return a.hasAttachments ? -1 : 1;
+      return b.messageCount - a.messageCount;
+    });
+
+  const base = smartMode ? smartContacts : (inboxTab === "important" ? sortedImportant : sortedOther);
 
   const startLongPress = (c: Contact) => {
     longPressTimer.current = setTimeout(() => setLongPressTarget(c), 500);
@@ -1630,7 +1826,7 @@ function ContactList({
         ) : filtered.length === 0 ? (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 200, textAlign: "center" }}>
             <Mail style={{ width: 48, height: 48, marginBottom: 12, color: theme.subText }} />
-            <p style={{ color: theme.subText }}>{search ? "No contacts match" : "No emails found"}</p>
+            <p style={{ color: theme.subText }}>{search ? "No contacts match" : smartMode ? "No important conversations yet" : "No emails found"}</p>
           </div>
         ) : (
           <div>
@@ -1742,6 +1938,7 @@ function ContactList({
 
       {/* FAB compose button */}
       <AnimatedButton
+        onClick={() => setShowCompose(true)}
         style={{
           position: "fixed",
           bottom: "max(24px, env(safe-area-inset-bottom))",
@@ -1753,6 +1950,22 @@ function ContactList({
       >
         <PenLine style={{ width: 22, height: 22, color: theme.avatarText }} />
       </AnimatedButton>
+
+      {/* Compose sheet */}
+      <AnimatePresence>
+        {showCompose && (
+          <ComposeSheet
+            contacts={contacts}
+            token={token}
+            refreshToken={refreshToken}
+            onClose={() => setShowCompose(false)}
+            onSent={contact => {
+              setShowCompose(false);
+              onSelect(contact);
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
