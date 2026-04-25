@@ -1194,13 +1194,16 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       const myEmail = profile.data.emailAddress?.toLowerCase() ?? "";
 
       // Phase 1: fetch metadata for up to 100 messages (headers only, fast)
+      // Use in:anywhere so SENT messages (not in INBOX) are also returned
+      const q = `(from:${contactEmail} OR to:${contactEmail}) in:anywhere`;
+      console.log(`[thread-messages] query: "${q}", olderThan: ${parsed.data.olderThan ?? "none"}`);
       const list = await gmail.users.messages.list({
         userId: "me",
-        q: `from:${contactEmail} OR to:${contactEmail}`,
+        q,
         maxResults: 100,
       });
       const ids = (list.data.messages ?? []).map(m => m.id!);
-      console.log(`[thread-messages] pool size: ${ids.length}, olderThan: ${parsed.data.olderThan ?? "none"}`);
+      console.log(`[thread-messages] pool size: ${ids.length}`);
 
       const metaResults: Array<unknown> = [];
       for (let i = 0; i < ids.length; i += 10) {
@@ -1329,65 +1332,110 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     }
   });
 
-  // ── Gmail: send message via Resend ────────────────────────────────────────
+  // ── Gmail: send message via Gmail API (so it lands in SENT and shows on reload) ──
   app.post("/api/gmail/send-message", async (req, res) => {
     const schema = z.object({
       accessToken: z.string().min(1),
       to: z.string().min(1),
       senderEmail: z.string().optional().default(""),
       body: z.string().default(""),
+      subject: z.string().optional(),
       attachmentBase64: z.string().optional(),
       attachmentName: z.string().optional(),
       attachmentMimeType: z.string().optional(),
+      refreshToken: z.string().optional().nullable(),
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid input" });
 
     const { accessToken, to, senderEmail, body, attachmentBase64, attachmentName, attachmentMimeType } = parsed.data;
-    const subject = `New message from ${senderEmail}`;
+    const subject = parsed.data.subject ?? `New message from ${senderEmail}`;
 
-    let text: string;
-    let html: string;
-    if (attachmentBase64 && attachmentName) {
-      text = `${senderEmail} sent you a document.\n\n— Sent via Docera`;
-      html = `<p><strong>${senderEmail}</strong> sent you a document.</p><p style="color:#888;font-size:12px">— Sent via Docera</p>`;
-    } else {
-      text = `${body}\n\n— Sent via Docera`;
-      html = `<p>${body.replace(/\n/g, "<br/>")}</p><p style="color:#888;font-size:12px">— Sent via Docera</p>`;
-    }
+    const oauth2Client = new google.auth.OAuth2(GMAIL_WEB_CLIENT_ID, GMAIL_WEB_CLIENT_SECRET, GMAIL_RAILWAY_REDIRECT);
+    oauth2Client.setCredentials({
+      access_token: accessToken,
+      refresh_token: parsed.data.refreshToken ?? undefined,
+    });
+    const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
     try {
-      // Send via Resend
-      const resendApiKey = process.env.RESEND_API_KEY;
-      if (!resendApiKey) throw new Error("RESEND_API_KEY not configured");
-      const resend = new Resend(resendApiKey);
-      const fromAddr = process.env.EMAIL_FROM ?? "no-reply@docera.app";
-      const result = await resend.emails.send({
-        from: `Docera Chat <${fromAddr}>`,
-        to,
-        reply_to: senderEmail,
-        subject,
-        text,
-        html,
-        ...(attachmentBase64 && attachmentName ? {
-          attachments: [{ filename: attachmentName, content: attachmentBase64 }],
-        } : {}),
+      const profile = await gmail.users.getProfile({ userId: "me" });
+      const myEmail = profile.data.emailAddress?.toLowerCase() ?? senderEmail;
+
+      // Build raw MIME email so it appears in user's Gmail SENT folder
+      let rawEmail: string;
+      if (attachmentBase64 && attachmentName) {
+        const mimeType = attachmentMimeType ?? "application/octet-stream";
+        const boundary = `boundary_${Date.now()}`;
+        const htmlBody = `<p><strong>${senderEmail}</strong> sent you a document.</p><p style="color:#888;font-size:12px">— Sent via Docera</p>`;
+        const textBody = `${senderEmail} sent you a document.\n\n— Sent via Docera`;
+        rawEmail = [
+          `From: ${myEmail}`,
+          `To: ${to}`,
+          `Subject: ${subject}`,
+          `MIME-Version: 1.0`,
+          `Content-Type: multipart/mixed; boundary="${boundary}"`,
+          ``,
+          `--${boundary}`,
+          `Content-Type: multipart/alternative; boundary="alt_${boundary}"`,
+          ``,
+          `--alt_${boundary}`,
+          `Content-Type: text/plain; charset=utf-8`,
+          ``,
+          textBody,
+          ``,
+          `--alt_${boundary}`,
+          `Content-Type: text/html; charset=utf-8`,
+          ``,
+          htmlBody,
+          ``,
+          `--alt_${boundary}--`,
+          ``,
+          `--${boundary}`,
+          `Content-Type: ${mimeType}`,
+          `Content-Disposition: attachment; filename="${attachmentName}"`,
+          `Content-Transfer-Encoding: base64`,
+          ``,
+          attachmentBase64,
+          ``,
+          `--${boundary}--`,
+        ].join('\r\n');
+      } else {
+        const htmlBody = `<p>${body.replace(/\n/g, "<br/>")}</p><p style="color:#888;font-size:12px">— Sent via Docera</p>`;
+        rawEmail = [
+          `From: ${myEmail}`,
+          `To: ${to}`,
+          `Subject: ${subject}`,
+          `MIME-Version: 1.0`,
+          `Content-Type: text/html; charset=utf-8`,
+          ``,
+          htmlBody,
+        ].join('\r\n');
+      }
+
+      const encodedMessage = Buffer.from(rawEmail).toString('base64url');
+      const sent = await gmail.users.messages.send({
+        userId: 'me',
+        requestBody: { raw: encodedMessage },
       });
-      if (result.error) throw new Error(result.error.message ?? "Resend error");
+
+      console.log(`[gmail/send-message] sent via Gmail API, msgId: ${sent.data.id}`);
 
       res.json({
         ok: true,
         sentMessage: {
-          id: `local_${Date.now()}`,
+          id: sent.data.id ?? `local_${Date.now()}`,
           direction: "sent",
-          fromEmail: senderEmail,
+          fromEmail: myEmail,
           fromName: "Me",
           toEmail: to,
           date: new Date().toISOString(),
           subject,
           body: attachmentBase64 && attachmentName ? attachmentName : body,
           snippet: attachmentBase64 && attachmentName ? attachmentName : body.slice(0, 100),
-          attachments: [],
+          attachments: attachmentBase64 && attachmentName
+            ? [{ id: `att_${sent.data.id}`, name: attachmentName, mimeType: attachmentMimeType ?? "application/octet-stream", size: 0 }]
+            : [],
         },
       });
     } catch (err: unknown) {
