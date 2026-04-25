@@ -1585,6 +1585,7 @@ function ContactList({
   const [blockTaps, setBlockTaps] = useState(false);
   const [showCompose, setShowCompose] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const contactListRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1662,6 +1663,12 @@ function ContactList({
         (c.lastMessage || "").toLowerCase().includes(search.toLowerCase()),
       )
     : base;
+
+  useEffect(() => {
+    if (!contactListRef.current) return;
+    const btn = contactListRef.current.querySelector('button');
+    if (btn) console.log('[touch-debug] first button rect:', btn.getBoundingClientRect());
+  }, [filtered]);
 
   return (
     <div className="flex flex-col h-full" style={{ background: theme.bg }}>
@@ -1794,16 +1801,7 @@ function ContactList({
       </div>
 
       {/* Contact list */}
-      <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
-      <AnimatePresence initial={false}>
-        <motion.div
-          key={inboxTab}
-          initial={{ opacity: 0, x: tabDir * 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: tabDir * -20, pointerEvents: "none" }}
-          transition={{ type: "spring", stiffness: 380, damping: 40 }}
-          style={{ position: "absolute", inset: 0, overflowY: "auto", background: theme.bg, paddingBottom: 80 }}
-        >
+      <div ref={contactListRef} style={{ flex: 1, overflowY: "auto", background: theme.bg, paddingBottom: 80 }}>
         {loading && contacts.length === 0 ? (
           <div style={{ padding: "8px 16px" }}>
             {[1, 2, 3, 4, 5].map(i => (
@@ -1910,8 +1908,6 @@ function ContactList({
             })()}
           </div>
         )}
-        </motion.div>
-      </AnimatePresence>
       </div>
 
       {/* FAB compose button */}
