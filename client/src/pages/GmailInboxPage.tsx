@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { motion, AnimatePresence, useMotionValue, useTransform, animate } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Mail, RefreshCw, FileText, Send, X, AlertCircle,
   Plus, Paperclip, Share2, Loader2, WifiOff, Sun, Moon, ImageOff, Search,
@@ -2019,6 +2019,8 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
   const [gmailToken, setGmailToken] = useState<string | null>(null);
   const [gmailRefreshToken] = useState<string | null>(() => localStorage.getItem("gmail_refresh_token"));
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  // displayContact lags behind selectedContact so ThreadView stays mounted during slide-out
+  const [displayContact, setDisplayContact] = useState<Contact | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [connecting, setConnecting] = useState(false);
 
@@ -2056,72 +2058,20 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
   });
   const theme = getTheme(darkMode);
 
-  // ─── iOS nav stack ────────────────────────────────────────────────────────────
-  const navProgress = useMotionValue(0);
-  const bgScale = useTransform(navProgress, [0, 1], [1, 0.93]);
-  const bgOpacity = useTransform(navProgress, [0, 1], [1, 0.7]);
-  const threadX = useTransform(navProgress, [0, 1], [typeof window !== "undefined" ? window.innerWidth : 390, 0]);
-  const edgeSwipeActive = useRef(false);
-  const edgeSwipeStartX = useRef(0);
-  const edgeSwipeStartY = useRef(0);
-  const edgeSwipeLastX = useRef(0);
-  const edgeSwipeLastTime = useRef(0);
-  const edgeSwipeVelocity = useRef(0);
+  // threadReady: becomes true after first contact selection, suppresses the initial-render translateX animation
+  const threadReady = useRef(false);
 
-  useEffect(() => {
-    if (selectedContact) {
-      animate(navProgress, 1, { type: "spring", stiffness: 280, damping: 32, mass: 0.85 });
-    }
-  }, [selectedContact]);
+  const handleSelectContact = useCallback((contact: Contact) => {
+    threadReady.current = true;
+    setDisplayContact(contact);
+    setSelectedContact(contact);
+  }, []);
 
-  const handleEdgeTouchStart = useCallback((e: React.TouchEvent) => {
-    if (!selectedContact) return;
-    const x = e.touches[0].clientX;
-    if (x < 24 && !(e.target as HTMLElement).closest("button")) {
-      edgeSwipeActive.current = true;
-      edgeSwipeStartX.current = x;
-      edgeSwipeStartY.current = e.touches[0].clientY;
-      edgeSwipeLastX.current = x;
-      edgeSwipeLastTime.current = Date.now();
-      edgeSwipeVelocity.current = 0;
-    }
-  }, [selectedContact]);
-
-  const handleEdgeTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!edgeSwipeActive.current) return;
-    const dx = e.touches[0].clientX - edgeSwipeStartX.current;
-    const dy = e.touches[0].clientY - edgeSwipeStartY.current;
-    if (Math.abs(dy) > Math.abs(dx) + 10 && Math.abs(dx) < 12) {
-      edgeSwipeActive.current = false;
-      animate(navProgress, 1, { type: "spring", stiffness: 300, damping: 30 });
-      return;
-    }
-    if (dx > 0) {
-      const now = Date.now();
-      const dt = now - edgeSwipeLastTime.current;
-      const prevDx = edgeSwipeLastX.current - edgeSwipeStartX.current;
-      if (dt > 0) edgeSwipeVelocity.current = (dx - prevDx) / dt * 1000;
-      edgeSwipeLastX.current = e.touches[0].clientX;
-      edgeSwipeLastTime.current = now;
-      const w = typeof window !== "undefined" ? window.innerWidth : 390;
-      navProgress.set(1 - dx / w);
-    }
-  }, [navProgress]);
-
-  const handleEdgeTouchEnd = useCallback(() => {
-    if (!edgeSwipeActive.current) return;
-    edgeSwipeActive.current = false;
-    const progress = navProgress.get();
-    const vel = edgeSwipeVelocity.current;
-    edgeSwipeVelocity.current = 0;
-    if (progress < 0.62 || vel > 600) {
-      animate(navProgress, 0, { type: "tween", duration: 0.22, ease: "easeOut" }).then(() => {
-        setSelectedContact(null);
-      });
-    } else {
-      animate(navProgress, 1, { type: "spring", stiffness: 300, damping: 30 });
-    }
-  }, [navProgress]);
+  const handleBack = useCallback(() => {
+    setSelectedContact(null);
+    // Clear displayContact after slide-out completes so ThreadView unmounts cleanly
+    setTimeout(() => setDisplayContact(null), 320);
+  }, []);
 
   const toggleDark = () =>
     setDarkMode(prev => {
@@ -2202,18 +2152,15 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
       <div
         className="flex flex-col"
         style={{ height: "100dvh", background: theme.bg }}
-        onTouchStart={handleEdgeTouchStart}
-        onTouchMove={handleEdgeTouchMove}
-        onTouchEnd={handleEdgeTouchEnd}
       >
         <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
-          {/* ContactList — always rendered, dims/scales when ThreadView overlays */}
-          <motion.div style={{ position: "absolute", inset: 0, scale: bgScale, opacity: bgOpacity, transformOrigin: "top center", pointerEvents: selectedContact ? "none" : "auto" }}>
+          {/* ContactList — static, never transformed, never animated */}
+          <div style={{ position: "absolute", inset: 0, zIndex: 1, pointerEvents: selectedContact ? "none" : "auto" }}>
             <ContactList
               token={gmailToken}
               refreshToken={gmailRefreshToken}
               onBack={onBack}
-              onSelect={contact => { setSelectedContact(contact); }}
+              onSelect={handleSelectContact}
               onTokenExpired={handleTokenExpired}
               onDisconnect={handleDisconnect}
               onContactsLoaded={loaded => { setContacts(loaded); onUnreadCount?.(loaded.filter(c => c.hasUnread).length); }}
@@ -2221,26 +2168,31 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
               onToggleDark={toggleDark}
               theme={theme}
             />
-          </motion.div>
+          </div>
 
-          {/* ThreadView — slides in/out from right */}
-          {selectedContact && (
-            <motion.div style={{ position: "absolute", inset: 0, x: threadX }}>
+          {/* ThreadView — slides in from right on open, slides out to right on back; ContactList is never moved */}
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 2,
+              transform: selectedContact ? "translateX(0)" : "translateX(100%)",
+              transition: threadReady.current ? "transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)" : "none",
+              willChange: "transform",
+            }}
+          >
+            {displayContact && (
               <ThreadView
-                contact={selectedContact}
+                contact={displayContact}
                 token={gmailToken}
                 refreshToken={gmailRefreshToken}
                 contacts={contacts}
-                onBack={() => {
-                  animate(navProgress, 0, { type: "tween", duration: 0.22, ease: "easeOut" }).then(() => {
-                    setSelectedContact(null);
-                  });
-                }}
+                onBack={handleBack}
                 onTokenExpired={handleTokenExpired}
                 theme={theme}
               />
-            </motion.div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </>
