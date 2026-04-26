@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useReducer } from "react";
+import { isDarkMode as getIsDark, toggleDarkMode as globalToggleDark } from "@/lib/theme";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Mail, RefreshCw, FileText, Send, X, AlertCircle,
@@ -2051,11 +2052,8 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
     return () => clearInterval(id);
   }, []);
 
-  // Dark mode — default true, persisted to localStorage
-  const [darkMode, setDarkMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem(DARK_MODE_KEY);
-    return saved !== null ? saved === "true" : true;
-  });
+  const [, forceUpdate] = useReducer(x => x + 1, 0);
+  const darkMode = getIsDark();
   const theme = getTheme(darkMode);
 
   // threadReady: becomes true after first contact selection, suppresses the initial-render translateX animation
@@ -2118,18 +2116,10 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
     }
   }, [handleBack]);
 
-  const toggleDark = () =>
-    setDarkMode(prev => {
-      const next = !prev;
-      localStorage.setItem(DARK_MODE_KEY, String(next));
-      return next;
-    });
-
-  // Sync body background when dark mode is toggled manually
-  useEffect(() => {
-    document.body.style.backgroundColor = darkMode ? '#00332a' : '#fef7ed';
-    return () => { document.body.style.backgroundColor = ''; };
-  }, [darkMode]);
+  const toggleDark = useCallback(() => {
+    globalToggleDark();
+    forceUpdate();
+  }, []);
 
   useEffect(() => {
     const stored = localStorage.getItem(GMAIL_TOKEN_KEY);

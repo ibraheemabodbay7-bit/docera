@@ -1,4 +1,4 @@
-import { useState, useMemo, memo, useRef } from "react";
+import { useState, useMemo, memo, useRef, useReducer } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, apiFetch } from "@/lib/queryClient";
 import { getSetting } from "@/lib/settings";
@@ -6,8 +6,9 @@ import { Capacitor } from "@capacitor/core";
 import {
   Camera, FileText, FolderOpen, Plus, Search, MoreVertical, Trash2, Edit2, X,
   Check, User, Pencil, Copy, FolderInput, FolderMinus, Tag, Mail, Send, AlertCircle, Users, UserCheck, Star,
-  Share2, Download, ChevronRight, SlidersHorizontal, Settings, Moon,
+  Share2, Download, ChevronRight, SlidersHorizontal, Settings, Moon, Sun,
 } from "lucide-react";
+import { toggleDarkMode, isDarkMode } from "@/lib/theme";
 import { dataUrlToBlob, docFilename, docMime } from "@/lib/docUtils";
 import { DaceraLogo } from "@/components/DaceraLogo";
 import ClientEmailSuggest from "@/components/ClientEmailSuggest";
@@ -111,7 +112,7 @@ const DocCard = memo(function DocCard({ doc, onOpen, onDelete, onRename, onEdit,
       {/* Footer — separate div so star button doesn't nest inside a button */}
       <div
         className="px-2.5 pt-2 pb-2 cursor-pointer"
-        style={{ background: '#00332a' }}
+        style={{ background: 'var(--avatar-bg)' }}
         onClick={onOpen}
       >
         <div className="flex items-start gap-1">
@@ -357,6 +358,7 @@ function FolderChip({ folder, onOpen, onDelete, onRename }: { folder: Folder; on
 
 export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFolder, onProfile, onOpenClients, onOpenInbox, onLogout, inboxUnreadCount = 0 }: HomePageProps) {
   const { toast } = useToast();
+  const [, forceUpdate] = useReducer(x => x + 1, 0);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | DocStatus>(() => getSetting("defaultFilter", "all") as "all" | DocStatus);
   const [clientFilter, setClientFilter] = useState<"all" | string>("all");
@@ -604,62 +606,62 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
   }), [docs]);
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#fef7ed' }}>
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg)' }}>
 
       {/* ── Header ── */}
-      <div style={{ background: '#fef7ed', paddingTop: 'max(3rem, env(safe-area-inset-top))', paddingBottom: 16, paddingLeft: 20, paddingRight: 20, flexShrink: 0 }}>
-        {/* Top row: branding + moon */}
+      <div style={{ background: 'var(--bg)', paddingTop: 'max(3rem, env(safe-area-inset-top))', paddingBottom: 16, paddingLeft: 20, paddingRight: 20, flexShrink: 0 }}>
+        {/* Top row: branding + dark toggle */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: '#00332a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ color: '#fef7ed', fontSize: 14, fontWeight: 700 }}>D</span>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--avatar-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ color: 'var(--avatar-text)', fontSize: 14, fontWeight: 700 }}>D</span>
             </div>
-            <span style={{ fontSize: 16, fontWeight: 600, color: '#00332a' }}>Docera</span>
+            <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>Docera</span>
           </div>
-          <button onClick={onProfile} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
-            <Moon style={{ width: 20, height: 20, color: '#00332a' }} />
+          <button onClick={() => { toggleDarkMode(); forceUpdate(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+            {isDarkMode() ? <Sun style={{ width: 20, height: 20, color: 'var(--text)' }} /> : <Moon style={{ width: 20, height: 20, color: 'var(--text)' }} />}
           </button>
         </div>
 
         {/* Title + date */}
-        <h1 style={{ fontSize: 34, fontWeight: 700, color: '#00332a', margin: '0 0 2px', letterSpacing: -0.5 }}>Documents</h1>
-        <p style={{ fontSize: 14, color: 'rgba(0,51,42,0.5)', margin: '0 0 16px' }}>{format(new Date(), 'EEEE, d MMMM')}</p>
+        <h1 style={{ fontSize: 34, fontWeight: 700, color: 'var(--text)', margin: '0 0 2px', letterSpacing: -0.5 }}>Documents</h1>
+        <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '0 0 16px' }}>{format(new Date(), 'EEEE, d MMMM')}</p>
 
         {/* Search */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(0,51,42,0.08)', borderRadius: 12, padding: '10px 14px', marginBottom: 12 }}>
-          <Search style={{ width: 16, height: 16, color: 'rgba(0,51,42,0.4)', flexShrink: 0 }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface)', borderRadius: 12, padding: '10px 14px', marginBottom: 12 }}>
+          <Search style={{ width: 16, height: 16, color: 'var(--text-secondary)', flexShrink: 0 }} />
           <input
             data-testid="input-search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search"
-            style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: 15, color: '#00332a' }}
+            style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: 15, color: 'var(--text)' }}
           />
           {search && (
             <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-              <X style={{ width: 14, height: 14, color: 'rgba(0,51,42,0.4)' }} />
+              <X style={{ width: 14, height: 14, color: 'var(--text-secondary)' }} />
             </button>
           )}
         </div>
 
         {/* All / Starred segmented control */}
-        <div style={{ display: 'flex', background: 'rgba(0,51,42,0.08)', borderRadius: 10, padding: 3, position: 'relative' }}>
+        <div style={{ display: 'flex', background: 'var(--surface)', borderRadius: 10, padding: 3, position: 'relative' }}>
           <div style={{
             position: 'absolute', top: 3, bottom: 3,
             left: showFavoritesOnly ? 'calc(50% + 1.5px)' : 3,
             width: 'calc(50% - 4.5px)', borderRadius: 7,
-            background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+            background: 'var(--bg)', boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
             transition: 'left 0.2s ease', pointerEvents: 'none',
           }} />
           <button
             onClick={() => setShowFavoritesOnly(false)}
-            style={{ flex: 1, borderRadius: 7, padding: '7px 0', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, background: 'transparent', color: !showFavoritesOnly ? '#00332a' : 'rgba(0,51,42,0.45)', position: 'relative', zIndex: 1 }}
+            style={{ flex: 1, borderRadius: 7, padding: '7px 0', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, background: 'transparent', color: !showFavoritesOnly ? 'var(--text)' : 'var(--text-secondary)', position: 'relative', zIndex: 1 }}
           >
             All
           </button>
           <button
             onClick={() => setShowFavoritesOnly(true)}
-            style={{ flex: 1, borderRadius: 7, padding: '7px 0', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, background: 'transparent', color: showFavoritesOnly ? '#00332a' : 'rgba(0,51,42,0.45)', position: 'relative', zIndex: 1 }}
+            style={{ flex: 1, borderRadius: 7, padding: '7px 0', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, background: 'transparent', color: showFavoritesOnly ? 'var(--text)' : 'var(--text-secondary)', position: 'relative', zIndex: 1 }}
           >
             Starred
           </button>
@@ -667,23 +669,23 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
       </div>
 
       {/* ── Scrollable content ── */}
-      <div className="flex-1 overflow-y-auto pb-28" style={{ background: '#fef7ed' }}>
+      <div className="flex-1 overflow-y-auto pb-28" style={{ background: 'var(--bg)' }}>
 
         {/* Stat card */}
         {docs.length > 0 && (
           <div style={{ padding: '0 20px 20px' }}>
             <button
               onClick={() => { setStatusFilter('all'); setShowFavoritesOnly(false); }}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 16, background: 'rgba(0,51,42,0.06)', borderRadius: 16, padding: '18px 20px', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 16, background: 'var(--surface)', borderRadius: 16, padding: '18px 20px', border: 'none', cursor: 'pointer', textAlign: 'left' }}
             >
-              <span style={{ fontSize: 52, fontWeight: 700, color: '#00332a', lineHeight: 1, fontVariantNumeric: 'tabular-nums', minWidth: 68 }}>
+              <span style={{ fontSize: 52, fontWeight: 700, color: 'var(--text)', lineHeight: 1, fontVariantNumeric: 'tabular-nums', minWidth: 68 }}>
                 {String(statCounts.total).padStart(2, '0')}
               </span>
               <div style={{ flex: 1 }}>
-                <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#00332a' }}>Total documents</p>
-                <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(0,51,42,0.5)' }}>Across all folders</p>
+                <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Total documents</p>
+                <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-secondary)' }}>Across all folders</p>
               </div>
-              <span style={{ fontSize: 13, color: 'rgba(0,51,42,0.4)', flexShrink: 0 }}>{format(new Date(), 'MMM yyyy')}</span>
+              <span style={{ fontSize: 13, color: 'var(--text-secondary)', flexShrink: 0 }}>{format(new Date(), 'MMM yyyy')}</span>
             </button>
           </div>
         )}
@@ -691,8 +693,8 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
         {/* Collections */}
         <div style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px 12px' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#00332a', textTransform: 'uppercase' }}>Collections</span>
-            <button onClick={() => setShowNewFolder(true)} style={{ fontSize: 13, fontWeight: 600, color: '#00332a', background: 'none', border: 'none', cursor: 'pointer' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: 'var(--text)', textTransform: 'uppercase' }}>Collections</span>
+            <button onClick={() => setShowNewFolder(true)} style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', background: 'none', border: 'none', cursor: 'pointer' }}>
               See All
             </button>
           </div>
@@ -704,23 +706,23 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
                   key={folder.id}
                   data-testid={`folder-chip-${folder.id}`}
                   onClick={() => onOpenFolder(folder.id, folder.name)}
-                  style={{ flexShrink: 0, width: 130, background: 'rgba(0,51,42,0.06)', borderRadius: 16, padding: '16px 14px', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+                  style={{ flexShrink: 0, width: 130, background: 'var(--surface)', borderRadius: 16, padding: '16px 14px', border: 'none', cursor: 'pointer', textAlign: 'left' }}
                 >
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(0,51,42,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-                    <FolderOpen style={{ width: 18, height: 18, color: '#00332a' }} />
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                    <FolderOpen style={{ width: 18, height: 18, color: 'var(--text)' }} />
                   </div>
-                  <p style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 700, color: '#00332a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{folder.name}</p>
-                  <p style={{ margin: 0, fontSize: 12, color: 'rgba(0,51,42,0.45)' }}>{count} {count === 1 ? 'item' : 'items'}</p>
+                  <p style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{folder.name}</p>
+                  <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)' }}>{count} {count === 1 ? 'item' : 'items'}</p>
                 </button>
               );
             })}
             <button
               data-testid="button-new-folder"
               onClick={() => setShowNewFolder(true)}
-              style={{ flexShrink: 0, width: 100, background: 'rgba(0,51,42,0.03)', borderRadius: 16, padding: '16px 14px', border: '1.5px dashed rgba(0,51,42,0.2)', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+              style={{ flexShrink: 0, width: 100, background: 'var(--surface)', borderRadius: 16, padding: '16px 14px', border: '1.5px dashed var(--app-border)', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}
             >
-              <Plus style={{ width: 20, height: 20, color: 'rgba(0,51,42,0.35)' }} />
-              <p style={{ margin: 0, fontSize: 11, color: 'rgba(0,51,42,0.4)', fontWeight: 500 }}>New folder</p>
+              <Plus style={{ width: 20, height: 20, color: 'var(--text-secondary)' }} />
+              <p style={{ margin: 0, fontSize: 11, color: 'var(--text-secondary)', fontWeight: 500 }}>New folder</p>
             </button>
           </div>
           {showNewFolder && (
@@ -731,13 +733,13 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
                 onChange={(e) => setNewFolderName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && newFolderName.trim()) createFolder.mutate(newFolderName.trim()); if (e.key === 'Escape') { setShowNewFolder(false); setNewFolderName(''); } }}
                 placeholder="Folder name…"
-                style={{ flex: 1, padding: '10px 14px', borderRadius: 12, border: '1.5px solid rgba(0,51,42,0.2)', outline: 'none', fontSize: 14, color: '#00332a', background: 'white' }}
+                style={{ flex: 1, padding: '10px 14px', borderRadius: 12, border: '1.5px solid var(--app-border)', outline: 'none', fontSize: 14, color: 'var(--text)', background: 'var(--bg)' }}
               />
               <button onClick={() => { if (newFolderName.trim()) createFolder.mutate(newFolderName.trim()); }}
-                style={{ padding: '10px 14px', borderRadius: 12, background: '#00332a', color: '#fef7ed', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Add</button>
+                style={{ padding: '10px 14px', borderRadius: 12, background: 'var(--avatar-bg)', color: 'var(--avatar-text)', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Add</button>
               <button onClick={() => { setShowNewFolder(false); setNewFolderName(''); }}
-                style={{ padding: '10px 12px', borderRadius: 12, background: 'rgba(0,51,42,0.08)', border: 'none', cursor: 'pointer' }}>
-                <X style={{ width: 16, height: 16, color: 'rgba(0,51,42,0.5)' }} />
+                style={{ padding: '10px 12px', borderRadius: 12, background: 'var(--surface)', border: 'none', cursor: 'pointer' }}>
+                <X style={{ width: 16, height: 16, color: 'var(--text-secondary)' }} />
               </button>
             </div>
           )}
@@ -747,27 +749,27 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
         <div ref={docsRef} style={{ padding: '0 20px' }}>
           {(filteredDocs.length > 0 || isFiltering) && (
             <div style={{ marginBottom: 12 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#00332a', textTransform: 'uppercase' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: 'var(--text)', textTransform: 'uppercase' }}>
                 {showFavoritesOnly ? 'Starred' : isFiltering ? 'Results' : 'All Documents'}
               </span>
               {filteredDocs.length > 0 && (
-                <span style={{ fontWeight: 400, marginLeft: 6, color: 'rgba(0,51,42,0.4)', fontSize: 12 }}>({filteredDocs.length})</span>
+                <span style={{ fontWeight: 400, marginLeft: 6, color: 'var(--text-secondary)', fontSize: 12 }}>({filteredDocs.length})</span>
               )}
             </div>
           )}
           {filteredDocs.length === 0 ? (
             docs.length === 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 20px', textAlign: 'center' }}>
-                <div style={{ width: 64, height: 64, borderRadius: 20, background: 'rgba(0,51,42,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                  <FileText style={{ width: 30, height: 30, color: '#00332a' }} />
+                <div style={{ width: 64, height: 64, borderRadius: 20, background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                  <FileText style={{ width: 30, height: 30, color: 'var(--text)' }} />
                 </div>
-                <h2 style={{ fontSize: 20, fontWeight: 700, color: '#00332a', margin: '0 0 8px' }}>No documents yet</h2>
-                <p style={{ fontSize: 14, color: 'rgba(0,51,42,0.5)', margin: 0, maxWidth: 240 }}>Tap the camera below to scan your first document.</p>
+                <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', margin: '0 0 8px' }}>No documents yet</h2>
+                <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0, maxWidth: 240 }}>Tap the camera below to scan your first document.</p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 20px', textAlign: 'center' }}>
-                <Search style={{ width: 36, height: 36, color: 'rgba(0,51,42,0.3)', marginBottom: 12 }} />
-                <p style={{ fontSize: 15, color: 'rgba(0,51,42,0.5)', margin: 0 }}>No documents match</p>
+                <Search style={{ width: 36, height: 36, color: 'var(--text-secondary)', marginBottom: 12 }} />
+                <p style={{ fontSize: 15, color: 'var(--text-secondary)', margin: 0 }}>No documents match</p>
               </div>
             )
           ) : (
@@ -907,14 +909,14 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
       )}
 
       {/* ── Bottom tab bar ── */}
-      <div className="fixed bottom-0 left-0 right-0 z-30" style={{ background: '#fef7ed', borderTop: '1px solid rgba(0,51,42,0.1)' }}>
+      <div className="fixed bottom-0 left-0 right-0 z-30" style={{ background: 'var(--bg)', borderTop: '1px solid var(--app-border)' }}>
         <div className="flex items-end justify-around" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
-          <button data-testid="tab-docs" className="flex-1 flex flex-col items-center gap-0.5 pt-3 pb-1 relative" style={{ color: '#00332a', background: 'none', border: 'none', cursor: 'pointer' }}>
+          <button data-testid="tab-docs" className="flex-1 flex flex-col items-center gap-0.5 pt-3 pb-1 relative" style={{ color: 'var(--text)', background: 'none', border: 'none', cursor: 'pointer' }}>
             <FileText style={{ width: 22, height: 22 }} />
             <span style={{ fontSize: 9, fontWeight: 600 }}>Docs</span>
-            <span style={{ position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: 4, height: 4, borderRadius: 2, background: '#00332a' }} />
+            <span style={{ position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: 4, height: 4, borderRadius: 2, background: 'var(--text)' }} />
           </button>
-          <button data-testid="tab-inbox" onClick={onOpenInbox} className="flex-1 flex flex-col items-center gap-0.5 pt-3 pb-1 active:opacity-60" style={{ color: 'rgba(0,51,42,0.4)', background: 'none', border: 'none', cursor: 'pointer', position: 'relative' }}>
+          <button data-testid="tab-inbox" onClick={onOpenInbox} className="flex-1 flex flex-col items-center gap-0.5 pt-3 pb-1 active:opacity-60" style={{ color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', position: 'relative' }}>
             <div style={{ position: 'relative' }}>
               <Mail style={{ width: 22, height: 22 }} />
               {inboxUnreadCount > 0 && (
@@ -930,12 +932,12 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
               data-testid="button-scan"
               onClick={() => onScan()}
               className="-mt-7 active:scale-95 transition-transform"
-              style={{ width: 60, height: 60, borderRadius: 30, background: '#00332a', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', boxShadow: '0 4px 20px rgba(0,51,42,0.45)' }}
+              style={{ width: 60, height: 60, borderRadius: 30, background: 'var(--avatar-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}
             >
-              <Camera style={{ width: 28, height: 28, color: '#fef7ed' }} />
+              <Camera style={{ width: 28, height: 28, color: 'var(--avatar-text)' }} />
             </button>
           </div>
-          <button data-testid="tab-settings" onClick={onProfile} className="flex-1 flex flex-col items-center gap-0.5 pt-3 pb-1 active:opacity-60" style={{ color: 'rgba(0,51,42,0.4)', background: 'none', border: 'none', cursor: 'pointer' }}>
+          <button data-testid="tab-settings" onClick={onProfile} className="flex-1 flex flex-col items-center gap-0.5 pt-3 pb-1 active:opacity-60" style={{ color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}>
             <Settings style={{ width: 22, height: 22 }} />
             <span style={{ fontSize: 9, fontWeight: 600 }}>Settings</span>
           </button>

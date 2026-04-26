@@ -26,8 +26,8 @@ const config: CapacitorConfig = {
 
   ios: {
     contentInset: "automatic",
-    // Allow large PDF uploads through the WKWebView
     limitsNavigationsToAppBoundDomains: false,
+    backgroundColor: '#fef7ed',
   },
 
   android: {

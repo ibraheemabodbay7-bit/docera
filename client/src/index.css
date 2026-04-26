@@ -2,15 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body {
-  background-color: #fef7ed;
-  overscroll-behavior: none;
+/* ── Docera brand tokens ───────────────────────────────────────────────────── */
+:root {
+  --bg: #fef7ed;
+  --bg-secondary: #f0e8dc;
+  --text: #00332a;
+  --text-secondary: rgba(0,51,42,0.55);
+  --app-border: rgba(0,51,42,0.12);
+  --surface: rgba(0,51,42,0.07);
+  --avatar-bg: #00332a;
+  --avatar-text: #fef7ed;
 }
 
-@media (prefers-color-scheme: dark) {
-  html, body {
-    background-color: #00332a;
-  }
+html.dark {
+  --bg: #00332a;
+  --bg-secondary: #004d3d;
+  --text: #fef7ed;
+  --text-secondary: rgba(254,247,237,0.55);
+  --app-border: rgba(254,247,237,0.12);
+  --surface: rgba(254,247,237,0.07);
+  --avatar-bg: #fef7ed;
+  --avatar-text: #00332a;
+}
+
+html, body {
+  background-color: var(--bg);
+  color: var(--text);
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 /*
