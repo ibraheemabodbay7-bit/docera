@@ -1239,11 +1239,11 @@ function ThreadView({
     )}
     <div className="flex flex-col h-full" style={{ background: theme.bg }}>
       {/* Header — compact iOS style */}
-      <div style={{ flexShrink: 0, background: "#000000", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingTop: "max(3rem, env(safe-area-inset-top))" }}>
+      <div style={{ flexShrink: 0, background: "var(--bg)", borderBottom: "1px solid var(--app-border)", paddingTop: "max(3rem, env(safe-area-inset-top))" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 8px 8px" }}>
           <button
             onClick={onBack}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "#007AFF", padding: "4px 6px", display: "flex", alignItems: "center", flexShrink: 0 }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text)", padding: "4px 6px", display: "flex", alignItems: "center", flexShrink: 0 }}
           >
             <ChevronLeft style={{ width: 22, height: 22 }} />
           </button>
@@ -1251,24 +1251,25 @@ function ThreadView({
             onClick={() => setShowProfile(true)}
             style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0, background: "none", border: "none", cursor: "pointer", padding: 0 }}
           >
-            <div style={{ width: 36, height: 36, borderRadius: 18, background: theme.avatarBg, display: "flex", alignItems: "center", justifyContent: "center", color: theme.avatarText, fontSize: 14, fontWeight: 600, flexShrink: 0 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 18, background: "var(--avatar-bg)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--avatar-text)", fontSize: 14, fontWeight: 600, flexShrink: 0 }}>
               {initials(contact.name)}
             </div>
             <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
-              <p style={{ color: "white", fontSize: 17, fontWeight: 600, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.name}</p>
-              <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.email}</p>
+              <p style={{ color: "var(--text)", fontSize: 17, fontWeight: 600, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.name}</p>
+              <p style={{ color: "var(--text-secondary)", fontSize: 12, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.email}</p>
+              <p style={{ fontSize: 10, color: "var(--text-secondary)", margin: 0, opacity: 0.6 }}>Tap for contact info</p>
             </div>
           </button>
           <button
             onClick={() => { setShowSearch(v => !v); setSearch(""); }}
-            style={{ background: "none", border: "none", cursor: "pointer", color: showSearch ? "white" : "rgba(255,255,255,0.6)", padding: 8, flexShrink: 0 }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", padding: 8, flexShrink: 0 }}
           >
             <Search style={{ width: 16, height: 16 }} />
           </button>
           <button
             onClick={() => load()}
             disabled={loading}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", padding: 8, flexShrink: 0 }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", padding: 8, flexShrink: 0 }}
           >
             <RefreshCw style={{ width: 16, height: 16 }} className={loading ? "animate-spin" : ""} />
           </button>
@@ -1281,7 +1282,7 @@ function ThreadView({
               placeholder="Search messages…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              style={{ width: "100%", height: 34, borderRadius: 10, border: "none", outline: "none", background: "rgba(255,255,255,0.1)", color: "white", padding: "0 12px", fontSize: 14, boxSizing: "border-box" }}
+              style={{ width: "100%", height: 34, borderRadius: 10, border: "none", outline: "none", background: "var(--surface)", color: "var(--text)", padding: "0 12px", fontSize: 14, boxSizing: "border-box" }}
             />
           </div>
         )}
