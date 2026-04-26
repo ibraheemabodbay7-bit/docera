@@ -11,7 +11,8 @@
       "Bash(npm install *)",
       "Bash(python3 *)",
       "Bash(node *)",
-      "Bash(awk '/Begin PBXSourcesBuildPhase/,/End PBXSourcesBuildPhase/' /Users/user/Downloads/app_output/ios/App/App.xcodeproj/project.pbxproj)"
+      "Bash(awk '/Begin PBXSourcesBuildPhase/,/End PBXSourcesBuildPhase/' /Users/user/Downloads/app_output/ios/App/App.xcodeproj/project.pbxproj)",
+      "Bash(awk *)"
     ]
   }
 }

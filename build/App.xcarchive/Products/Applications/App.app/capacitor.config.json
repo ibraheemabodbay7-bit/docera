@@ -8,7 +8,8 @@
 	},
 	"ios": {
 		"contentInset": "automatic",
-		"limitsNavigationsToAppBoundDomains": false
+		"limitsNavigationsToAppBoundDomains": false,
+		"backgroundColor": "#fef7ed"
 	},
 	"android": {
 		"allowMixedContent": true

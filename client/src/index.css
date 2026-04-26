@@ -456,3 +456,12 @@ button, a, input, select, textarea, [role="button"] {
   scroll-behavior: smooth;
   will-change: scroll-position;
 }
+
+@keyframes slideInFromRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.thread-slide-in {
+  animation: slideInFromRight 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}

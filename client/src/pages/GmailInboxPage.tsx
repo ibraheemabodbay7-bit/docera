@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback, useReducer } from "react";
-import { isDarkMode as getIsDark, toggleDarkMode as globalToggleDark } from "@/lib/theme";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Mail, RefreshCw, FileText, Send, X, AlertCircle,
   Plus, Paperclip, Share2, Loader2, WifiOff, Sun, Moon, ImageOff, Search,
@@ -1111,15 +1111,18 @@ function ThreadView({
   const [search, setSearch] = useState("");
   const [showLoadPill, setShowLoadPill] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const handleBackPress = useCallback(() => {
+    setShowProfile(false);
+    setShowSearch(false);
+    onBack();
+  }, [onBack]);
   const loadFailCountRef = useRef(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async (olderThan?: string) => {
-    if (loading && olderThan) return;
     if (!olderThan) { setLoading(true); setError(null); }
     else setLoadingOlder(true);
-    let cancelled = false;
     try {
       const data = await gmailPost<{ messages: GmailMessage[]; hasMore: boolean }>(
         "/api/gmail/thread-messages",
@@ -1129,11 +1132,9 @@ function ThreadView({
       );
       let msgs = data.messages;
       if (msgs.length > 15) msgs = msgs.slice(-15);
-      console.log("[load] received:", msgs.length, "msgs, hasMore:", data.hasMore, "olderThan:", olderThan ?? "none");
       if (!olderThan) {
-        requestAnimationFrame(() => { if (!cancelled) setMessages(msgs); });
+        setMessages(msgs);
         loadFailCountRef.current = 0;
-        console.log("[load] setting oldestDate to:", msgs[0]?.date ?? null);
         setOldestDate(msgs[0]?.date ?? null);
         setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 280);
       } else {
@@ -1153,10 +1154,39 @@ function ThreadView({
       if (!olderThan) setLoading(false);
       else setLoadingOlder(false);
     }
-    return () => { cancelled = true; };
   }, [contact.email, token, refreshToken]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setMessages([]);
+    gmailPost<{ messages: GmailMessage[]; hasMore: boolean }>(
+      "/api/gmail/thread-messages",
+      { contactEmail: contact.email },
+      token,
+      refreshToken,
+    ).then(data => {
+      if (cancelled) return;
+      let msgs = data.messages;
+      if (msgs.length > 15) msgs = msgs.slice(-15);
+      setMessages(msgs);
+      setOldestDate(msgs[0]?.date ?? null);
+      setHasMore(data.hasMore ?? false);
+      loadFailCountRef.current = 0;
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 280);
+    }).catch(err => {
+      if (cancelled) return;
+      const e = err as Error & { status?: number };
+      if (e.status === 401 || e.status === 403) { onTokenExpired(); return; }
+      loadFailCountRef.current += 1;
+      if (loadFailCountRef.current >= 3) setTooManyFiles(true);
+      setError(e.message);
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [contact.email, token, refreshToken]);
 
   useEffect(() => {
     const el = messagesContainerRef.current;
@@ -1238,11 +1268,11 @@ function ThreadView({
     )}
     <div className="flex flex-col h-full" style={{ background: theme.bg }}>
       {/* Header — compact iOS style */}
-      <div style={{ flexShrink: 0, background: "var(--bg)", borderBottom: "1px solid var(--app-border)", paddingTop: "max(3rem, env(safe-area-inset-top))" }}>
+      <div style={{ flexShrink: 0, background: "#000000", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingTop: "max(3rem, env(safe-area-inset-top))" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 8px 8px" }}>
           <button
-            onClick={onBack}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text)", padding: "4px 6px", display: "flex", alignItems: "center", flexShrink: 0 }}
+            onClick={handleBackPress}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "#007AFF", padding: "4px 6px", display: "flex", alignItems: "center", flexShrink: 0 }}
           >
             <ChevronLeft style={{ width: 22, height: 22 }} />
           </button>
@@ -1250,25 +1280,24 @@ function ThreadView({
             onClick={() => setShowProfile(true)}
             style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0, background: "none", border: "none", cursor: "pointer", padding: 0 }}
           >
-            <div style={{ width: 36, height: 36, borderRadius: 18, background: "var(--avatar-bg)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--avatar-text)", fontSize: 14, fontWeight: 600, flexShrink: 0 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 18, background: theme.avatarBg, display: "flex", alignItems: "center", justifyContent: "center", color: theme.avatarText, fontSize: 14, fontWeight: 600, flexShrink: 0 }}>
               {initials(contact.name)}
             </div>
             <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
-              <p style={{ color: "var(--text)", fontSize: 17, fontWeight: 600, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.name}</p>
-              <p style={{ color: "var(--text-secondary)", fontSize: 12, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.email}</p>
-              <p style={{ fontSize: 10, color: "var(--text-secondary)", margin: 0, opacity: 0.6 }}>Tap for contact info</p>
+              <p style={{ color: "white", fontSize: 17, fontWeight: 600, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.name}</p>
+              <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.email}</p>
             </div>
           </button>
           <button
             onClick={() => { setShowSearch(v => !v); setSearch(""); }}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", padding: 8, flexShrink: 0 }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: showSearch ? "white" : "rgba(255,255,255,0.6)", padding: 8, flexShrink: 0 }}
           >
             <Search style={{ width: 16, height: 16 }} />
           </button>
           <button
             onClick={() => load()}
             disabled={loading}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", padding: 8, flexShrink: 0 }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", padding: 8, flexShrink: 0 }}
           >
             <RefreshCw style={{ width: 16, height: 16 }} className={loading ? "animate-spin" : ""} />
           </button>
@@ -1281,7 +1310,7 @@ function ThreadView({
               placeholder="Search messages…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              style={{ width: "100%", height: 34, borderRadius: 10, border: "none", outline: "none", background: "var(--surface)", color: "var(--text)", padding: "0 12px", fontSize: 14, boxSizing: "border-box" }}
+              style={{ width: "100%", height: 34, borderRadius: 10, border: "none", outline: "none", background: "rgba(255,255,255,0.1)", color: "white", padding: "0 12px", fontSize: 14, boxSizing: "border-box" }}
             />
           </div>
         )}
@@ -1439,7 +1468,11 @@ function ComposeSheet({
       style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.5)", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div
+      <motion.div
+        initial={{ y: "100%" }}
+        animate={{ y: 0 }}
+        exit={{ y: "100%" }}
+        transition={{ type: "spring", stiffness: 320, damping: 32 }}
         style={{
           background: "white", borderRadius: "12px 12px 0 0",
           display: "flex", flexDirection: "column", maxHeight: "90vh",
@@ -1544,7 +1577,7 @@ function ComposeSheet({
             padding: "12px 16px", minHeight: 200,
           }}
         />
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -1605,7 +1638,8 @@ function ContactList({
     }
   }, [token, refreshToken]);
 
-  useEffect(() => { load(); }, [load]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, []);
 
   useEffect(() => {
     const id = setInterval(() => load(), 5 * 60 * 1000);
@@ -1661,11 +1695,6 @@ function ContactList({
       )
     : base;
 
-  useEffect(() => {
-    if (!contactListRef.current) return;
-    const btn = contactListRef.current.querySelector('button');
-    if (btn) console.log('[touch-debug] first button rect:', btn.getBoundingClientRect());
-  }, [filtered]);
 
   return (
     <div className="flex flex-col h-full" style={{ background: theme.bg }}>
@@ -1757,11 +1786,12 @@ function ContactList({
         {/* Segmented tabs */}
         <div style={{ padding: "0 16px 12px" }}>
           <div style={{ display: "flex", background: darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,51,42,0.10)", borderRadius: 9, padding: 2, position: "relative" }}>
-            <div
+            <motion.div
+              animate={{ x: inboxTab === "important" ? 2 : "calc(100% + 4px)" }}
+              transition={{ type: "spring", stiffness: 400, damping: 35 }}
               style={{
-                position: "absolute", top: 2, bottom: 2,
-                left: inboxTab === "important" ? 2 : "calc(50% + 2px)",
-                width: "calc(50% - 4px)", borderRadius: 7,
+                position: "absolute", top: 2, bottom: 2, left: 0,
+                width: "calc(50% - 2px)", borderRadius: 7,
                 background: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
                 pointerEvents: "none",
               }}
@@ -1797,7 +1827,6 @@ function ContactList({
       </div>
 
       {/* Contact list */}
-      {/* STATIC - no transforms ever */}
       <div ref={contactListRef} style={{ flex: 1, overflowY: "auto", background: theme.bg, paddingBottom: 80 }}>
         {loading && contacts.length === 0 ? (
           <div style={{ padding: "8px 16px" }}>
@@ -1923,18 +1952,20 @@ function ContactList({
       </AnimatedButton>
 
       {/* Compose sheet */}
-      {showCompose && (
-        <ComposeSheet
-          contacts={contacts}
-          token={token}
-          refreshToken={refreshToken}
-          onClose={() => setShowCompose(false)}
-          onSent={contact => {
-            setShowCompose(false);
-            onSelect(contact);
-          }}
-        />
-      )}
+      <AnimatePresence>
+        {showCompose && (
+          <ComposeSheet
+            contacts={contacts}
+            token={token}
+            refreshToken={refreshToken}
+            onClose={() => setShowCompose(false)}
+            onSent={contact => {
+              setShowCompose(false);
+              onSelect(contact);
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -2014,8 +2045,6 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
   const [gmailToken, setGmailToken] = useState<string | null>(null);
   const [gmailRefreshToken] = useState<string | null>(() => localStorage.getItem("gmail_refresh_token"));
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
-  // displayContact lags behind selectedContact so ThreadView stays mounted during slide-out
-  const [displayContact, setDisplayContact] = useState<Contact | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [connecting, setConnecting] = useState(false);
 
@@ -2046,14 +2075,25 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
     return () => clearInterval(id);
   }, []);
 
-  const [, forceUpdate] = useReducer(x => x + 1, 0);
-  const darkMode = getIsDark();
+  // Dark mode — default true, persisted to localStorage
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem(DARK_MODE_KEY);
+    return saved !== null ? saved === "true" : true;
+  });
   const theme = getTheme(darkMode);
 
-  // threadReady: becomes true after first contact selection, suppresses the initial-render translateX animation
+  // displayContact lags behind selectedContact so ThreadView stays mounted during slide-out
+  const [displayContact, setDisplayContact] = useState<Contact | null>(null);
+  // threadReady: true after first open — suppresses the initial translateX animation
   const threadReady = useRef(false);
+  const displayContactTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSelectContact = useCallback((contact: Contact) => {
+    // Cancel any pending displayContact clear so it doesn't wipe the new contact
+    if (displayContactTimerRef.current) {
+      clearTimeout(displayContactTimerRef.current);
+      displayContactTimerRef.current = null;
+    }
     threadReady.current = true;
     setDisplayContact(contact);
     setSelectedContact(contact);
@@ -2061,59 +2101,18 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
 
   const handleBack = useCallback(() => {
     setSelectedContact(null);
-    // Clear displayContact after slide-out completes so ThreadView unmounts cleanly
-    setTimeout(() => setDisplayContact(null), 320);
+    displayContactTimerRef.current = setTimeout(() => {
+      setDisplayContact(null);
+      displayContactTimerRef.current = null;
+    }, 320);
   }, []);
 
-  // ─── Swipe-back gesture ───────────────────────────────────────────────────────
-  const [swipeX, setSwipeX] = useState(0);
-  const [swipeSnapping, setSwipeSnapping] = useState(false);
-  const swipeActive = useRef(false);
-  const swipeStartX = useRef(0);
-  const swipeXRef = useRef(0);
-
-  const handleSwipeTouchStart = useCallback((e: React.TouchEvent) => {
-    if (!selectedContact) return;
-    const x = e.touches[0].clientX;
-    if (x < 30) {
-      swipeActive.current = true;
-      swipeStartX.current = x;
-      setSwipeSnapping(false);
-    }
-  }, [selectedContact]);
-
-  const handleSwipeTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!swipeActive.current) return;
-    const dx = Math.max(0, Math.min(400, e.touches[0].clientX - swipeStartX.current));
-    swipeXRef.current = dx;
-    setSwipeX(dx);
-  }, []);
-
-  const handleSwipeTouchEnd = useCallback(() => {
-    if (!swipeActive.current) return;
-    swipeActive.current = false;
-    const w = window.innerWidth;
-    const current = swipeXRef.current;
-    setSwipeSnapping(true);
-    if (current > w * 0.4) {
-      setSwipeX(w);
-      setTimeout(() => {
-        setSwipeX(0);
-        swipeXRef.current = 0;
-        setSwipeSnapping(false);
-        handleBack();
-      }, 320);
-    } else {
-      setSwipeX(0);
-      swipeXRef.current = 0;
-      setTimeout(() => setSwipeSnapping(false), 320);
-    }
-  }, [handleBack]);
-
-  const toggleDark = useCallback(() => {
-    globalToggleDark();
-    forceUpdate();
-  }, []);
+  const toggleDark = () =>
+    setDarkMode(prev => {
+      const next = !prev;
+      localStorage.setItem(DARK_MODE_KEY, String(next));
+      return next;
+    });
 
   useEffect(() => {
     const stored = localStorage.getItem(GMAIL_TOKEN_KEY);
@@ -2166,6 +2165,7 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
     localStorage.removeItem(GMAIL_REFRESH_TOKEN_KEY);
     setGmailToken(null);
     setSelectedContact(null);
+    setDisplayContact(null);
   };
 
   const handleDisconnect = () => {
@@ -2173,6 +2173,7 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
     localStorage.removeItem(GMAIL_REFRESH_TOKEN_KEY);
     setGmailToken(null);
     setSelectedContact(null);
+    setDisplayContact(null);
     setContacts([]);
     toast({ title: "Gmail disconnected" });
   };
@@ -2184,12 +2185,9 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
   return (
     <>
       <OfflineBanner />
-      <div
-        className="flex flex-col"
-        style={{ height: "100dvh", background: theme.bg }}
-      >
+      <div className="flex flex-col" style={{ height: "100dvh", background: theme.bg }}>
         <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
-          {/* ContactList — static, never transformed, never animated */}
+          {/* ContactList — always mounted, never transformed */}
           <div style={{ position: "absolute", inset: 0, zIndex: 1, pointerEvents: selectedContact ? "none" : "auto" }}>
             <ContactList
               token={gmailToken}
@@ -2205,31 +2203,24 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
             />
           </div>
 
-          {/* Overlay that dims ContactList when ThreadView is in front; fades as swipe-back progresses */}
+          {/* Dim overlay — fades in when ThreadView is open */}
           <div
             style={{
               position: "absolute", inset: 0, zIndex: 1,
-              background: `rgba(0,0,0,${(selectedContact || swipeX > 0) ? (1 - swipeX / Math.max(1, window.innerWidth)) * 0.4 : 0})`,
+              background: selectedContact ? "rgba(0,0,0,0.4)" : "rgba(0,0,0,0)",
               pointerEvents: "none",
-              transition: swipeX > 0 ? "none" : "background 0.3s ease",
+              transition: "background 0.3s ease",
             }}
           />
 
-          {/* ThreadView — slides in from right on open, slides out to right on back; ContactList is never moved */}
+          {/* ThreadView — slides in from right */}
           <div
-            onTouchStart={handleSwipeTouchStart}
-            onTouchMove={handleSwipeTouchMove}
-            onTouchEnd={handleSwipeTouchEnd}
             style={{
               position: "fixed",
               inset: 0,
               zIndex: 2,
-              transform: swipeX > 0
-                ? `translateX(${swipeX}px)`
-                : selectedContact ? "translateX(0)" : "translateX(100%)",
-              transition: (swipeSnapping || (swipeX === 0 && threadReady.current))
-                ? "transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
-                : "none",
+              transform: selectedContact ? "translateX(0)" : "translateX(100%)",
+              transition: threadReady.current ? "transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)" : "none",
               willChange: "transform",
             }}
           >
