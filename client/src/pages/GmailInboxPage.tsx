@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useReducer } from "react";
 import { isDarkMode as getIsDark, toggleDarkMode as globalToggleDark } from "@/lib/theme";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Mail, RefreshCw, FileText, Send, X, AlertCircle,
   Plus, Paperclip, Share2, Loader2, WifiOff, Sun, Moon, ImageOff, Search,
@@ -1440,11 +1439,7 @@ function ComposeSheet({
       style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.5)", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <motion.div
-        initial={{ y: "100%" }}
-        animate={{ y: 0 }}
-        exit={{ y: "100%" }}
-        transition={{ type: "spring", stiffness: 320, damping: 32 }}
+      <div
         style={{
           background: "white", borderRadius: "12px 12px 0 0",
           display: "flex", flexDirection: "column", maxHeight: "90vh",
@@ -1549,7 +1544,7 @@ function ComposeSheet({
             padding: "12px 16px", minHeight: 200,
           }}
         />
-      </motion.div>
+      </div>
     </div>
   );
 }
@@ -1762,12 +1757,11 @@ function ContactList({
         {/* Segmented tabs */}
         <div style={{ padding: "0 16px 12px" }}>
           <div style={{ display: "flex", background: darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,51,42,0.10)", borderRadius: 9, padding: 2, position: "relative" }}>
-            <motion.div
-              animate={{ x: inboxTab === "important" ? 2 : "calc(100% + 4px)" }}
-              transition={{ type: "spring", stiffness: 400, damping: 35 }}
+            <div
               style={{
-                position: "absolute", top: 2, bottom: 2, left: 0,
-                width: "calc(50% - 2px)", borderRadius: 7,
+                position: "absolute", top: 2, bottom: 2,
+                left: inboxTab === "important" ? 2 : "calc(50% + 2px)",
+                width: "calc(50% - 4px)", borderRadius: 7,
                 background: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
                 pointerEvents: "none",
               }}
@@ -1803,6 +1797,7 @@ function ContactList({
       </div>
 
       {/* Contact list */}
+      {/* STATIC - no transforms ever */}
       <div ref={contactListRef} style={{ flex: 1, overflowY: "auto", background: theme.bg, paddingBottom: 80 }}>
         {loading && contacts.length === 0 ? (
           <div style={{ padding: "8px 16px" }}>
@@ -1928,20 +1923,18 @@ function ContactList({
       </AnimatedButton>
 
       {/* Compose sheet */}
-      <AnimatePresence>
-        {showCompose && (
-          <ComposeSheet
-            contacts={contacts}
-            token={token}
-            refreshToken={refreshToken}
-            onClose={() => setShowCompose(false)}
-            onSent={contact => {
-              setShowCompose(false);
-              onSelect(contact);
-            }}
-          />
-        )}
-      </AnimatePresence>
+      {showCompose && (
+        <ComposeSheet
+          contacts={contacts}
+          token={token}
+          refreshToken={refreshToken}
+          onClose={() => setShowCompose(false)}
+          onSent={contact => {
+            setShowCompose(false);
+            onSelect(contact);
+          }}
+        />
+      )}
     </div>
   );
 }
