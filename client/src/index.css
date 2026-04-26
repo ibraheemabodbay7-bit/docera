@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+html, body {
+  background-color: #fef7ed;
+  overscroll-behavior: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  html, body {
+    background-color: #00332a;
+  }
+}
+
 /*
  * Brand palette
  *   Primary dark  #113e61 → HSL 207 70% 22%

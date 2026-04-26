@@ -2073,12 +2073,63 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
     setTimeout(() => setDisplayContact(null), 320);
   }, []);
 
+  // ─── Swipe-back gesture ───────────────────────────────────────────────────────
+  const [swipeX, setSwipeX] = useState(0);
+  const [swipeSnapping, setSwipeSnapping] = useState(false);
+  const swipeActive = useRef(false);
+  const swipeStartX = useRef(0);
+  const swipeXRef = useRef(0);
+
+  const handleSwipeTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!selectedContact) return;
+    const x = e.touches[0].clientX;
+    if (x < 30) {
+      swipeActive.current = true;
+      swipeStartX.current = x;
+      setSwipeSnapping(false);
+    }
+  }, [selectedContact]);
+
+  const handleSwipeTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!swipeActive.current) return;
+    const dx = Math.max(0, Math.min(400, e.touches[0].clientX - swipeStartX.current));
+    swipeXRef.current = dx;
+    setSwipeX(dx);
+  }, []);
+
+  const handleSwipeTouchEnd = useCallback(() => {
+    if (!swipeActive.current) return;
+    swipeActive.current = false;
+    const w = window.innerWidth;
+    const current = swipeXRef.current;
+    setSwipeSnapping(true);
+    if (current > w * 0.4) {
+      setSwipeX(w);
+      setTimeout(() => {
+        setSwipeX(0);
+        swipeXRef.current = 0;
+        setSwipeSnapping(false);
+        handleBack();
+      }, 320);
+    } else {
+      setSwipeX(0);
+      swipeXRef.current = 0;
+      setTimeout(() => setSwipeSnapping(false), 320);
+    }
+  }, [handleBack]);
+
   const toggleDark = () =>
     setDarkMode(prev => {
       const next = !prev;
       localStorage.setItem(DARK_MODE_KEY, String(next));
       return next;
     });
+
+  // Sync body background when dark mode is toggled manually
+  useEffect(() => {
+    document.body.style.backgroundColor = darkMode ? '#00332a' : '#fef7ed';
+    return () => { document.body.style.backgroundColor = ''; };
+  }, [darkMode]);
 
   useEffect(() => {
     const stored = localStorage.getItem(GMAIL_TOKEN_KEY);
@@ -2170,14 +2221,31 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
             />
           </div>
 
+          {/* Overlay that dims ContactList when ThreadView is in front; fades as swipe-back progresses */}
+          <div
+            style={{
+              position: "absolute", inset: 0, zIndex: 1,
+              background: `rgba(0,0,0,${(selectedContact || swipeX > 0) ? (1 - swipeX / Math.max(1, window.innerWidth)) * 0.4 : 0})`,
+              pointerEvents: "none",
+              transition: swipeX > 0 ? "none" : "background 0.3s ease",
+            }}
+          />
+
           {/* ThreadView — slides in from right on open, slides out to right on back; ContactList is never moved */}
           <div
+            onTouchStart={handleSwipeTouchStart}
+            onTouchMove={handleSwipeTouchMove}
+            onTouchEnd={handleSwipeTouchEnd}
             style={{
               position: "fixed",
               inset: 0,
               zIndex: 2,
-              transform: selectedContact ? "translateX(0)" : "translateX(100%)",
-              transition: threadReady.current ? "transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)" : "none",
+              transform: swipeX > 0
+                ? `translateX(${swipeX}px)`
+                : selectedContact ? "translateX(0)" : "translateX(100%)",
+              transition: (swipeSnapping || (swipeX === 0 && threadReady.current))
+                ? "transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+                : "none",
               willChange: "transform",
             }}
           >
