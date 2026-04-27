@@ -203,13 +203,14 @@ function PdfPaperSkeleton({ dark }: { dark: boolean }) {
 // ─── PDF thumbnail card ───────────────────────────────────────────────────────
 
 function PdfThumbnailCard({
-  att, msgId, token, dark, dateStr,
+  att, msgId, token, dark, dateStr, variant = "card",
 }: {
   att: GmailAttachment & { msgId: string };
   msgId: string;
   token: string;
   dark: boolean;
   dateStr: string;
+  variant?: "card" | "row";
 }) {
   const theme = getTheme(dark);
   const cached = profileThumbCache.get(att.id) ?? null;
@@ -272,43 +273,48 @@ function PdfThumbnailCard({
     }
   };
 
-  return (
-    <div onClick={handleTap} style={{ display: "flex", flexDirection: "column", cursor: "pointer" }}>
-      {/* Thumbnail area */}
-      <div style={{
-        position: "relative",
-        height: 110,
-        borderRadius: 12,
-        overflow: "hidden",
-        boxShadow: dark
-          ? "0 8px 18px -10px rgba(0,0,0,0.6), inset 0 0.5px 0 rgba(255,255,255,0.04)"
-          : "0 6px 14px -8px rgba(0,51,42,0.22), inset 0 0.5px 0 rgba(255,255,255,0.6)",
-      }}>
-        {/* Paper skeleton always mounted as base layer */}
-        <PdfPaperSkeleton dark={dark} />
-        {/* Real thumbnail rendered on top once loaded */}
-        {thumb && (
-          <img
-            src={thumb}
-            alt=""
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "top", display: "block" }}
-          />
-        )}
-        {/* Loading spinner overlay */}
-        {loading && (
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Loader2 style={{ width: 16, height: 16, color: "rgba(0,51,42,0.35)" }} className="animate-spin" />
+  const thumbArea = (w: number | string, h: number) => (
+    <div style={{
+      position: "relative",
+      width: w,
+      height: h,
+      borderRadius: 10,
+      overflow: "hidden",
+      flexShrink: 0,
+      boxShadow: dark
+        ? "0 6px 14px -8px rgba(0,0,0,0.5), inset 0 0.5px 0 rgba(255,255,255,0.04)"
+        : "0 4px 10px -6px rgba(0,51,42,0.2), inset 0 0.5px 0 rgba(255,255,255,0.6)",
+    }}>
+      <PdfPaperSkeleton dark={dark} />
+      {thumb && <img src={thumb} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "top", display: "block" }} />}
+      {loading && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}><Loader2 style={{ width: 14, height: 14, color: "rgba(0,51,42,0.35)" }} className="animate-spin" /></div>}
+      {opening && <div style={{ position: "absolute", inset: 0, background: "rgba(0,51,42,0.18)", display: "flex", alignItems: "center", justifyContent: "center" }}><Loader2 style={{ width: 16, height: 16, color: "#00332a" }} className="animate-spin" /></div>}
+    </div>
+  );
+
+  if (variant === "row") {
+    return (
+      <div onClick={handleTap} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 20px", cursor: "pointer", borderBottom: `0.5px solid ${theme.hair}` }}>
+        {thumbArea(60, 80)}
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 600, color: theme.ink, letterSpacing: "-0.01em", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{att.name}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: theme.subtle }}>
+            <span>{fmtSize(att.size)}</span>
+            {dateStr && <><span style={{ width: 2.5, height: 2.5, borderRadius: "50%", background: theme.muted, flexShrink: 0, display: "inline-block" }} /><span>{dateStr}</span></>}
           </div>
-        )}
-        {opening && (
-          <div style={{ position: "absolute", inset: 0, background: "rgba(0,51,42,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Loader2 style={{ width: 18, height: 18, color: "#00332a" }} className="animate-spin" />
-          </div>
-        )}
+        </div>
+        <ChevronLeft style={{ width: 16, height: 16, color: theme.muted, transform: "rotate(180deg)", flexShrink: 0 }} />
       </div>
+    );
+  }
+
+  // card variant
+  return (
+    <div onClick={handleTap} style={{ display: "flex", flexDirection: "column", cursor: "pointer", width: 130, flexShrink: 0 }}>
+      {thumbArea("100%", 100)}
       {/* Metadata below */}
       <div style={{ paddingTop: 8, paddingLeft: 2, display: "flex", flexDirection: "column", gap: 2 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: theme.ink, letterSpacing: "-0.01em", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: theme.ink, letterSpacing: "-0.01em", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {att.name}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: theme.subtle, letterSpacing: "-0.01em" }}>
@@ -424,6 +430,8 @@ export default function ClientProfilePage({
     return () => { cancelled = true; };
   }, [contact.email, token]);
 
+  const [showAllDocs, setShowAllDocs] = useState(false);
+
   const pdfs = allAtts.filter(a => a.mimeType.includes("pdf") || a.name.toLowerCase().endsWith(".pdf"));
   const images = allAtts.filter(a => a.mimeType.startsWith("image/"));
 
@@ -478,7 +486,7 @@ export default function ClientProfilePage({
           </div>
         </div>
 
-        {/* Documents */}
+        {/* Documents — horizontal scroll row */}
         {attsLoading ? (
           <div style={{ display: "flex", justifyContent: "center", padding: "28px 20px" }}>
             <Loader2 style={{ width: 22, height: 22, color: theme.muted }} className="animate-spin" />
@@ -490,12 +498,12 @@ export default function ClientProfilePage({
                 <Paperclip style={{ width: 13, height: 13, strokeWidth: 1.8 }} />
                 Documents
               </div>
-              <button style={{ background: "transparent", border: "none", padding: 0, color: theme.ink, fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", letterSpacing: "-0.01em" }}>
+              <button onClick={() => setShowAllDocs(true)} style={{ background: "transparent", border: "none", padding: 0, color: theme.ink, fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", letterSpacing: "-0.01em" }}>
                 See All
               </button>
             </div>
-            <div style={{ padding: "0 20px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              {pdfs.map((att, i) => (
+            <div style={{ paddingLeft: 20, paddingRight: 20, overflowX: "auto", display: "flex", flexDirection: "row", gap: 12, paddingBottom: 4 }}>
+              {pdfs.slice(0, 10).map((att, i) => (
                 <PdfThumbnailCard
                   key={`${att.id}-${i}`}
                   att={{ id: att.id, name: att.name, mimeType: att.mimeType, size: att.size, msgId: att.messageId }}
@@ -503,6 +511,7 @@ export default function ClientProfilePage({
                   token={token}
                   dark={theme.frameDark}
                   dateStr={fmtDate(att.date)}
+                  variant="card"
                 />
               ))}
             </div>
@@ -517,9 +526,6 @@ export default function ClientProfilePage({
                 <Image style={{ width: 13, height: 13, strokeWidth: 1.8 }} />
                 Photos
               </div>
-              <button style={{ background: "transparent", border: "none", padding: 0, color: theme.ink, fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", letterSpacing: "-0.01em" }}>
-                See All
-              </button>
             </div>
             <div style={{ padding: "0 20px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
               {images.map((att, i) => (
@@ -555,6 +561,37 @@ export default function ClientProfilePage({
 
         <div style={{ height: 60 }} />
       </div>
+
+      {/* See All Documents — full screen overlay */}
+      {showAllDocs && (
+        <div style={{ position: "absolute", inset: 0, zIndex: 10, background: theme.base, display: "flex", flexDirection: "column" }}>
+          {/* Header */}
+          <div style={{ background: theme.headerBg, paddingTop: "max(3rem, env(safe-area-inset-top))", paddingBottom: 14, paddingLeft: 20, paddingRight: 20, flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <button onClick={() => setShowAllDocs(false)} style={{ width: 36, height: 36, borderRadius: 10, background: "transparent", border: "none", padding: 0, color: theme.headerInk, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", marginLeft: -6 }}>
+                <ChevronLeft style={{ width: 22, height: 22 }} />
+              </button>
+              <div style={{ fontSize: 15, fontWeight: 600, color: theme.headerInk, letterSpacing: "-0.01em" }}>All Documents</div>
+              <div style={{ width: 36 }} />
+            </div>
+          </div>
+          {/* List */}
+          <div style={{ flex: 1, overflowY: "auto" }}>
+            {pdfs.map((att, i) => (
+              <PdfThumbnailCard
+                key={`all-${att.id}-${i}`}
+                att={{ id: att.id, name: att.name, mimeType: att.mimeType, size: att.size, msgId: att.messageId }}
+                msgId={att.messageId}
+                token={token}
+                dark={theme.frameDark}
+                dateStr={fmtDate(att.date)}
+                variant="row"
+              />
+            ))}
+            <div style={{ height: 40 }} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
