@@ -493,15 +493,13 @@ function ImageAttachment({
     <>
       {fullscreen && src && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ background: "rgba(0,0,0,0.96)" }}
+          style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.96)", display: "flex", alignItems: "center", justifyContent: "center" }}
           onClick={() => setFullscreen(false)}
         >
-          <img src={src} alt="" className="max-w-full max-h-full object-contain" />
+          <img src={src} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
           <button
-            className="absolute top-12 right-4 w-9 h-9 rounded-full flex items-center justify-center"
-            style={{ background: "rgba(255,255,255,0.15)" }}
-            onClick={() => setFullscreen(false)}
+            style={{ position: "absolute", top: 52, right: 16, width: 36, height: 36, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.15)", border: "none", cursor: "pointer" }}
+            onClick={e => { e.stopPropagation(); setFullscreen(false); }}
           >
             <X className="w-5 h-5 text-white" />
           </button>

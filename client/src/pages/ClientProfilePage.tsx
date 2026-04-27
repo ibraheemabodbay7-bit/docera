@@ -103,6 +103,21 @@ async function generatePdfThumbnail(base64: string): Promise<string> {
   }
 }
 
+async function openImageFromProfile(base64: string, name: string, mimeType: string) {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    const { Filesystem, Directory } = await import("@capacitor/filesystem");
+    const ext = mimeType.includes("png") ? "png" : mimeType.includes("gif") ? "gif" : mimeType.includes("webp") ? "webp" : "jpg";
+    const safe = name.replace(/[^a-z0-9._-]/gi, "_");
+    const fileName = safe.includes(".") ? safe : `${safe}.${ext}`;
+    await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache, recursive: true });
+    const { uri } = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
+    await QuickLook.openPDF({ path: uri });
+  } catch (err) {
+    console.error("Image open error:", err);
+  }
+}
+
 async function openPdfFromProfile(base64: string, name: string) {
   if (!Capacitor.isNativePlatform()) return;
   try {
@@ -372,7 +387,9 @@ function ImageCard({ att, msgId, token, placeholder }: {
   placeholder: string;
 }) {
   const [src, setSrc] = useState<string | null>(null);
+  const [b64, setB64] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [opening, setOpening] = useState(false);
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -387,8 +404,10 @@ function ImageCard({ att, msgId, token, placeholder }: {
         });
         if (!res.ok) throw new Error("fetch failed");
         const data = await res.json() as { base64?: string };
-        if (!cancelled && data.base64) setSrc(`data:${att.mimeType};base64,${data.base64}`);
-        else if (!cancelled) setError(true);
+        if (!cancelled && data.base64) {
+          setB64(data.base64);
+          setSrc(`data:${att.mimeType};base64,${data.base64}`);
+        } else if (!cancelled) setError(true);
       } catch {
         if (!cancelled) setError(true);
       } finally {
@@ -398,12 +417,27 @@ function ImageCard({ att, msgId, token, placeholder }: {
     return () => { cancelled = true; };
   }, [att.id, msgId, token]);
 
+  const handleTap = async () => {
+    if (opening || !b64) return;
+    setOpening(true);
+    try {
+      await openImageFromProfile(b64, att.name, att.mimeType);
+    } finally {
+      setOpening(false);
+    }
+  };
+
   return (
-    <div style={{ position: "relative", aspectRatio: "1 / 1", borderRadius: 10, overflow: "hidden", background: placeholder, cursor: "pointer" }}>
+    <div onClick={handleTap} style={{ position: "relative", aspectRatio: "1 / 1", borderRadius: 10, overflow: "hidden", background: placeholder, cursor: "pointer" }}>
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(255,255,255,0.12), transparent 50%)", pointerEvents: "none", zIndex: 1 }} />
       {loading && (
         <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2 }}>
           <Loader2 style={{ width: 18, height: 18, color: "rgba(0,51,42,0.3)" }} className="animate-spin" />
+        </div>
+      )}
+      {opening && (
+        <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.3)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 4 }}>
+          <Loader2 style={{ width: 20, height: 20, color: "#ffffff" }} className="animate-spin" />
         </div>
       )}
       {error && !loading && (

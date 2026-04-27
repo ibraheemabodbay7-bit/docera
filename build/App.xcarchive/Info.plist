@@ -15,7 +15,7 @@
 		<key>CFBundleShortVersionString</key>
 		<string>1.0</string>
 		<key>CFBundleVersion</key>
-		<string>79</string>
+		<string>80</string>
 		<key>SigningIdentity</key>
 		<string>Apple Development: Ibrahim Abu dbay (GT5TCDC486)</string>
 		<key>Team</key>
@@ -24,7 +24,7 @@
 	<key>ArchiveVersion</key>
 	<integer>2</integer>
 	<key>CreationDate</key>
-	<date>2026-04-27T15:58:15Z</date>
+	<date>2026-04-27T16:27:45Z</date>
 	<key>Name</key>
 	<string>App</string>
 	<key>SchemeName</key>
