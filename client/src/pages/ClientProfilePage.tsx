@@ -392,20 +392,45 @@ interface ClientProfilePageProps {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+type ContactAtt = { id: string; messageId: string; name: string; mimeType: string; size: number; date: string };
+
 export default function ClientProfilePage({
-  contact, messages, token, onBack, onOpenConversation,
+  contact, messages, token, refreshToken, onBack, onOpenConversation,
 }: ClientProfilePageProps) {
   const darkMode = localStorage.getItem("docera_inbox_dark") === "true";
   const theme = getTheme(darkMode);
 
-  const allAttachments = messages.flatMap(m => m.attachments.map(att => ({ ...att, msgId: m.id })));
-  const pdfs = allAttachments.filter(a => a.mimeType === "application/pdf" || a.name.toLowerCase().endsWith(".pdf"));
-  const images = allAttachments.filter(a => a.mimeType.startsWith("image/"));
+  const [allAtts, setAllAtts] = useState<ContactAtt[]>([]);
+  const [attsLoading, setAttsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setAttsLoading(true);
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/gmail/contact-attachments`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accessToken: token, contactEmail: contact.email, refreshToken: refreshToken ?? null }),
+          credentials: "omit",
+        });
+        if (!res.ok) return;
+        const data = await res.json() as { attachments: ContactAtt[] };
+        if (!cancelled) setAllAtts(data.attachments ?? []);
+      } catch { } finally {
+        if (!cancelled) setAttsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [contact.email, token]);
+
+  const pdfs = allAtts.filter(a => a.mimeType.includes("pdf") || a.name.toLowerCase().endsWith(".pdf"));
+  const images = allAtts.filter(a => a.mimeType.startsWith("image/"));
 
   const stats = [
     { label: "Messages", value: messages.length },
-    { label: "PDFs",     value: pdfs.length },
-    { label: "Photos",   value: images.length },
+    { label: "PDFs",     value: attsLoading ? "…" : pdfs.length },
+    { label: "Photos",   value: attsLoading ? "…" : images.length },
   ];
 
   return (
@@ -444,7 +469,7 @@ export default function ClientProfilePage({
           <div style={{ background: theme.statsCard, borderRadius: 16, padding: "18px 12px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", boxShadow: theme.statsCardShadow, border: theme.statsCardBorder }}>
             {stats.map((s, i) => (
               <div key={s.label} style={{ padding: "4px 0", borderLeft: i === 0 ? "none" : `0.5px solid ${theme.hair}`, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                <div style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontSize: 30, fontWeight: 500, color: s.value > 0 ? theme.ink : theme.muted, lineHeight: 1, letterSpacing: "-0.02em" }}>
+                <div style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontSize: 30, fontWeight: 500, color: (typeof s.value === "number" ? s.value > 0 : true) ? theme.ink : theme.muted, lineHeight: 1, letterSpacing: "-0.02em" }}>
                   {s.value}
                 </div>
                 <div style={{ fontSize: 11, fontWeight: 500, color: theme.subtle, letterSpacing: "0.02em" }}>{s.label}</div>
@@ -454,7 +479,11 @@ export default function ClientProfilePage({
         </div>
 
         {/* Documents */}
-        {pdfs.length > 0 && (
+        {attsLoading ? (
+          <div style={{ display: "flex", justifyContent: "center", padding: "28px 20px" }}>
+            <Loader2 style={{ width: 22, height: 22, color: theme.muted }} className="animate-spin" />
+          </div>
+        ) : pdfs.length > 0 ? (
           <>
             <div style={{ padding: "28px 20px 10px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 600, color: theme.subtle, letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
@@ -469,19 +498,19 @@ export default function ClientProfilePage({
               {pdfs.map((att, i) => (
                 <PdfThumbnailCard
                   key={`${att.id}-${i}`}
-                  att={att}
-                  msgId={att.msgId}
+                  att={{ id: att.id, name: att.name, mimeType: att.mimeType, size: att.size, msgId: att.messageId }}
+                  msgId={att.messageId}
                   token={token}
                   dark={theme.frameDark}
-                  dateStr={fmtDate(messages.find(m => m.id === att.msgId)?.date ?? "")}
+                  dateStr={fmtDate(att.date)}
                 />
               ))}
             </div>
           </>
-        )}
+        ) : null}
 
         {/* Photos */}
-        {images.length > 0 && (
+        {!attsLoading && images.length > 0 && (
           <>
             <div style={{ padding: "28px 20px 10px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 600, color: theme.subtle, letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
@@ -494,14 +523,20 @@ export default function ClientProfilePage({
             </div>
             <div style={{ padding: "0 20px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
               {images.map((att, i) => (
-                <ImageCard key={`${att.id}-${i}`} att={att} msgId={att.msgId} token={token} placeholder={theme.toneGradients[i % 4]} />
+                <ImageCard
+                  key={`${att.id}-${i}`}
+                  att={{ id: att.id, name: att.name, mimeType: att.mimeType, size: att.size, msgId: att.messageId }}
+                  msgId={att.messageId}
+                  token={token}
+                  placeholder={theme.toneGradients[i % 4]}
+                />
               ))}
             </div>
           </>
         )}
 
         {/* Empty state */}
-        {pdfs.length === 0 && images.length === 0 && (
+        {!attsLoading && pdfs.length === 0 && images.length === 0 && (
           <p style={{ color: theme.muted, fontSize: 14, textAlign: "center", padding: "28px 20px" }}>
             No attachments in this conversation
           </p>

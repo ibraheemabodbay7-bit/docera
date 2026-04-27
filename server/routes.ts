@@ -1298,6 +1298,64 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     }
   });
 
+  // ── Gmail: /api/gmail/contact-attachments ─────────────────────────────────
+  app.post("/api/gmail/contact-attachments", async (req, res) => {
+    const schema = z.object({
+      accessToken: z.string().min(1),
+      contactEmail: z.string().min(1),
+      refreshToken: z.string().optional().nullable(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+
+    const { accessToken, contactEmail } = parsed.data;
+    const oauth2Client = new google.auth.OAuth2(GMAIL_WEB_CLIENT_ID, GMAIL_WEB_CLIENT_SECRET, GMAIL_RAILWAY_REDIRECT);
+    oauth2Client.setCredentials({
+      access_token: accessToken,
+      refresh_token: parsed.data.refreshToken ?? undefined,
+    });
+    if (parsed.data.refreshToken) {
+      try { await oauth2Client.refreshAccessToken(); } catch {}
+    }
+    const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+    try {
+      const q = `(from:${contactEmail} OR to:${contactEmail}) in:anywhere has:attachment`;
+      const list = await gmail.users.messages.list({ userId: "me", q, maxResults: 200 });
+      const ids = (list.data.messages ?? []).map(m => m.id!);
+
+      const fullDetails: Array<unknown> = [];
+      for (let i = 0; i < ids.length; i += 10) {
+        const chunk = ids.slice(i, i + 10);
+        const results = await Promise.all(
+          chunk.map(id => gmail.users.messages.get({ userId: "me", id, format: "full" })
+            .then(r => r.data).catch(() => null))
+        );
+        fullDetails.push(...results);
+      }
+
+      const attachments: Array<{ id: string; messageId: string; name: string; mimeType: string; size: number; date: string }> = [];
+      for (const msg of fullDetails as Array<Record<string, unknown> | null>) {
+        if (!msg) continue;
+        const h = ((msg.payload as Record<string, unknown>)?.headers ?? []) as Array<{ name?: string | null; value?: string | null }>;
+        const date = getGmailHeader(h, "Date");
+        const atts = extractGmailAttachments(msg.payload as Record<string, unknown> ?? {});
+        for (const att of atts) {
+          if (!att.mimeType.includes("pdf") && !att.mimeType.startsWith("image/")) continue;
+          attachments.push({ ...att, messageId: msg.id as string, date });
+        }
+      }
+
+      attachments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      res.json({ attachments });
+    } catch (err: unknown) {
+      const e = err as Record<string, unknown>;
+      const status = (e?.response as Record<string, unknown>)?.status as number ?? 500;
+      const msg = err instanceof Error ? err.message : "Failed";
+      console.error("[gmail/contact-attachments]", msg);
+      res.status(status).json({ error: msg });
+    }
+  });
+
   // ── Gmail: /api/gmail/thread alias ────────────────────────────────────────
   async function handleGmailThread(req: Request, res: Response) {
     const schema = z.object({ accessToken: z.string().min(1), contactEmail: z.string().min(1) });
