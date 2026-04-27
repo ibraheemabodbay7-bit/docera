@@ -1253,10 +1253,7 @@ function ThreadView({
     return nodes;
   };
 
-  const isDark = theme.header === "#00332a";
-  const nameColor = isDark ? '#fef7ed' : '#00332a';
-  const emailColor = isDark ? 'rgba(254,247,237,0.6)' : 'rgba(0,51,42,0.6)';
-  const tapHintColor = isDark ? 'rgba(254,247,237,0.5)' : 'rgba(0,51,42,0.5)';
+  const darkMode = theme.header === "#00332a";
 
   return (
     <>
@@ -1273,11 +1270,11 @@ function ThreadView({
     )}
     <div className="flex flex-col h-full" style={{ background: theme.bg }}>
       {/* Header — compact iOS style */}
-      <div style={{ flexShrink: 0, background: theme.header, borderBottom: `1px solid ${theme.border}`, paddingTop: "max(3rem, env(safe-area-inset-top))" }}>
+      <div style={{ flexShrink: 0, background: darkMode ? '#00332a' : '#fef7ed', borderBottom: `1px solid ${theme.border}`, paddingTop: "max(3rem, env(safe-area-inset-top))" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 8px 8px" }}>
           <button
             onClick={handleBackPress}
-            style={{ background: "none", border: "none", cursor: "pointer", color: nameColor, padding: "4px 6px", display: "flex", alignItems: "center", flexShrink: 0 }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: darkMode ? '#fef7ed' : '#00332a', padding: "4px 6px", display: "flex", alignItems: "center", flexShrink: 0 }}
           >
             <ChevronLeft style={{ width: 22, height: 22 }} />
           </button>
@@ -1289,21 +1286,21 @@ function ThreadView({
               {initials(contact.name)}
             </div>
             <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
-              <p style={{ color: theme.receivedText, fontSize: 17, fontWeight: 600, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.name}</p>
-              <p style={{ color: theme.subText, fontSize: 12, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.email}</p>
-              <p style={{ fontSize: 10, margin: '1px 0 0', color: theme.subText, opacity: 0.6 }}>Tap for contact info</p>
+              <p style={{ color: darkMode ? '#fef7ed' : '#00332a', fontSize: 17, fontWeight: 600, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.name}</p>
+              <p style={{ color: darkMode ? 'rgba(254,247,237,0.6)' : 'rgba(0,51,42,0.6)', fontSize: 12, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.email}</p>
+              <p style={{ fontSize: 10, margin: '1px 0 0', color: darkMode ? 'rgba(254,247,237,0.5)' : 'rgba(0,51,42,0.5)' }}>Tap for contact info</p>
             </div>
           </button>
           <button
             onClick={() => { setShowSearch(v => !v); setSearch(""); }}
-            style={{ background: "none", border: "none", cursor: "pointer", color: showSearch ? nameColor : emailColor, padding: 8, flexShrink: 0 }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: darkMode ? '#fef7ed' : '#00332a', padding: 8, flexShrink: 0 }}
           >
             <Search style={{ width: 16, height: 16 }} />
           </button>
           <button
             onClick={() => load()}
             disabled={loading}
-            style={{ background: "none", border: "none", cursor: "pointer", color: emailColor, padding: 8, flexShrink: 0 }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: darkMode ? 'rgba(254,247,237,0.6)' : 'rgba(0,51,42,0.6)', padding: 8, flexShrink: 0 }}
           >
             <RefreshCw style={{ width: 16, height: 16 }} className={loading ? "animate-spin" : ""} />
           </button>
@@ -1316,7 +1313,7 @@ function ThreadView({
               placeholder="Search messages…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              style={{ width: "100%", height: 34, borderRadius: 10, border: "none", outline: "none", background: theme.searchBg, color: nameColor, padding: "0 12px", fontSize: 14, boxSizing: "border-box" }}
+              style={{ width: "100%", height: 34, borderRadius: 10, border: "none", outline: "none", background: theme.searchBg, color: darkMode ? '#fef7ed' : '#00332a', padding: "0 12px", fontSize: 14, boxSizing: "border-box" }}
             />
           </div>
         )}
