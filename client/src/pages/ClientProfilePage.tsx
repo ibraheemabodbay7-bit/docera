@@ -210,7 +210,7 @@ function PdfThumbnailCard({
   token: string;
   dark: boolean;
   dateStr: string;
-  variant?: "card" | "row";
+  variant?: "card" | "row" | "large";
 }) {
   const theme = getTheme(dark);
   const cached = profileThumbCache.get(att.id) ?? null;
@@ -291,6 +291,26 @@ function PdfThumbnailCard({
       {opening && <div style={{ position: "absolute", inset: 0, background: "rgba(0,51,42,0.18)", display: "flex", alignItems: "center", justifyContent: "center" }}><Loader2 style={{ width: 16, height: 16, color: "#00332a" }} className="animate-spin" /></div>}
     </div>
   );
+
+  if (variant === "large") {
+    const cardBg = dark ? "rgba(254,247,237,0.06)" : "#ffffff";
+    const nameColor = dark ? "#fef7ed" : "#00332a";
+    const metaColor = dark ? "rgba(254,247,237,0.5)" : "rgba(0,51,42,0.5)";
+    return (
+      <div onClick={handleTap} style={{ background: cardBg, borderRadius: 12, overflow: "hidden", cursor: "pointer" }}>
+        <div style={{ position: "relative", width: "100%", height: 150, overflow: "hidden" }}>
+          <PdfPaperSkeleton dark={dark} />
+          {thumb && <img src={thumb} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "top", display: "block" }} />}
+          {loading && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}><Loader2 style={{ width: 18, height: 18, color: "rgba(0,51,42,0.35)" }} className="animate-spin" /></div>}
+          {opening && <div style={{ position: "absolute", inset: 0, background: "rgba(0,51,42,0.18)", display: "flex", alignItems: "center", justifyContent: "center" }}><Loader2 style={{ width: 20, height: 20, color: "#00332a" }} className="animate-spin" /></div>}
+        </div>
+        <div style={{ padding: "8px 12px" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: nameColor, letterSpacing: "-0.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{att.name}</div>
+          <div style={{ fontSize: 10, color: metaColor, marginTop: 2 }}>{fmtSize(att.size)}{dateStr ? ` · ${dateStr}` : ""}</div>
+        </div>
+      </div>
+    );
+  }
 
   if (variant === "row") {
     return (
@@ -431,6 +451,7 @@ export default function ClientProfilePage({
   }, [contact.email, token]);
 
   const [showAllDocs, setShowAllDocs] = useState(false);
+  const [docSearch, setDocSearch] = useState("");
 
   const pdfs = allAtts.filter(a => a.mimeType.includes("pdf") || a.name.toLowerCase().endsWith(".pdf"));
   const images = allAtts.filter(a => a.mimeType.startsWith("image/"));
@@ -563,35 +584,56 @@ export default function ClientProfilePage({
       </div>
 
       {/* See All Documents — full screen overlay */}
-      {showAllDocs && (
-        <div style={{ position: "absolute", inset: 0, zIndex: 10, background: theme.base, display: "flex", flexDirection: "column" }}>
-          {/* Header */}
-          <div style={{ background: theme.headerBg, paddingTop: "max(3rem, env(safe-area-inset-top))", paddingBottom: 14, paddingLeft: 20, paddingRight: 20, flexShrink: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <button onClick={() => setShowAllDocs(false)} style={{ width: 36, height: 36, borderRadius: 10, background: "transparent", border: "none", padding: 0, color: theme.headerInk, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", marginLeft: -6 }}>
-                <ChevronLeft style={{ width: 22, height: 22 }} />
-              </button>
-              <div style={{ fontSize: 15, fontWeight: 600, color: theme.headerInk, letterSpacing: "-0.01em" }}>All Documents</div>
-              <div style={{ width: 36 }} />
+      {showAllDocs && (() => {
+        const q = docSearch.trim().toLowerCase();
+        const filtered = q
+          ? pdfs.filter(a => a.name.toLowerCase().includes(q) || fmtDate(a.date).toLowerCase().includes(q))
+          : pdfs;
+        const searchBg = theme.frameDark ? "rgba(254,247,237,0.08)" : "#f0e8dc";
+        return (
+          <div style={{ position: "absolute", inset: 0, zIndex: 10, background: theme.base, display: "flex", flexDirection: "column" }}>
+            {/* Header */}
+            <div style={{ background: theme.headerBg, paddingTop: "max(3rem, env(safe-area-inset-top))", paddingBottom: 10, paddingLeft: 20, paddingRight: 20, flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <button onClick={() => { setShowAllDocs(false); setDocSearch(""); }} style={{ width: 36, height: 36, borderRadius: 10, background: "transparent", border: "none", padding: 0, color: theme.headerInk, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", marginLeft: -6 }}>
+                  <ChevronLeft style={{ width: 22, height: 22 }} />
+                </button>
+                <div style={{ fontSize: 15, fontWeight: 600, color: theme.headerInk, letterSpacing: "-0.01em" }}>All Documents</div>
+                <div style={{ width: 36 }} />
+              </div>
+              {/* Search bar */}
+              <div style={{ marginTop: 10 }}>
+                <input
+                  type="text"
+                  placeholder="Search by name or date..."
+                  value={docSearch}
+                  onChange={e => setDocSearch(e.target.value)}
+                  style={{ width: "100%", height: 36, borderRadius: 10, border: "none", outline: "none", background: searchBg, color: theme.headerInk, padding: "0 12px", fontSize: 14, boxSizing: "border-box" as const, fontFamily: "inherit" }}
+                />
+              </div>
+            </div>
+            {/* Large card list */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px 0" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {filtered.length === 0 ? (
+                  <p style={{ color: theme.muted, fontSize: 14, textAlign: "center", paddingTop: 32 }}>No documents found</p>
+                ) : filtered.map((att, i) => (
+                  <PdfThumbnailCard
+                    key={`all-${att.id}-${i}`}
+                    att={{ id: att.id, name: att.name, mimeType: att.mimeType, size: att.size, msgId: att.messageId }}
+                    msgId={att.messageId}
+                    token={token}
+                    dark={theme.frameDark}
+                    dateStr={fmtDate(att.date)}
+                    variant="large"
+                  />
+                ))}
+              </div>
+              <div style={{ height: 40 }} />
             </div>
           </div>
-          {/* List */}
-          <div style={{ flex: 1, overflowY: "auto" }}>
-            {pdfs.map((att, i) => (
-              <PdfThumbnailCard
-                key={`all-${att.id}-${i}`}
-                att={{ id: att.id, name: att.name, mimeType: att.mimeType, size: att.size, msgId: att.messageId }}
-                msgId={att.messageId}
-                token={token}
-                dark={theme.frameDark}
-                dateStr={fmtDate(att.date)}
-                variant="row"
-              />
-            ))}
-            <div style={{ height: 40 }} />
-          </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
