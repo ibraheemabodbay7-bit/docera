@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { ChevronLeft, Loader2, ImageOff, Paperclip, Image, MessageCircle } from "lucide-react";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 import { API_BASE } from "@/lib/queryClient";
+
+const QuickLook = registerPlugin<{ openPDF: (options: { path: string }) => Promise<void> }>("QuickLook");
 
 type GmailAttachment = { id: string; name: string; mimeType: string; size: number };
 type GmailMessage = {
@@ -47,6 +50,74 @@ function fmtDate(dateStr: string) {
     return "";
   }
 }
+
+// ─── PDF thumbnail cache ───────────────────────────────────────────────────────
+
+const profileThumbCache = new Map<string, string>();
+const profileBase64Cache = new Map<string, string>();
+
+let activeProfileThumbnailLoads = 0;
+const MAX_CONCURRENT = 2;
+const profileThumbnailQueue: Array<() => void> = [];
+
+function acquireSlot(): Promise<void> {
+  return new Promise(resolve => {
+    if (activeProfileThumbnailLoads < MAX_CONCURRENT) {
+      activeProfileThumbnailLoads++;
+      resolve();
+    } else {
+      profileThumbnailQueue.push(() => { activeProfileThumbnailLoads++; resolve(); });
+    }
+  });
+}
+
+function releaseSlot() {
+  activeProfileThumbnailLoads--;
+  const next = profileThumbnailQueue.shift();
+  if (next) next();
+}
+
+async function generatePdfThumbnail(base64: string): Promise<string> {
+  try {
+    const pdfjsLib = await import("pdfjs-dist");
+    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+      "pdfjs-dist/build/pdf.worker.min.mjs",
+      import.meta.url,
+    ).href;
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+    const page = await pdf.getPage(1);
+    const viewport = page.getViewport({ scale: 2.0 });
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = Math.floor(viewport.width * 0.45);
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await (page.render as any)({ canvasContext: ctx, viewport }).promise;
+    return canvas.toDataURL("image/jpeg", 0.9);
+  } catch {
+    return "";
+  }
+}
+
+async function openPdfFromProfile(base64: string, name: string) {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    const { Filesystem, Directory } = await import("@capacitor/filesystem");
+    const safe = name.replace(/[^a-z0-9._-]/gi, "_");
+    const fileName = safe.endsWith(".pdf") ? safe : `${safe}.pdf`;
+    await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache, recursive: true });
+    const { uri } = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
+    await QuickLook.openPDF({ path: uri });
+  } catch (err) {
+    console.error("PDF open error:", err);
+  }
+}
+
+// ─── Theme ────────────────────────────────────────────────────────────────────
 
 const TONE_GRADIENTS_LIGHT = [
   "linear-gradient(135deg, #c8d8c0 0%, #9ab896 100%)",
@@ -105,44 +176,154 @@ function getTheme(dark: boolean) {
       };
 }
 
-function PdfThumb({ dark }: { dark: boolean }) {
+// ─── Paper skeleton (shown while thumbnail loads) ─────────────────────────────
+
+function PdfPaperSkeleton({ dark }: { dark: boolean }) {
   return (
     <div style={{
       position: "absolute", inset: 0,
       background: dark
         ? "linear-gradient(180deg, #f7ecd6 0%, #ecdfc3 100%)"
         : "linear-gradient(180deg, #fffdf6 0%, #f4e7cf 100%)",
-      padding: "16px 12px",
-      display: "flex", flexDirection: "column", gap: 5,
+      padding: "12px 10px",
+      display: "flex", flexDirection: "column", gap: 4,
       overflow: "hidden",
     }}>
-      <div style={{
-        position: "absolute", inset: 0,
-        background: "repeating-linear-gradient(0deg, rgba(0,51,42,0.025) 0 1px, transparent 1px 3px)",
-        pointerEvents: "none",
-      }} />
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} style={{
-          height: 3,
-          background: "rgba(0,51,42,0.22)",
-          borderRadius: 1,
-          width: i === 0 ? "50%" : i === 7 ? "30%" : `${72 + (i * 9) % 22}%`,
-          marginTop: i === 1 ? 4 : 0,
-          flexShrink: 0,
-        }} />
+      <div style={{ position: "absolute", inset: 0, background: "repeating-linear-gradient(0deg, rgba(0,51,42,0.025) 0 1px, transparent 1px 3px)", pointerEvents: "none" }} />
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} style={{ height: 3, background: "rgba(0,51,42,0.18)", borderRadius: 1, width: i === 0 ? "50%" : i === 5 ? "30%" : `${68 + (i * 9) % 24}%`, marginTop: i === 1 ? 3 : 0, flexShrink: 0 }} />
       ))}
-      <div style={{
-        position: "absolute", top: 8, right: 8,
-        background: "#00332a", color: "#fef7ed",
-        fontSize: 8.5, fontWeight: 700, letterSpacing: "0.04em",
-        padding: "2.5px 6px",
-        borderRadius: 4,
-      }}>
+      <div style={{ position: "absolute", top: 6, right: 6, background: "#00332a", color: "#fef7ed", fontSize: 7.5, fontWeight: 700, letterSpacing: "0.04em", padding: "2px 5px", borderRadius: 3 }}>
         PDF
       </div>
     </div>
   );
 }
+
+// ─── PDF thumbnail card ───────────────────────────────────────────────────────
+
+function PdfThumbnailCard({
+  att, msgId, token, dark, dateStr,
+}: {
+  att: GmailAttachment & { msgId: string };
+  msgId: string;
+  token: string;
+  dark: boolean;
+  dateStr: string;
+}) {
+  const theme = getTheme(dark);
+  const cached = profileThumbCache.get(att.id) ?? null;
+  const [thumb, setThumb] = useState<string | null>(cached);
+  const [loading, setLoading] = useState(!cached);
+  const [opening, setOpening] = useState(false);
+
+  useEffect(() => {
+    if (cached) return;
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      await acquireSlot();
+      try {
+        if (cancelled) return;
+        let b64 = profileBase64Cache.get(att.id);
+        if (!b64) {
+          const res = await fetch(`${API_BASE}/api/gmail/attachment`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ accessToken: token, messageId: msgId, attachmentId: att.id }),
+            credentials: "omit",
+          });
+          if (!res.ok) return;
+          const data = await res.json() as { base64?: string };
+          if (!data.base64 || cancelled) return;
+          b64 = data.base64;
+          profileBase64Cache.set(att.id, b64);
+        }
+        const url = await generatePdfThumbnail(b64);
+        if (!cancelled && url) { profileThumbCache.set(att.id, url); setThumb(url); }
+      } catch { } finally {
+        releaseSlot();
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [att.id, msgId, token]);
+
+  const handleTap = async () => {
+    if (opening) return;
+    setOpening(true);
+    try {
+      let b64 = profileBase64Cache.get(att.id);
+      if (!b64) {
+        const res = await fetch(`${API_BASE}/api/gmail/attachment`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accessToken: token, messageId: msgId, attachmentId: att.id }),
+          credentials: "omit",
+        });
+        if (res.ok) {
+          const data = await res.json() as { base64?: string };
+          if (data.base64) { b64 = data.base64; profileBase64Cache.set(att.id, b64); }
+        }
+      }
+      if (b64) await openPdfFromProfile(b64, att.name);
+    } finally {
+      setOpening(false);
+    }
+  };
+
+  return (
+    <div onClick={handleTap} style={{ display: "flex", flexDirection: "column", cursor: "pointer" }}>
+      {/* Thumbnail area */}
+      <div style={{
+        position: "relative",
+        height: 110,
+        borderRadius: 12,
+        overflow: "hidden",
+        boxShadow: dark
+          ? "0 8px 18px -10px rgba(0,0,0,0.6), inset 0 0.5px 0 rgba(255,255,255,0.04)"
+          : "0 6px 14px -8px rgba(0,51,42,0.22), inset 0 0.5px 0 rgba(255,255,255,0.6)",
+      }}>
+        {/* Paper skeleton always mounted as base layer */}
+        <PdfPaperSkeleton dark={dark} />
+        {/* Real thumbnail rendered on top once loaded */}
+        {thumb && (
+          <img
+            src={thumb}
+            alt=""
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "top", display: "block" }}
+          />
+        )}
+        {/* Loading spinner overlay */}
+        {loading && (
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Loader2 style={{ width: 16, height: 16, color: "rgba(0,51,42,0.35)" }} className="animate-spin" />
+          </div>
+        )}
+        {opening && (
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,51,42,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Loader2 style={{ width: 18, height: 18, color: "#00332a" }} className="animate-spin" />
+          </div>
+        )}
+      </div>
+      {/* Metadata below */}
+      <div style={{ paddingTop: 8, paddingLeft: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: theme.ink, letterSpacing: "-0.01em", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {att.name}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: theme.subtle, letterSpacing: "-0.01em" }}>
+          <span>{fmtSize(att.size)}</span>
+          {dateStr && <>
+            <span style={{ width: 2.5, height: 2.5, borderRadius: "50%", background: theme.muted, flexShrink: 0, display: "inline-block" }} />
+            <span>{dateStr}</span>
+          </>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Image card ───────────────────────────────────────────────────────────────
 
 function ImageCard({ att, msgId, token, placeholder }: {
   att: GmailAttachment & { msgId: string };
@@ -197,6 +378,8 @@ function ImageCard({ att, msgId, token, placeholder }: {
   );
 }
 
+// ─── Props ────────────────────────────────────────────────────────────────────
+
 interface ClientProfilePageProps {
   contact: Contact;
   messages: GmailMessage[];
@@ -207,8 +390,10 @@ interface ClientProfilePageProps {
   onOpenConversation: () => void;
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function ClientProfilePage({
-  contact, messages, token, onBack, onOpenPdf, onOpenConversation,
+  contact, messages, token, onBack, onOpenConversation,
 }: ClientProfilePageProps) {
   const darkMode = localStorage.getItem("docera_inbox_dark") === "true";
   const theme = getTheme(darkMode);
@@ -230,54 +415,21 @@ export default function ClientProfilePage({
       <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
 
         {/* Header */}
-        <div style={{
-          background: theme.headerBg,
-          color: theme.headerInk,
-          paddingTop: "max(3rem, env(safe-area-inset-top))",
-          paddingBottom: 26,
-          paddingLeft: 20,
-          paddingRight: 20,
-          position: "relative",
-        }}>
-          {/* Top bar */}
+        <div style={{ background: theme.headerBg, color: theme.headerInk, paddingTop: "max(3rem, env(safe-area-inset-top))", paddingBottom: 26, paddingLeft: 20, paddingRight: 20, position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", zIndex: 1 }}>
-            <button
-              onClick={onBack}
-              style={{ width: 36, height: 36, borderRadius: 10, background: "transparent", border: "none", padding: 0, color: theme.headerInk, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", marginLeft: -6 }}
-            >
+            <button onClick={onBack} style={{ width: 36, height: 36, borderRadius: 10, background: "transparent", border: "none", padding: 0, color: theme.headerInk, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", marginLeft: -6 }}>
               <ChevronLeft style={{ width: 22, height: 22 }} />
             </button>
-            <div style={{ fontSize: 10, letterSpacing: "0.26em", textTransform: "uppercase", color: theme.headerFaint, fontWeight: 600 }}>
-              Contact
-            </div>
+            <div style={{ fontSize: 10, letterSpacing: "0.26em", textTransform: "uppercase", color: theme.headerFaint, fontWeight: 600 }}>Contact</div>
             <div style={{ width: 36 }} />
           </div>
 
-          {/* Avatar + name */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 20, gap: 14, position: "relative", zIndex: 1 }}>
-            <div style={{
-              width: 88, height: 88, borderRadius: "50%",
-              background: theme.avatarBg,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              color: "#00332a",
-              fontSize: 37, fontWeight: 500,
-              fontFamily: '"Cormorant Garamond", Georgia, serif',
-              letterSpacing: "0.01em",
-              boxShadow: "inset 0 -1px 0 rgba(0,51,42,0.15), 0 8px 24px -8px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.4)",
-              border: "1px solid rgba(254,247,237,0.6)",
-              flexShrink: 0,
-            }}>
+            <div style={{ width: 88, height: 88, borderRadius: "50%", background: theme.avatarBg, display: "flex", alignItems: "center", justifyContent: "center", color: "#00332a", fontSize: 37, fontWeight: 500, fontFamily: '"Cormorant Garamond", Georgia, serif', letterSpacing: "0.01em", boxShadow: "inset 0 -1px 0 rgba(0,51,42,0.15), 0 8px 24px -8px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.4)", border: "1px solid rgba(254,247,237,0.6)", flexShrink: 0 }}>
               {initials(contact.name)}
             </div>
             <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 8, alignItems: "center", maxWidth: 320 }}>
-              <div style={{
-                fontFamily: '"Cormorant Garamond", Georgia, serif',
-                fontSize: 24, fontWeight: 500,
-                color: theme.headerInk,
-                letterSpacing: "-0.005em",
-                lineHeight: 1.2,
-                margin: 0,
-              }}>
+              <div style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontSize: 24, fontWeight: 500, color: theme.headerInk, letterSpacing: "-0.005em", lineHeight: 1.2, margin: 0 }}>
                 {contact.name}
               </div>
               <div style={{ fontSize: 13.5, color: theme.headerSubtle, letterSpacing: "-0.01em", fontWeight: 400 }}>
@@ -287,41 +439,21 @@ export default function ClientProfilePage({
           </div>
         </div>
 
-        {/* Stats card — overlaps header */}
+        {/* Stats card */}
         <div style={{ padding: "0 20px", marginTop: -20, position: "relative", zIndex: 2 }}>
-          <div style={{
-            background: theme.statsCard,
-            borderRadius: 16,
-            padding: "18px 12px",
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr",
-            boxShadow: theme.statsCardShadow,
-            border: theme.statsCardBorder,
-          }}>
+          <div style={{ background: theme.statsCard, borderRadius: 16, padding: "18px 12px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", boxShadow: theme.statsCardShadow, border: theme.statsCardBorder }}>
             {stats.map((s, i) => (
-              <div key={s.label} style={{
-                padding: "4px 0",
-                borderLeft: i === 0 ? "none" : `0.5px solid ${theme.hair}`,
-                display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
-              }}>
-                <div style={{
-                  fontFamily: '"Cormorant Garamond", Georgia, serif',
-                  fontSize: 30, fontWeight: 500,
-                  color: s.value > 0 ? theme.ink : theme.muted,
-                  lineHeight: 1,
-                  letterSpacing: "-0.02em",
-                }}>
+              <div key={s.label} style={{ padding: "4px 0", borderLeft: i === 0 ? "none" : `0.5px solid ${theme.hair}`, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                <div style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontSize: 30, fontWeight: 500, color: s.value > 0 ? theme.ink : theme.muted, lineHeight: 1, letterSpacing: "-0.02em" }}>
                   {s.value}
                 </div>
-                <div style={{ fontSize: 11, fontWeight: 500, color: theme.subtle, letterSpacing: "0.02em" }}>
-                  {s.label}
-                </div>
+                <div style={{ fontSize: 11, fontWeight: 500, color: theme.subtle, letterSpacing: "0.02em" }}>{s.label}</div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Documents section */}
+        {/* Documents */}
         {pdfs.length > 0 && (
           <>
             <div style={{ padding: "28px 20px 10px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -335,39 +467,20 @@ export default function ClientProfilePage({
             </div>
             <div style={{ padding: "0 20px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               {pdfs.map((att, i) => (
-                <div
+                <PdfThumbnailCard
                   key={`${att.id}-${i}`}
-                  onClick={() => onOpenPdf(att, att.msgId)}
-                  style={{ display: "flex", flexDirection: "column", cursor: "pointer" }}
-                >
-                  <div style={{
-                    position: "relative",
-                    aspectRatio: "0.78 / 1",
-                    borderRadius: 12,
-                    overflow: "hidden",
-                    boxShadow: theme.frameDark
-                      ? "0 8px 18px -10px rgba(0,0,0,0.6), inset 0 0.5px 0 rgba(255,255,255,0.04)"
-                      : "0 6px 14px -8px rgba(0,51,42,0.22), inset 0 0.5px 0 rgba(255,255,255,0.6)",
-                  }}>
-                    <PdfThumb dark={theme.frameDark} />
-                  </div>
-                  <div style={{ paddingTop: 10, paddingLeft: 2, display: "flex", flexDirection: "column", gap: 2 }}>
-                    <div style={{ fontSize: 13.5, fontWeight: 600, color: theme.ink, letterSpacing: "-0.01em", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {att.name}
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: theme.subtle, letterSpacing: "-0.01em" }}>
-                      <span>{fmtSize(att.size)}</span>
-                      <span style={{ width: 2.5, height: 2.5, borderRadius: "50%", background: theme.muted, flexShrink: 0, display: "inline-block" }} />
-                      <span>{fmtDate(messages.find(m => m.id === att.msgId)?.date ?? "")}</span>
-                    </div>
-                  </div>
-                </div>
+                  att={att}
+                  msgId={att.msgId}
+                  token={token}
+                  dark={theme.frameDark}
+                  dateStr={fmtDate(messages.find(m => m.id === att.msgId)?.date ?? "")}
+                />
               ))}
             </div>
           </>
         )}
 
-        {/* Photos section */}
+        {/* Photos */}
         {images.length > 0 && (
           <>
             <div style={{ padding: "28px 20px 10px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -381,13 +494,7 @@ export default function ClientProfilePage({
             </div>
             <div style={{ padding: "0 20px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
               {images.map((att, i) => (
-                <ImageCard
-                  key={`${att.id}-${i}`}
-                  att={att}
-                  msgId={att.msgId}
-                  token={token}
-                  placeholder={theme.toneGradients[i % 4]}
-                />
+                <ImageCard key={`${att.id}-${i}`} att={att} msgId={att.msgId} token={token} placeholder={theme.toneGradients[i % 4]} />
               ))}
             </div>
           </>
@@ -400,24 +507,11 @@ export default function ClientProfilePage({
           </p>
         )}
 
-        {/* Open Conversation CTA */}
+        {/* CTA */}
         <div style={{ padding: "28px 20px 0" }}>
           <button
             onClick={onOpenConversation}
-            style={{
-              width: "100%",
-              background: theme.accentBg,
-              border: "none",
-              borderRadius: 14,
-              padding: "15px 20px",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-              color: theme.accentInk,
-              fontFamily: "inherit",
-              fontSize: 16, fontWeight: 600,
-              letterSpacing: "-0.01em",
-              cursor: "pointer",
-              boxShadow: theme.accentShadow,
-            }}
+            style={{ width: "100%", background: theme.accentBg, border: "none", borderRadius: 14, padding: "15px 20px", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, color: theme.accentInk, fontFamily: "inherit", fontSize: 16, fontWeight: 600, letterSpacing: "-0.01em", cursor: "pointer", boxShadow: theme.accentShadow }}
           >
             <MessageCircle style={{ width: 18, height: 18, strokeWidth: 2 }} />
             Open Conversation
