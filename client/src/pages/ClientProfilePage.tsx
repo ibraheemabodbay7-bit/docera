@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ChevronLeft, Loader2, ImageOff, Paperclip, Image, MessageCircle } from "lucide-react";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { API_BASE } from "@/lib/queryClient";
@@ -215,11 +215,25 @@ function PdfThumbnailCard({
   const theme = getTheme(dark);
   const cached = profileThumbCache.get(att.id) ?? null;
   const [thumb, setThumb] = useState<string | null>(cached);
-  const [loading, setLoading] = useState(!cached);
+  const [loading, setLoading] = useState(false);
+  const [visible, setVisible] = useState(!!cached);
   const [opening, setOpening] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (cached) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); observer.disconnect(); } },
+      { threshold: 0.1 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [cached]);
+
+  useEffect(() => {
+    if (!visible || thumb) return;
     let cancelled = false;
     setLoading(true);
     (async () => {
@@ -248,7 +262,7 @@ function PdfThumbnailCard({
       }
     })();
     return () => { cancelled = true; };
-  }, [att.id, msgId, token]);
+  }, [visible, att.id]);
 
   const handleTap = async () => {
     if (opening) return;
@@ -297,7 +311,7 @@ function PdfThumbnailCard({
     const nameColor = dark ? "#fef7ed" : "#00332a";
     const metaColor = dark ? "rgba(254,247,237,0.5)" : "rgba(0,51,42,0.5)";
     return (
-      <div onClick={handleTap} style={{ background: cardBg, borderRadius: 12, overflow: "hidden", cursor: "pointer" }}>
+      <div ref={containerRef} onClick={handleTap} style={{ background: cardBg, borderRadius: 12, overflow: "hidden", cursor: "pointer" }}>
         <div style={{ position: "relative", width: "100%", height: 150, overflow: "hidden" }}>
           <PdfPaperSkeleton dark={dark} />
           {thumb && <img src={thumb} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "top", display: "block" }} />}
@@ -314,7 +328,7 @@ function PdfThumbnailCard({
 
   if (variant === "row") {
     return (
-      <div onClick={handleTap} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 20px", cursor: "pointer", borderBottom: `0.5px solid ${theme.hair}` }}>
+      <div ref={containerRef} onClick={handleTap} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 20px", cursor: "pointer", borderBottom: `0.5px solid ${theme.hair}` }}>
         {thumbArea(60, 80)}
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
           <div style={{ fontSize: 13.5, fontWeight: 600, color: theme.ink, letterSpacing: "-0.01em", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{att.name}</div>
@@ -330,7 +344,7 @@ function PdfThumbnailCard({
 
   // card variant
   return (
-    <div onClick={handleTap} style={{ display: "flex", flexDirection: "column", cursor: "pointer", width: 130, flexShrink: 0 }}>
+    <div ref={containerRef} onClick={handleTap} style={{ display: "flex", flexDirection: "column", cursor: "pointer", width: 130, flexShrink: 0 }}>
       {thumbArea("100%", 100)}
       {/* Metadata below */}
       <div style={{ paddingTop: 8, paddingLeft: 2, display: "flex", flexDirection: "column", gap: 2 }}>
