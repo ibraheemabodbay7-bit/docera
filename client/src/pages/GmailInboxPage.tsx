@@ -1621,6 +1621,7 @@ function ContactList({
   });
   const [longPressTarget, setLongPressTarget] = useState<Contact | null>(null);
   const [blockTaps, setBlockTaps] = useState(false);
+  const [pressedEmail, setPressedEmail] = useState<string | null>(null);
   const [showCompose, setShowCompose] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const contactListRef = useRef<HTMLDivElement>(null);
@@ -1871,10 +1872,10 @@ function ContactList({
                 <div style={{ display: "block" }}>
                   <button
                     onClick={() => { if (blockTaps) return; hapticLight(); onSelect(c); }}
-                    onTouchStart={() => startLongPress(c)}
-                    onTouchEnd={endLongPress}
-                    onTouchMove={endLongPress}
-                    style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "none", border: "none", cursor: "pointer", width: "100%" }}
+                    onTouchStart={() => { setPressedEmail(c.email); startLongPress(c); }}
+                    onTouchEnd={() => { setPressedEmail(null); endLongPress(); }}
+                    onTouchMove={() => { setPressedEmail(null); endLongPress(); }}
+                    style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: pressedEmail === c.email ? 'rgba(0,0,0,0.06)' : 'none', border: "none", cursor: "pointer", width: "100%", WebkitTapHighlightColor: 'transparent', outline: 'none' }}
                   >
                     <div style={{ width: 12, flexShrink: 0 }} />
                     <div style={{ width: 36, height: 36, borderRadius: 18, background: theme.avatarBg, display: "flex", alignItems: "center", justifyContent: "center", color: theme.avatarText, fontSize: 13, fontWeight: 600, flexShrink: 0, opacity: 0.7 }}>
@@ -1891,10 +1892,10 @@ function ContactList({
                 <div style={{ display: "block" }}>
                   <button
                     onClick={() => { if (blockTaps) return; hapticLight(); onSelect(c); }}
-                    onTouchStart={() => startLongPress(c)}
-                    onTouchEnd={endLongPress}
-                    onTouchMove={endLongPress}
-                    style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "none", border: "none", cursor: "pointer", width: "100%" }}
+                    onTouchStart={() => { setPressedEmail(c.email); startLongPress(c); }}
+                    onTouchEnd={() => { setPressedEmail(null); endLongPress(); }}
+                    onTouchMove={() => { setPressedEmail(null); endLongPress(); }}
+                    style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: pressedEmail === c.email ? 'rgba(0,0,0,0.06)' : 'none', border: "none", cursor: "pointer", width: "100%", WebkitTapHighlightColor: 'transparent', outline: 'none' }}
                   >
                     <div style={{ width: 12, flexShrink: 0, display: "flex", justifyContent: "center" }}>
                       {c.hasUnread && <div style={{ width: 8, height: 8, borderRadius: 4, background: theme.avatarBg }} />}
