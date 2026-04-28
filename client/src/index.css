@@ -282,10 +282,6 @@ html, body {
     -webkit-user-select: none;
   }
 
-  button:active {
-    opacity: 0.75;
-  }
-
   .scrollbar-none {
     scrollbar-width: none;
     -ms-overflow-style: none;
