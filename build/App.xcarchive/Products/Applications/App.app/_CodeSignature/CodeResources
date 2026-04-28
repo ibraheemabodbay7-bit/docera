@@ -42,7 +42,7 @@
 		</data>
 		<key>Frameworks/Capacitor.framework/Capacitor</key>
 		<data>
-		FdSYvBtMUbEZVk9qNMHER4a219E=
+		QgmOAx4eM5yTxGsCyFMiEyvyOqI=
 		</data>
 		<key>Frameworks/Capacitor.framework/Info.plist</key>
 		<data>
@@ -62,7 +62,7 @@
 		</data>
 		<key>Frameworks/Cordova.framework/Cordova</key>
 		<data>
-		QvjGsqdFP3odj0widhmrHbRCRl0=
+		B6/HkmEh8SvNTT+mf92KYYQCro8=
 		</data>
 		<key>Frameworks/Cordova.framework/Info.plist</key>
 		<data>
@@ -116,25 +116,25 @@
 		<data>
 		TyUyRNm9rR2JDwpyAxcruTmmr6A=
 		</data>
-		<key>public/assets/index-C5myt55a.js</key>
+		<key>public/assets/index-BbrjLb6K.js</key>
 		<data>
-		MjCZOnEX0QTckc+lQY4adrguHf8=
+		QqKQMZ0KaUVCXo2pm+EvKg3im8E=
 		</data>
-		<key>public/assets/index-CMPtU5yY.js</key>
+		<key>public/assets/index-CEVLLnna.js</key>
 		<data>
-		QaF3RSAFbDzy1f6ghOGcaZiuafQ=
+		xhFbweq7YAcT0+kaBBMNGUQvsGo=
 		</data>
-		<key>public/assets/index-Cq6nmw7v.js</key>
+		<key>public/assets/index-DBc3W2nC.js</key>
 		<data>
-		9XMT6fH+hcLNTc9PpTnxkdD52fk=
+		mcCdoF5Maw4IYffr2E3whEOBi1g=
 		</data>
 		<key>public/assets/index-DJgLsRe_.css</key>
 		<data>
 		4hAz18t2/RstvKpkVYQFtL0aqfg=
 		</data>
-		<key>public/assets/index.es-6IvBzMFR.js</key>
+		<key>public/assets/index.es-CF2ab2NL.js</key>
 		<data>
-		m+q/3bSpHzgrhR8uSzEMdc8uz0A=
+		3u1sLc9qNbDATj6ra57yJLrNdfw=
 		</data>
 		<key>public/assets/localDocs-HNAVs0gJ.js</key>
 		<data>
@@ -152,29 +152,29 @@
 		<data>
 		mt4K2q2W4y7UXnBp32yEWGw9Y4s=
 		</data>
-		<key>public/assets/web-BE4Grnci.js</key>
+		<key>public/assets/web-4oxkPrqc.js</key>
 		<data>
-		oBSrKmt9EtKzmW0+CL8NHQx2yew=
+		CymCxLt+A+vwqBaH60BppLmE26A=
 		</data>
-		<key>public/assets/web-CRAD4hHL.js</key>
+		<key>public/assets/web-AhhPOmxy.js</key>
 		<data>
-		+8+CIfx2jd4+sqnefPFtjt3V1AA=
+		+2G5bFspw0jIj4h46q6DysA54ck=
 		</data>
-		<key>public/assets/web-D5H7Hn7f.js</key>
+		<key>public/assets/web-BogOUCFQ.js</key>
 		<data>
-		Z363hZkdXZna26+h7cN/Mjkinvo=
+		ph7mtZr6G1K3UZbcepyIdvflcVI=
 		</data>
-		<key>public/assets/web-DC_Ijz5Y.js</key>
+		<key>public/assets/web-DNzObZK0.js</key>
 		<data>
-		SZ2y8Gh2d4c5nMGwx1WTUaTqKKc=
+		COBYJT7FKeCr5JdjZ4zjCpaJTIw=
 		</data>
-		<key>public/assets/web-DGPdJW9G.js</key>
+		<key>public/assets/web-c-wGZ5fu.js</key>
 		<data>
-		PNgOXf3G1e7NgDeEBE00heHINBY=
+		LTNaAUyUxUYGrAq/2jcy/wsdcbo=
 		</data>
-		<key>public/assets/web-aLK6ky7H.js</key>
+		<key>public/assets/web-jJbiOsF0.js</key>
 		<data>
-		+Tg/kgKYsxdNuYPDzHzNWMn1PqI=
+		whrJErvhuxJA00TlUbZOzu10w3k=
 		</data>
 		<key>public/cordova.js</key>
 		<data>
@@ -190,7 +190,7 @@
 		</data>
 		<key>public/index.html</key>
 		<data>
-		4u3rH8M/2f9GfIfNw3nOpnPwa6o=
+		TVPAlADPXYNU5707FaQTq+JYXDo=
 		</data>
 	</dict>
 	<key>files2</key>
@@ -262,7 +262,7 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			Tk5Hpx0AVWlcaHQR5AyASMPp4JJ8sQUyv/U2lBgm5DM=
+			AX8tS0/7aVPfvh6T9Olo43FxgFTIjMdUS1Iw8l1l5H8=
 			</data>
 		</dict>
 		<key>Frameworks/Capacitor.framework/Info.plist</key>
@@ -297,7 +297,7 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			T8WmSzJ95gByE1hlBH+IsDxXPjHiT8i49w9Nu5SSZFA=
+			dT7j0/7ARpoECvlD936TyUSs0pp4NOT+OnLrCrVP+I4=
 			</data>
 		</dict>
 		<key>Frameworks/Cordova.framework/Info.plist</key>
@@ -377,25 +377,25 @@
 			ewepyhdcYU6OfeRHGY01sNFh3VDbLGO19/1uoOHodvI=
 			</data>
 		</dict>
-		<key>public/assets/index-C5myt55a.js</key>
+		<key>public/assets/index-BbrjLb6K.js</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			hICy1skvNSCF3Y8n9NVsmpNulxDhAROVhsRx7otI3GE=
+			cHHHwKV5hzbGoR2QcZLUKQfX8sVEzflEePNz6PJlq9o=
 			</data>
 		</dict>
-		<key>public/assets/index-CMPtU5yY.js</key>
+		<key>public/assets/index-CEVLLnna.js</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			M/uv7K4q/sCP+RI/6uVG1PJplu15MYk4Q3oEqUGQ7xM=
+			DQFT7Im8KdRcDGJp5MUMG2TmzTqxI9I+g/mjc2VSxF8=
 			</data>
 		</dict>
-		<key>public/assets/index-Cq6nmw7v.js</key>
+		<key>public/assets/index-DBc3W2nC.js</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			Dzv+/RPgoZFI4XUUvBiXSNRBO+c7gCTCUsnIvW+3LcY=
+			FA+tC4dEcZN1S+MF2qeML9BkVebDmziB629PNP9L54I=
 			</data>
 		</dict>
 		<key>public/assets/index-DJgLsRe_.css</key>
@@ -405,11 +405,11 @@
 			HSX9LoNbGj7K+6YjdHXdq2/8F31OPEVOUOiE/S9JcU8=
 			</data>
 		</dict>
-		<key>public/assets/index.es-6IvBzMFR.js</key>
+		<key>public/assets/index.es-CF2ab2NL.js</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			Z7nxZrq30BQ++beG4KnKZX+rwHvgyGLcMIm4g7VTezg=
+			zsuAd0kPDkaGp1//3yA/54bhOlSCp7D4E8MD0znKYxs=
 			</data>
 		</dict>
 		<key>public/assets/localDocs-HNAVs0gJ.js</key>
@@ -440,46 +440,46 @@
 			RW0RGPr53ppmfTOUVW1zaBMtJCFzMmuf04u9Ajwjnek=
 			</data>
 		</dict>
-		<key>public/assets/web-BE4Grnci.js</key>
+		<key>public/assets/web-4oxkPrqc.js</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			e4t9oFK6HMEc0qbs1Y+qzI8A3lqgdIRcsm+CquZ2AMM=
+			YvF8Or1BzhWZAt+Gr5YX/3P7A1fMDwZq5R6OeEss6lQ=
 			</data>
 		</dict>
-		<key>public/assets/web-CRAD4hHL.js</key>
+		<key>public/assets/web-AhhPOmxy.js</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			vfj5IL3Vnm5sd6+01EA9qJtdZ1ujjI7ryIh9awSPeL8=
+			GNIAoX572t1Qk/U2V0p9gbqdZLPp6q4SnRhX67eNA2E=
 			</data>
 		</dict>
-		<key>public/assets/web-D5H7Hn7f.js</key>
+		<key>public/assets/web-BogOUCFQ.js</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			XPCukUMewUU2mUZ1udAXfX4rhVpA2SFosWV7rhh4sUA=
+			4Wz8ypkyZmhXNcZZRBUM+q4vjcW7KS2BUbtzNiyMCHo=
 			</data>
 		</dict>
-		<key>public/assets/web-DC_Ijz5Y.js</key>
+		<key>public/assets/web-DNzObZK0.js</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			65IHxSt6ZDS8USDIDoV9Ih/ufUzqJmto9vTX5gAGXag=
+			2ZwuFCGYyrAuFsAGJepwEisNWwGfZTf6q3SAj3QZRBI=
 			</data>
 		</dict>
-		<key>public/assets/web-DGPdJW9G.js</key>
+		<key>public/assets/web-c-wGZ5fu.js</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			rJ3c0ZHpn1b1AOtnHJE2AoHgFSp/8upvq07Jg13qyy4=
+			qKkQ6SUYK+M7IZwl9WugjUCq2EOy0Yl5qJj+C5Z9VHA=
 			</data>
 		</dict>
-		<key>public/assets/web-aLK6ky7H.js</key>
+		<key>public/assets/web-jJbiOsF0.js</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			5tD8XWoaZgCUoqSE/4UmuCsgO5id3R53D8kJthG0SAI=
+			JSK4AdKfXHtGasczr/+foaF/EZDA0sQoD4e6Tx79z5A=
 			</data>
 		</dict>
 		<key>public/cordova.js</key>
@@ -507,7 +507,7 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			KUvKfbjQ2AwaS1+HJ9YiMz4L/33lziiTZHMKJ2F6aqM=
+			vv+evi/JtsAesqoZ/jWllFeps+cDSGomcL6GlbeTIuo=
 			</data>
 		</dict>
 	</dict>

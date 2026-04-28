@@ -1273,14 +1273,15 @@ function ThreadView({
           b64 = data.base64;
           base64Cache.set(att.id, b64);
         }
-        const fileName = `${att.id}_${att.name}`;
-        const result = await Filesystem.writeFile({ path: fileName, data: b64, directory: Directory.Cache });
-        tempNames.push(fileName);
-        fileUris.push(result.uri);
+        const safe = `${att.id}_${att.name}`.replace(/[^a-z0-9._-]/gi, "_");
+        await Filesystem.writeFile({ path: safe, data: b64, directory: Directory.Cache, recursive: true });
+        tempNames.push(safe);
+        const { uri } = await Filesystem.getUri({ path: safe, directory: Directory.Cache });
+        fileUris.push(uri);
       }
       if (fileUris.length > 0) await Share.share({ files: fileUris });
-    } catch {
-      // user cancelled share or fetch error — clean up below
+    } catch (err) {
+      console.error("Share error:", err);
     } finally {
       for (const name of tempNames) {
         try { await Filesystem.deleteFile({ path: name, directory: Directory.Cache }); } catch {}
