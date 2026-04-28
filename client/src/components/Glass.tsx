@@ -7,7 +7,7 @@ export function GlassCard({ children, style, className, ...props }: React.HTMLAt
       style={{
         backdropFilter: "blur(20px)",
         WebkitBackdropFilter: "blur(20px)",
-        background: "rgba(0,51,42,0.65)",
+        background: "rgba(28,28,32,0.85)",
         border: "1px solid rgba(255,255,255,0.10)",
         boxShadow: "0 8px 32px rgba(0,0,0,0.28)",
         ...style,
@@ -47,7 +47,7 @@ export function GlassModal({ open, onClose, children, style }: GlassModalProps) 
           borderRadius: "20px 20px 0 0",
           backdropFilter: "blur(20px)",
           WebkitBackdropFilter: "blur(20px)",
-          background: "rgba(0,51,42,0.85)",
+          background: "rgba(10,10,12,0.92)",
           border: "1px solid rgba(255,255,255,0.10)",
           paddingBottom: "max(24px, env(safe-area-inset-bottom))",
           animation: "sheetSlideUp 0.32s cubic-bezier(0.25,1,0.5,1) both",

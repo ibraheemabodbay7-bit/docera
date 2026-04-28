@@ -51,7 +51,7 @@ function DMark({ px }: { px: number }) {
           /* counter — punches through with evenodd */
           "M6 5 H9 C12 5 14.5 7 14.5 10 C14.5 13 12 15 9 15 H6 Z",
         ].join(" ")}
-        fill="#fef7ed"
+        fill="#e8e8ec"
       />
     </svg>
   );

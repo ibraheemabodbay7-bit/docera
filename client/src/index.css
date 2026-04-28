@@ -4,25 +4,25 @@
 
 /* ── Docera brand tokens ───────────────────────────────────────────────────── */
 :root {
-  --bg: #fef7ed;
-  --bg-secondary: #f0e8dc;
-  --text: #00332a;
-  --text-secondary: rgba(0,51,42,0.55);
-  --app-border: rgba(0,51,42,0.12);
-  --surface: rgba(0,51,42,0.07);
-  --avatar-bg: #00332a;
-  --avatar-text: #fef7ed;
+  --bg: #ececef;
+  --bg-secondary: #e4e4e8;
+  --text: #1a1a1f;
+  --text-secondary: #6a6a72;
+  --app-border: rgba(26,26,31,0.12);
+  --surface: rgba(26,26,31,0.06);
+  --avatar-bg: #2a2a30;
+  --avatar-text: #e8e8ec;
 }
 
 html.dark {
-  --bg: #00332a;
-  --bg-secondary: #004d3d;
-  --text: #fef7ed;
-  --text-secondary: rgba(254,247,237,0.55);
-  --app-border: rgba(254,247,237,0.12);
-  --surface: rgba(254,247,237,0.07);
-  --avatar-bg: #fef7ed;
-  --avatar-text: #00332a;
+  --bg: #0a0a0c;
+  --bg-secondary: #141418;
+  --text: #e8e8ec;
+  --text-secondary: #a0a0a8;
+  --app-border: rgba(232,232,236,0.12);
+  --surface: rgba(232,232,236,0.07);
+  --avatar-bg: #2a2a30;
+  --avatar-text: #d4d4dc;
 }
 
 html, body {
@@ -152,8 +152,8 @@ html, body {
   --button-outline: rgba(17,62,97, .18);
   --badge-outline:  rgba(17,62,97, .10);
   --opaque-button-border-intensity: 9;
-  --elevate-1: rgba(254,247,237, .04);
-  --elevate-2: rgba(254,247,237, .09);
+  --elevate-1: rgba(232,232,236, .04);
+  --elevate-2: rgba(232,232,236, .09);
 
   /* Page */
   --background: 207 40% 7%;

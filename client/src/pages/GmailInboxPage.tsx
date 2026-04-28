@@ -50,41 +50,44 @@ interface Theme {
   searchBg: string;
   avatarBg: string;
   avatarText: string;
+  dark: boolean;
 }
 
 function getTheme(dark: boolean): Theme {
   return dark
     ? {
-        bg: "#041a15",
-        header: "#00332a",
-        cardBg: "rgba(255,255,255,0.07)",
-        receivedBg: "rgba(255,255,255,0.08)",
-        receivedText: "rgba(255,255,255,0.92)",
-        sentBg: "#fef7ed",
-        sentText: "#00332a",
-        subText: "rgba(255,255,255,0.50)",
-        inputBg: "rgba(255,255,255,0.10)",
-        border: "rgba(255,255,255,0.10)",
-        pillBg: "rgba(255,255,255,0.10)",
-        searchBg: "rgba(255,255,255,0.10)",
-        avatarBg: "#fef7ed",
-        avatarText: "#00332a",
+        bg: "#0a0a0c",
+        header: "#0a0a0c",
+        cardBg: "#1c1c20",
+        receivedBg: "rgba(255,255,255,0.06)",
+        receivedText: "#e8e8ec",
+        sentBg: "#2a2a30",
+        sentText: "#e8e8ec",
+        subText: "#a0a0a8",
+        inputBg: "rgba(255,255,255,0.08)",
+        border: "rgba(255,255,255,0.08)",
+        pillBg: "rgba(255,255,255,0.08)",
+        searchBg: "rgba(255,255,255,0.08)",
+        avatarBg: "#2a2a30",
+        avatarText: "#d4d4dc",
+        dark: true,
       }
     : {
-        bg: "#fef7ed",
-        header: "#fef7ed",
+        bg: "#ececef",
+        header: "#ececef",
         cardBg: "#ffffff",
-        receivedBg: "rgba(0,51,42,0.07)",
-        receivedText: "rgba(41,38,27,0.92)",
-        sentBg: "#00332a",
-        sentText: "#fef7ed",
-        subText: "rgba(41,38,27,0.55)",
-        inputBg: "rgba(0,51,42,0.08)",
+        receivedBg: "rgba(26,26,31,0.06)",
+        receivedText: "#1a1a1f",
+        sentBg: "#2a2a30",
+        sentText: "#e8e8ec",
+        subText: "#6a6a72",
+        inputBg: "rgba(26,26,31,0.06)",
         border: "rgba(0,0,0,0.06)",
-        pillBg: "rgba(0,51,42,0.08)",
-        searchBg: "rgba(0,51,42,0.08)",
-        avatarBg: "#00332a",
-        avatarText: "#fef7ed",
+        pillBg: "rgba(26,26,31,0.06)",
+        searchBg: "rgba(26,26,31,0.06)",
+        avatarBg: "#2a2a30",
+        avatarText: "#e8e8ec",
+        dark: false,
       };
 }
 
@@ -1355,7 +1358,7 @@ function ThreadView({
     return nodes;
   };
 
-  const darkMode = theme.header === "#00332a";
+  const darkMode = theme.dark;
 
   return (
     <>
@@ -1372,11 +1375,11 @@ function ThreadView({
     )}
     <div className="flex flex-col h-full" style={{ background: theme.bg }}>
       {/* Header — compact iOS style */}
-      <div style={{ flexShrink: 0, background: darkMode ? '#00332a' : '#fef7ed', borderBottom: `1px solid ${theme.border}`, paddingTop: "max(3rem, env(safe-area-inset-top))" }}>
+      <div style={{ flexShrink: 0, background: theme.header, borderBottom: `1px solid ${theme.border}`, paddingTop: "max(3rem, env(safe-area-inset-top))" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 8px 8px" }}>
           <button
             onClick={handleBackPress}
-            style={{ background: "none", border: "none", cursor: "pointer", color: darkMode ? '#fef7ed' : '#00332a', padding: "4px 6px", display: "flex", alignItems: "center", flexShrink: 0 }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: theme.receivedText, padding: "4px 6px", display: "flex", alignItems: "center", flexShrink: 0 }}
           >
             <ChevronLeft style={{ width: 22, height: 22 }} />
           </button>
@@ -1388,14 +1391,14 @@ function ThreadView({
               {initials(contact.name)}
             </div>
             <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
-              <p style={{ color: darkMode ? '#fef7ed' : '#00332a', fontSize: 17, fontWeight: 600, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.name}</p>
-              <p style={{ color: darkMode ? 'rgba(254,247,237,0.6)' : 'rgba(0,51,42,0.6)', fontSize: 12, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.email}</p>
-              <p style={{ fontSize: 10, margin: '1px 0 0', color: darkMode ? 'rgba(254,247,237,0.5)' : 'rgba(0,51,42,0.5)' }}>Tap for contact info</p>
+              <p style={{ color: theme.receivedText, fontSize: 17, fontWeight: 600, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.name}</p>
+              <p style={{ color: theme.subText, fontSize: 12, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.email}</p>
+              <p style={{ fontSize: 10, margin: '1px 0 0', color: theme.subText }}>Tap for contact info</p>
             </div>
           </button>
           <button
             onClick={() => { setShowSearch(v => !v); setSearch(""); }}
-            style={{ background: "none", border: "none", cursor: "pointer", color: darkMode ? '#fef7ed' : '#00332a', padding: 8, flexShrink: 0 }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: theme.receivedText, padding: 8, flexShrink: 0 }}
           >
             <Search style={{ width: 16, height: 16 }} />
           </button>
@@ -1409,7 +1412,7 @@ function ThreadView({
           ) : (
             <button
               onClick={() => setSelectMode(true)}
-              style={{ background: "none", border: "none", cursor: "pointer", color: darkMode ? '#fef7ed' : '#00332a', padding: 8, flexShrink: 0 }}
+              style={{ background: "none", border: "none", cursor: "pointer", color: theme.receivedText, padding: 8, flexShrink: 0 }}
             >
               <CheckCircle style={{ width: 16, height: 16 }} />
             </button>
@@ -1417,7 +1420,7 @@ function ThreadView({
           <button
             onClick={() => load()}
             disabled={loading}
-            style={{ background: "none", border: "none", cursor: "pointer", color: darkMode ? 'rgba(254,247,237,0.6)' : 'rgba(0,51,42,0.6)', padding: 8, flexShrink: 0 }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: theme.subText, padding: 8, flexShrink: 0 }}
           >
             <RefreshCw style={{ width: 16, height: 16 }} className={loading ? "animate-spin" : ""} />
           </button>
@@ -1430,7 +1433,7 @@ function ThreadView({
               placeholder="Search messages…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              style={{ width: "100%", height: 34, borderRadius: 10, border: "none", outline: "none", background: theme.searchBg, color: darkMode ? '#fef7ed' : '#00332a', padding: "0 12px", fontSize: 14, boxSizing: "border-box" }}
+              style={{ width: "100%", height: 34, borderRadius: 10, border: "none", outline: "none", background: theme.searchBg, color: theme.receivedText, padding: "0 12px", fontSize: 14, boxSizing: "border-box" }}
             />
           </div>
         )}
@@ -1503,9 +1506,9 @@ function ThreadView({
           padding: "10px 16px",
           gap: 10,
           borderTop: `1px solid ${theme.border}`,
-          background: darkMode ? '#00332a' : '#fef7ed',
+          background: theme.header,
         }}>
-          <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: darkMode ? 'rgba(254,247,237,0.7)' : 'rgba(0,51,42,0.7)' }}>
+          <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: theme.subText }}>
             {selectedAttachments.size} selected
           </span>
           <button
@@ -1644,7 +1647,7 @@ function ComposeSheet({
           padding: "12px 16px", background: "#f8f8f8",
           borderBottom: "1px solid rgba(0,0,0,0.1)", borderRadius: "12px 12px 0 0", flexShrink: 0,
         }}>
-          <button onClick={onClose} style={{ color: "#00332a", fontSize: 16, background: "none", border: "none", cursor: "pointer", padding: "4px 0" }}>
+          <button onClick={onClose} style={{ color: "#2a2a30", fontSize: 16, background: "none", border: "none", cursor: "pointer", padding: "4px 0" }}>
             Cancel
           </button>
           <span style={{ fontSize: 16, fontWeight: 600, color: "#000" }}>New Message</span>
@@ -1652,7 +1655,7 @@ function ComposeSheet({
             onClick={handleSend}
             disabled={!canSend || sending}
             style={{
-              color: canSend && !sending ? "#00332a" : "rgba(0,51,42,0.3)",
+              color: canSend && !sending ? "#2a2a30" : "rgba(42,42,48,0.4)",
               fontSize: 16, fontWeight: 600, background: "none", border: "none",
               cursor: canSend && !sending ? "pointer" : "default", padding: "4px 0",
               display: "flex", alignItems: "center",
@@ -1688,7 +1691,7 @@ function ComposeSheet({
                   onClick={() => selectContact(c)}
                   style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "none", border: "none", cursor: "pointer", textAlign: "left", borderBottom: "1px solid rgba(0,0,0,0.05)" }}
                 >
-                  <div style={{ width: 36, height: 36, borderRadius: 18, background: "#00332a", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 18, background: "#2a2a30", color: "#e8e8ec", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
                     {initials(c.name)}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -1702,7 +1705,7 @@ function ComposeSheet({
                   onClick={() => setShowAutocomplete(false)}
                   style={{ width: "100%", display: "flex", alignItems: "center", padding: "12px 16px", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
                 >
-                  <span style={{ fontSize: 15, color: "#00332a" }}>Send to <strong>{toValue}</strong></span>
+                  <span style={{ fontSize: 15, color: "#2a2a30" }}>Send to <strong>{toValue}</strong></span>
                 </button>
               )}
             </div>
@@ -1953,7 +1956,7 @@ function ContactList({
 
         {/* Segmented tabs */}
         <div style={{ padding: "0 16px 12px" }}>
-          <div style={{ display: "flex", background: darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,51,42,0.10)", borderRadius: 9, padding: 2, position: "relative" }}>
+          <div style={{ display: "flex", background: theme.pillBg, borderRadius: 9, padding: 2, position: "relative" }}>
             <motion.div
               animate={{ x: inboxTab === "important" ? 2 : "calc(100% + 4px)" }}
               transition={{ type: "spring", stiffness: 400, damping: 35 }}
@@ -1971,7 +1974,7 @@ function ContactList({
                 fontSize: 13, fontWeight: 600,
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
                 background: "transparent",
-                color: inboxTab === "important" ? "#00332a" : theme.subText,
+                color: inboxTab === "important" ? theme.avatarBg : theme.subText,
                 position: "relative", zIndex: 1,
               }}
             >
@@ -1984,7 +1987,7 @@ function ContactList({
                 fontSize: 13, fontWeight: 600,
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
                 background: "transparent",
-                color: inboxTab === "other" ? "#00332a" : theme.subText,
+                color: inboxTab === "other" ? theme.avatarBg : theme.subText,
                 position: "relative", zIndex: 1,
               }}
             >

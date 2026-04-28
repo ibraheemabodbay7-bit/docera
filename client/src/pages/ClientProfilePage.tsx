@@ -137,57 +137,57 @@ async function openPdfFromProfile(base64: string, name: string) {
 // ─── Theme ────────────────────────────────────────────────────────────────────
 
 const TONE_GRADIENTS_LIGHT = [
-  "linear-gradient(135deg, #c8d8c0 0%, #9ab896 100%)",
-  "linear-gradient(135deg, #f0e3c8 0%, #d8c393 100%)",
-  "linear-gradient(135deg, #1f5c4d 0%, #00332a 100%)",
-  "linear-gradient(135deg, #fef7ed 0%, #ecdfc3 100%)",
+  "linear-gradient(135deg, #d8d8dc 0%, #c0c0c8 100%)",
+  "linear-gradient(135deg, #e8e8ec 0%, #d0d0d8 100%)",
+  "linear-gradient(135deg, #2a2a30 0%, #1a1a1f 100%)",
+  "linear-gradient(135deg, #ececef 0%, #dcdce0 100%)",
 ];
 const TONE_GRADIENTS_DARK = [
-  "linear-gradient(135deg, #1a4d3e 0%, #2a6855 100%)",
-  "linear-gradient(135deg, #5c4a2e 0%, #7d6640 100%)",
-  "linear-gradient(135deg, #00251e 0%, #0e5a4b 100%)",
-  "linear-gradient(135deg, #d4c4a3 0%, #ad9d7a 100%)",
+  "linear-gradient(135deg, #2a2a30 0%, #3a3a42 100%)",
+  "linear-gradient(135deg, #3a3a42 0%, #4a4a54 100%)",
+  "linear-gradient(135deg, #0a0a0c 0%, #1c1c20 100%)",
+  "linear-gradient(135deg, #d4d4dc 0%, #b0b0bc 100%)",
 ];
 
 function getTheme(dark: boolean) {
   return dark
     ? {
-        base: "#00332a",
-        headerBg: "#001e19",
-        headerInk: "#fef7ed",
-        headerSubtle: "rgba(254,247,237,0.72)",
-        headerFaint: "rgba(254,247,237,0.46)",
-        ink: "#fef7ed",
-        subtle: "rgba(254,247,237,0.72)",
-        muted: "rgba(254,247,237,0.3)",
-        hair: "rgba(254,247,237,0.14)",
-        statsCard: "rgba(14,90,75,1)",
+        base: "#0a0a0c",
+        headerBg: "#0a0a0c",
+        headerInk: "#e8e8ec",
+        headerSubtle: "rgba(232,232,236,0.72)",
+        headerFaint: "rgba(232,232,236,0.46)",
+        ink: "#e8e8ec",
+        subtle: "rgba(232,232,236,0.72)",
+        muted: "#a0a0a8",
+        hair: "rgba(232,232,236,0.12)",
+        statsCard: "#1c1c20",
         statsCardShadow: "0 12px 32px -12px rgba(0,0,0,0.6), inset 0 0.5px 0 rgba(255,255,255,0.06)",
-        statsCardBorder: "0.5px solid rgba(254,247,237,0.14)",
-        accentInk: "#00332a",
-        accentBg: "linear-gradient(160deg, #fef7ed, #f0e3c8)",
-        accentShadow: "0 10px 24px -8px rgba(254,247,237,0.4), inset 0 1px 0 rgba(255,255,255,0.6)",
-        avatarBg: "radial-gradient(circle at 30% 25%, #fffaf0, #d9c9a5 80%)",
+        statsCardBorder: "0.5px solid rgba(232,232,236,0.10)",
+        accentInk: "#e8e8ec",
+        accentBg: "linear-gradient(160deg, #3a3a42, #2a2a30)",
+        accentShadow: "0 10px 24px -8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)",
+        avatarBg: "radial-gradient(circle at 30% 25%, #3a3a42, #2a2a30 80%)",
         frameDark: true,
         toneGradients: TONE_GRADIENTS_DARK,
       }
     : {
-        base: "#fef7ed",
-        headerBg: "#00332a",
-        headerInk: "#fef7ed",
-        headerSubtle: "rgba(254,247,237,0.72)",
-        headerFaint: "rgba(254,247,237,0.46)",
-        ink: "#00332a",
-        subtle: "rgba(0,51,42,0.62)",
-        muted: "rgba(0,51,42,0.28)",
-        hair: "rgba(0,51,42,0.12)",
+        base: "#ececef",
+        headerBg: "#2a2a30",
+        headerInk: "#e8e8ec",
+        headerSubtle: "rgba(232,232,236,0.72)",
+        headerFaint: "rgba(232,232,236,0.46)",
+        ink: "#1a1a1f",
+        subtle: "#6a6a72",
+        muted: "rgba(26,26,31,0.28)",
+        hair: "rgba(26,26,31,0.10)",
         statsCard: "#ffffff",
-        statsCardShadow: "0 12px 32px -14px rgba(0,51,42,0.35), inset 0 0.5px 0 rgba(255,255,255,0.8)",
+        statsCardShadow: "0 12px 32px -14px rgba(0,0,0,0.15), inset 0 0.5px 0 rgba(255,255,255,0.8)",
         statsCardBorder: "none",
-        accentInk: "#fef7ed",
-        accentBg: "linear-gradient(160deg, #0e5a4b, #00332a)",
-        accentShadow: "0 10px 24px -8px rgba(0,51,42,0.5), inset 0 1px 0 rgba(255,255,255,0.12)",
-        avatarBg: "radial-gradient(circle at 30% 25%, #ffffff, #ecdfc3 80%)",
+        accentInk: "#e8e8ec",
+        accentBg: "linear-gradient(160deg, #3a3a42, #2a2a30)",
+        accentShadow: "0 10px 24px -8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.12)",
+        avatarBg: "radial-gradient(circle at 30% 25%, #ffffff, #e4e4e8 80%)",
         frameDark: false,
         toneGradients: TONE_GRADIENTS_LIGHT,
       };
@@ -200,17 +200,17 @@ function PdfPaperSkeleton({ dark }: { dark: boolean }) {
     <div style={{
       position: "absolute", inset: 0,
       background: dark
-        ? "linear-gradient(180deg, #f7ecd6 0%, #ecdfc3 100%)"
-        : "linear-gradient(180deg, #fffdf6 0%, #f4e7cf 100%)",
+        ? "linear-gradient(180deg, #2a2a30 0%, #1c1c20 100%)"
+        : "linear-gradient(180deg, #f5f5f8 0%, #e8e8ec 100%)",
       padding: "12px 10px",
       display: "flex", flexDirection: "column", gap: 4,
       overflow: "hidden",
     }}>
-      <div style={{ position: "absolute", inset: 0, background: "repeating-linear-gradient(0deg, rgba(0,51,42,0.025) 0 1px, transparent 1px 3px)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", inset: 0, background: "repeating-linear-gradient(0deg, rgba(26,26,31,0.04) 0 1px, transparent 1px 3px)", pointerEvents: "none" }} />
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} style={{ height: 3, background: "rgba(0,51,42,0.18)", borderRadius: 1, width: i === 0 ? "50%" : i === 5 ? "30%" : `${68 + (i * 9) % 24}%`, marginTop: i === 1 ? 3 : 0, flexShrink: 0 }} />
+        <div key={i} style={{ height: 3, background: "rgba(26,26,31,0.18)", borderRadius: 1, width: i === 0 ? "50%" : i === 5 ? "30%" : `${68 + (i * 9) % 24}%`, marginTop: i === 1 ? 3 : 0, flexShrink: 0 }} />
       ))}
-      <div style={{ position: "absolute", top: 6, right: 6, background: "#00332a", color: "#fef7ed", fontSize: 7.5, fontWeight: 700, letterSpacing: "0.04em", padding: "2px 5px", borderRadius: 3 }}>
+      <div style={{ position: "absolute", top: 6, right: 6, background: "#2a2a30", color: "#e8e8ec", fontSize: 7.5, fontWeight: 700, letterSpacing: "0.04em", padding: "2px 5px", borderRadius: 3 }}>
         PDF
       </div>
     </div>
@@ -320,26 +320,26 @@ function PdfThumbnailCard({
       flexShrink: 0,
       boxShadow: dark
         ? "0 6px 14px -8px rgba(0,0,0,0.5), inset 0 0.5px 0 rgba(255,255,255,0.04)"
-        : "0 4px 10px -6px rgba(0,51,42,0.2), inset 0 0.5px 0 rgba(255,255,255,0.6)",
+        : "0 4px 10px -6px rgba(0,0,0,0.12), inset 0 0.5px 0 rgba(255,255,255,0.6)",
     }}>
       <PdfPaperSkeleton dark={dark} />
       {thumb && <img src={thumb} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "top", display: "block" }} />}
-      {loading && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}><Loader2 style={{ width: 14, height: 14, color: "rgba(0,51,42,0.35)" }} className="animate-spin" /></div>}
-      {opening && <div style={{ position: "absolute", inset: 0, background: "rgba(0,51,42,0.18)", display: "flex", alignItems: "center", justifyContent: "center" }}><Loader2 style={{ width: 16, height: 16, color: "#00332a" }} className="animate-spin" /></div>}
+      {loading && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}><Loader2 style={{ width: 14, height: 14, color: "rgba(26,26,31,0.35)" }} className="animate-spin" /></div>}
+      {opening && <div style={{ position: "absolute", inset: 0, background: "rgba(26,26,31,0.18)", display: "flex", alignItems: "center", justifyContent: "center" }}><Loader2 style={{ width: 16, height: 16, color: "#1a1a1f" }} className="animate-spin" /></div>}
     </div>
   );
 
   if (variant === "large") {
-    const cardBg = dark ? "rgba(254,247,237,0.06)" : "#ffffff";
-    const nameColor = dark ? "#fef7ed" : "#00332a";
-    const metaColor = dark ? "rgba(254,247,237,0.5)" : "rgba(0,51,42,0.5)";
+    const cardBg = dark ? "rgba(232,232,236,0.06)" : "#ffffff";
+    const nameColor = dark ? "#e8e8ec" : "#1a1a1f";
+    const metaColor = dark ? "#a0a0a8" : "#6a6a72";
     return (
       <div ref={containerRef} onClick={handleTap} style={{ background: cardBg, borderRadius: 12, overflow: "hidden", cursor: "pointer" }}>
         <div style={{ position: "relative", width: "100%", height: 150, overflow: "hidden" }}>
           <PdfPaperSkeleton dark={dark} />
           {thumb && <img src={thumb} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "top", display: "block" }} />}
-          {loading && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}><Loader2 style={{ width: 18, height: 18, color: "rgba(0,51,42,0.35)" }} className="animate-spin" /></div>}
-          {opening && <div style={{ position: "absolute", inset: 0, background: "rgba(0,51,42,0.18)", display: "flex", alignItems: "center", justifyContent: "center" }}><Loader2 style={{ width: 20, height: 20, color: "#00332a" }} className="animate-spin" /></div>}
+          {loading && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}><Loader2 style={{ width: 18, height: 18, color: "rgba(26,26,31,0.35)" }} className="animate-spin" /></div>}
+          {opening && <div style={{ position: "absolute", inset: 0, background: "rgba(26,26,31,0.18)", display: "flex", alignItems: "center", justifyContent: "center" }}><Loader2 style={{ width: 20, height: 20, color: "#1a1a1f" }} className="animate-spin" /></div>}
         </div>
         <div style={{ padding: "8px 12px" }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: nameColor, letterSpacing: "-0.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{att.name}</div>
@@ -444,7 +444,7 @@ function ImageCard({ att, msgId, token, placeholder }: {
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(255,255,255,0.12), transparent 50%)", pointerEvents: "none", zIndex: 1 }} />
       {loading && (
         <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2 }}>
-          <Loader2 style={{ width: 18, height: 18, color: "rgba(0,51,42,0.3)" }} className="animate-spin" />
+          <Loader2 style={{ width: 18, height: 18, color: "rgba(26,26,31,0.3)" }} className="animate-spin" />
         </div>
       )}
       {opening && (
@@ -454,7 +454,7 @@ function ImageCard({ att, msgId, token, placeholder }: {
       )}
       {error && !loading && (
         <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2 }}>
-          <ImageOff style={{ width: 18, height: 18, color: "rgba(0,51,42,0.25)" }} />
+          <ImageOff style={{ width: 18, height: 18, color: "rgba(26,26,31,0.25)" }} />
         </div>
       )}
       {src && (
@@ -539,7 +539,7 @@ export default function ClientProfilePage({
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 20, gap: 14, position: "relative", zIndex: 1 }}>
-            <div style={{ width: 88, height: 88, borderRadius: "50%", background: theme.avatarBg, display: "flex", alignItems: "center", justifyContent: "center", color: "#00332a", fontSize: 37, fontWeight: 500, fontFamily: '"Cormorant Garamond", Georgia, serif', letterSpacing: "0.01em", boxShadow: "inset 0 -1px 0 rgba(0,51,42,0.15), 0 8px 24px -8px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.4)", border: "1px solid rgba(254,247,237,0.6)", flexShrink: 0 }}>
+            <div style={{ width: 88, height: 88, borderRadius: "50%", background: theme.avatarBg, display: "flex", alignItems: "center", justifyContent: "center", color: theme.headerInk, fontSize: 37, fontWeight: 500, fontFamily: '"Cormorant Garamond", Georgia, serif', letterSpacing: "0.01em", boxShadow: "inset 0 -1px 0 rgba(0,0,0,0.15), 0 8px 24px -8px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.4)", border: `1px solid ${theme.hair}`, flexShrink: 0 }}>
               {initials(contact.name)}
             </div>
             <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 8, alignItems: "center", maxWidth: 320 }}>
@@ -649,7 +649,7 @@ export default function ClientProfilePage({
         const filtered = q
           ? pdfs.filter(a => a.name.toLowerCase().includes(q) || fmtDate(a.date).toLowerCase().includes(q))
           : pdfs;
-        const searchBg = theme.frameDark ? "rgba(254,247,237,0.08)" : "#f0e8dc";
+        const searchBg = theme.frameDark ? "rgba(232,232,236,0.08)" : "rgba(26,26,31,0.06)";
         return (
           <div style={{ position: "absolute", inset: 0, zIndex: 10, background: theme.base, display: "flex", flexDirection: "column" }}>
             {/* Header */}

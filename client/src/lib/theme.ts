@@ -9,7 +9,7 @@ export function setDarkMode(dark: boolean) {
     document.documentElement.classList.remove('dark');
   }
   localStorage.setItem('docera_dark_mode', dark ? 'true' : 'false');
-  document.body.style.backgroundColor = dark ? '#00332a' : '#fef7ed';
+  document.body.style.backgroundColor = dark ? '#0a0a0c' : '#ececef';
   if (typeof window !== 'undefined') {
     let metaTheme = document.querySelector('meta[name="theme-color"]:not([media])') as HTMLMetaElement;
     if (!metaTheme) {
@@ -17,7 +17,7 @@ export function setDarkMode(dark: boolean) {
       metaTheme.name = 'theme-color';
       document.head.appendChild(metaTheme);
     }
-    metaTheme.content = dark ? '#00332a' : '#fef7ed';
+    metaTheme.content = dark ? '#0a0a0c' : '#ececef';
   }
 }
 
