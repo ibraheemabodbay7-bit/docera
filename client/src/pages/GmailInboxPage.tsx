@@ -1621,7 +1621,10 @@ function ContactList({
   });
   const [longPressTarget, setLongPressTarget] = useState<Contact | null>(null);
   const [blockTaps, setBlockTaps] = useState(false);
-  const [pressedEmail, setPressedEmail] = useState<string | null>(null);
+  const [swipedEmail, setSwipedEmail] = useState<string | null>(null);
+  const swipeRowRefs = useRef<Map<string, HTMLElement>>(new Map());
+  const dragState = useRef<{ email: string; startX: number; startY: number; isHorizontal: boolean | null; currentX: number } | null>(null);
+  const blockNextClick = useRef(false);
   const [showCompose, setShowCompose] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const contactListRef = useRef<HTMLDivElement>(null);
@@ -1686,6 +1689,46 @@ function ContactList({
   };
   const endLongPress = () => {
     if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+  };
+  const handleSwipeTouchStart = (e: React.TouchEvent, email: string) => {
+    dragState.current = { email, startX: e.touches[0].clientX, startY: e.touches[0].clientY, isHorizontal: null, currentX: swipedEmail === email ? -80 : 0 };
+  };
+  const handleSwipeTouchMove = (e: React.TouchEvent, email: string) => {
+    const ds = dragState.current;
+    if (!ds || ds.email !== email) return;
+    const dx = e.touches[0].clientX - ds.startX;
+    const dy = e.touches[0].clientY - ds.startY;
+    if (ds.isHorizontal === null) {
+      if (Math.abs(dx) > 6) ds.isHorizontal = Math.abs(dx) > Math.abs(dy);
+      else return;
+    }
+    if (!ds.isHorizontal) return;
+    const base = swipedEmail === email ? -80 : 0;
+    ds.currentX = Math.max(-80, Math.min(0, base + dx));
+    const el = swipeRowRefs.current.get(email);
+    if (el) { el.style.transition = 'none'; el.style.transform = `translateX(${ds.currentX}px)`; }
+  };
+  const handleSwipeTouchEnd = (email: string) => {
+    const ds = dragState.current;
+    if (!ds || ds.email !== email) { dragState.current = null; return; }
+    dragState.current = null;
+    const el = swipeRowRefs.current.get(email);
+    if (!el) return;
+    el.style.transition = 'transform 0.2s ease';
+    if (ds.isHorizontal && ds.currentX < -40) {
+      el.style.transform = 'translateX(-80px)';
+      blockNextClick.current = true;
+      setTimeout(() => { blockNextClick.current = false; }, 300);
+      if (swipedEmail && swipedEmail !== email) {
+        const prevEl = swipeRowRefs.current.get(swipedEmail);
+        if (prevEl) { prevEl.style.transition = 'transform 0.2s ease'; prevEl.style.transform = 'translateX(0)'; }
+      }
+      setSwipedEmail(email);
+    } else {
+      el.style.transform = 'translateX(0)';
+      if (ds.isHorizontal) { blockNextClick.current = true; setTimeout(() => { blockNextClick.current = false; }, 300); }
+      if (swipedEmail === email) setSwipedEmail(null);
+    }
   };
   const moveContact = (email: string, to: 'important' | 'other') => {
     const next = { ...overrides, [email]: to };
@@ -1868,62 +1911,95 @@ function ContactList({
             {(() => {
               const todayRows = filtered.filter(c => { try { return isToday(new Date(c.lastDate)); } catch { return false; } });
               const earlierRows = filtered.filter(c => { try { return !isToday(new Date(c.lastDate)); } catch { return true; } });
-              const renderRow = (c: typeof filtered[0]) => inboxTab === "other" ? (
-                <div style={{ display: "block" }}>
-                  <button
-                    onClick={() => { if (blockTaps) return; hapticLight(); onSelect(c); }}
-                    onTouchStart={() => { setPressedEmail(c.email); startLongPress(c); }}
-                    onTouchEnd={() => { setPressedEmail(null); endLongPress(); }}
-                    onTouchMove={() => { setPressedEmail(null); endLongPress(); }}
-                    style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: pressedEmail === c.email ? 'rgba(0,0,0,0.06)' : 'none', border: "none", cursor: "pointer", width: "100%", WebkitTapHighlightColor: 'transparent', outline: 'none' }}
-                  >
-                    <div style={{ width: 12, flexShrink: 0 }} />
-                    <div style={{ width: 36, height: 36, borderRadius: 18, background: theme.avatarBg, display: "flex", alignItems: "center", justifyContent: "center", color: theme.avatarText, fontSize: 13, fontWeight: 600, flexShrink: 0, opacity: 0.7 }}>
-                      {initials(c.name)}
+              const renderRow = (c: typeof filtered[0]) => {
+                const isOther = inboxTab === "other";
+                const actionLabel = isOther ? "Move to\nImportant" : "Move to\nOther";
+                const actionTarget: 'important' | 'other' = isOther ? 'important' : 'other';
+                return (
+                  <div style={{ position: 'relative', overflow: 'hidden' }}>
+                    {/* Action button revealed on swipe */}
+                    <button
+                      onClick={() => {
+                        moveContact(c.email, actionTarget);
+                        const el = swipeRowRefs.current.get(c.email);
+                        if (el) { el.style.transition = 'transform 0.2s ease'; el.style.transform = 'translateX(0)'; }
+                        setSwipedEmail(null);
+                      }}
+                      style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 80, background: '#007AFF', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                    >
+                      <span style={{ color: 'white', fontSize: 11, fontWeight: 600, textAlign: 'center', lineHeight: 1.3, whiteSpace: 'pre-line' }}>{actionLabel}</span>
+                    </button>
+                    {/* Sliding row content */}
+                    <div
+                      ref={el => { if (el) swipeRowRefs.current.set(c.email, el); else swipeRowRefs.current.delete(c.email); }}
+                      onTouchStart={e => handleSwipeTouchStart(e, c.email)}
+                      onTouchMove={e => handleSwipeTouchMove(e, c.email)}
+                      onTouchEnd={() => handleSwipeTouchEnd(c.email)}
+                      style={{ position: 'relative', zIndex: 1, background: theme.bg }}
+                    >
+                      <button
+                        onClick={() => {
+                          if (blockTaps || blockNextClick.current) return;
+                          if (swipedEmail === c.email) {
+                            const el = swipeRowRefs.current.get(c.email);
+                            if (el) { el.style.transition = 'transform 0.2s ease'; el.style.transform = 'translateX(0)'; }
+                            setSwipedEmail(null);
+                            return;
+                          }
+                          if (swipedEmail) {
+                            const prevEl = swipeRowRefs.current.get(swipedEmail);
+                            if (prevEl) { prevEl.style.transition = 'transform 0.2s ease'; prevEl.style.transform = 'translateX(0)'; }
+                            setSwipedEmail(null);
+                          }
+                          hapticLight();
+                          onSelect(c);
+                        }}
+                        style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "none", border: "none", cursor: "pointer", width: "100%" }}
+                      >
+                        {isOther ? (
+                          <>
+                            <div style={{ width: 12, flexShrink: 0 }} />
+                            <div style={{ width: 36, height: 36, borderRadius: 18, background: theme.avatarBg, display: "flex", alignItems: "center", justifyContent: "center", color: theme.avatarText, fontSize: 13, fontWeight: 600, flexShrink: 0, opacity: 0.7 }}>
+                              {initials(c.name)}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+                              <p style={{ color: theme.subText, fontSize: 15, fontWeight: 400, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</p>
+                              <p style={{ color: theme.subText, fontSize: 12, margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", opacity: 0.6 }}>{c.email}</p>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div style={{ width: 12, flexShrink: 0, display: "flex", justifyContent: "center" }}>
+                              {c.hasUnread && <div style={{ width: 8, height: 8, borderRadius: 4, background: theme.avatarBg }} />}
+                            </div>
+                            <div style={{ width: 44, height: 44, borderRadius: 22, background: theme.avatarBg, display: "flex", alignItems: "center", justifyContent: "center", color: theme.avatarText, fontSize: 17, fontWeight: 600, flexShrink: 0 }}>
+                              {initials(c.name)}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 3 }}>
+                                <span style={{ color: theme.receivedText, fontSize: 16, fontWeight: c.hasUnread ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {c.name}
+                                </span>
+                                <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                                  <span style={{ color: theme.subText, fontSize: 12 }}>{fmtMsgTime(c.lastDate)}</span>
+                                  <ChevronRight style={{ width: 12, height: 12, color: theme.subText, opacity: 0.5 }} />
+                                </div>
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                {c.hasAttachments && <Paperclip style={{ width: 12, height: 12, color: theme.subText, flexShrink: 0 }} />}
+                                <p style={{ color: theme.subText, fontSize: 14, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {decodeHtml(c.lastMessage || c.lastSubject)}
+                                </p>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </button>
+                      <div style={{ marginLeft: 76, height: 1, background: theme.border }} />
                     </div>
-                    <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
-                      <p style={{ color: theme.subText, fontSize: 15, fontWeight: 400, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</p>
-                      <p style={{ color: theme.subText, fontSize: 12, margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", opacity: 0.6 }}>{c.email}</p>
-                    </div>
-                  </button>
-                  <div style={{ marginLeft: 76, height: 1, background: theme.border }} />
-                </div>
-              ) : (
-                <div style={{ display: "block" }}>
-                  <button
-                    onClick={() => { if (blockTaps) return; hapticLight(); onSelect(c); }}
-                    onTouchStart={() => { setPressedEmail(c.email); startLongPress(c); }}
-                    onTouchEnd={() => { setPressedEmail(null); endLongPress(); }}
-                    onTouchMove={() => { setPressedEmail(null); endLongPress(); }}
-                    style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: pressedEmail === c.email ? 'rgba(0,0,0,0.06)' : 'none', border: "none", cursor: "pointer", width: "100%", WebkitTapHighlightColor: 'transparent', outline: 'none' }}
-                  >
-                    <div style={{ width: 12, flexShrink: 0, display: "flex", justifyContent: "center" }}>
-                      {c.hasUnread && <div style={{ width: 8, height: 8, borderRadius: 4, background: theme.avatarBg }} />}
-                    </div>
-                    <div style={{ width: 44, height: 44, borderRadius: 22, background: theme.avatarBg, display: "flex", alignItems: "center", justifyContent: "center", color: theme.avatarText, fontSize: 17, fontWeight: 600, flexShrink: 0 }}>
-                      {initials(c.name)}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 3 }}>
-                        <span style={{ color: theme.receivedText, fontSize: 16, fontWeight: c.hasUnread ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {c.name}
-                        </span>
-                        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-                          <span style={{ color: theme.subText, fontSize: 12 }}>{fmtMsgTime(c.lastDate)}</span>
-                          <ChevronRight style={{ width: 12, height: 12, color: theme.subText, opacity: 0.5 }} />
-                        </div>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        {c.hasAttachments && <Paperclip style={{ width: 12, height: 12, color: theme.subText, flexShrink: 0 }} />}
-                        <p style={{ color: theme.subText, fontSize: 14, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {decodeHtml(c.lastMessage || c.lastSubject)}
-                        </p>
-                      </div>
-                    </div>
-                  </button>
-                  <div style={{ marginLeft: 76, height: 1, background: theme.border }} />
-                </div>
-              );
+                  </div>
+                );
+              };
               return (
                 <>
                   {todayRows.length > 0 && (
