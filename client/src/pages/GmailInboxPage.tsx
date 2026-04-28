@@ -375,9 +375,11 @@ function DateSeparator({ dateStr, theme }: { dateStr: string; theme: Theme }) {
 
 function PdfThumbnail({
   messageId, attachment, token, refreshToken, theme, onTap, bodyText, isLastAtt,
+  selectMode, isSelected, onToggle,
 }: {
   messageId: string; attachment: GmailAttachment; token: string; refreshToken?: string | null;
   theme: Theme; onTap: () => void; bodyText?: string; isLastAtt?: boolean;
+  selectMode?: boolean; isSelected?: boolean; onToggle?: () => void;
 }) {
   const cached = thumbCache.get(attachment.id) ?? null;
   const [thumb, setThumb] = useState<string | null>(cached);
@@ -454,26 +456,39 @@ function PdfThumbnail({
 
   return (
     <div ref={containerRef} style={{ width: 260, borderRadius: 14, overflow: "hidden", marginBottom: 6 }}>
-      <button onClick={onTap} className="block active:opacity-80" style={{ width: 260 }}>
-        {thumb ? (
-          <>
-            <div style={{ width: 260, height: 160, overflow: "hidden" }}>
-              <img src={thumb} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top", display: "block" }} />
-            </div>
-            <div style={{ width: 260, height: 52, display: "flex", alignItems: "center", gap: 10, padding: "0 12px", background: "rgba(0,0,0,0.6)" }}>
-              <div className="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center flex-shrink-0">
-                <span className="text-white text-[7px] font-bold">PDF</span>
+      <div style={{ position: "relative" }}>
+        <button onClick={selectMode ? onToggle : onTap} className="block active:opacity-80" style={{ width: 260 }}>
+          {thumb ? (
+            <>
+              <div style={{ width: 260, height: 160, overflow: "hidden" }}>
+                <img src={thumb} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top", display: "block" }} />
               </div>
-              <div className="flex-1 min-w-0 text-left">
-                <p className="text-white text-[11px] font-semibold truncate">{attachment.name}</p>
-                <p className="text-white/55 text-[10px]">{pageCount !== null && pageCount > 0 ? `${pageCount} ${pageCount === 1 ? 'page' : 'pages'} · ` : ''}{fmtSize(attachment.size)}</p>
+              <div style={{ width: 260, height: 52, display: "flex", alignItems: "center", gap: 10, padding: "0 12px", background: "rgba(0,0,0,0.6)" }}>
+                <div className="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center flex-shrink-0">
+                  <span className="text-white text-[7px] font-bold">PDF</span>
+                </div>
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="text-white text-[11px] font-semibold truncate">{attachment.name}</p>
+                  <p className="text-white/55 text-[10px]">{pageCount !== null && pageCount > 0 ? `${pageCount} ${pageCount === 1 ? 'page' : 'pages'} · ` : ''}{fmtSize(attachment.size)}</p>
+                </div>
               </div>
-            </div>
-          </>
-        ) : (
-          fileCardArea
+            </>
+          ) : (
+            fileCardArea
+          )}
+        </button>
+        {selectMode && isSelected && (
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,122,255,0.18)", pointerEvents: "none" }} />
         )}
-      </button>
+        {selectMode && (
+          <div style={{ position: "absolute", top: 8, right: 8, pointerEvents: "none" }}>
+            {isSelected
+              ? <CheckCircle style={{ width: 24, height: 24, color: '#007AFF', filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.5))" }} />
+              : <Circle style={{ width: 24, height: 24, color: 'rgba(255,255,255,0.85)', filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.5))" }} />
+            }
+          </div>
+        )}
+      </div>
       {isLastAtt && bodyText && (
         <div style={{ padding: "8px 12px", fontSize: 13, color: thumb ? "white" : theme.receivedText, background: thumb ? "rgba(0,0,0,0.6)" : theme.cardBg }}>
           {bodyText}
@@ -487,9 +502,11 @@ function PdfThumbnail({
 
 function ImageAttachment({
   messageId, attachment, token, refreshToken, theme, bodyText, isLastAtt,
+  selectMode, isSelected, onToggle,
 }: {
   messageId: string; attachment: GmailAttachment; token: string; refreshToken?: string | null;
   theme: Theme; bodyText?: string; isLastAtt?: boolean;
+  selectMode?: boolean; isSelected?: boolean; onToggle?: () => void;
 }) {
   const [src, setSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -522,7 +539,17 @@ function ImageAttachment({
 
   return (
     <div ref={containerRef} style={{ width: 260, borderRadius: 14, overflow: "hidden", marginBottom: 6 }}>
-        <button onClick={async () => { if (!src) return; const b64 = src.split(",")[1]; await openImageNative(b64, attachment.name, attachment.mimeType); }} className="block active:opacity-80" style={{ width: 260 }}>
+      <div style={{ position: "relative" }}>
+        <button
+          onClick={async () => {
+            if (selectMode) { onToggle?.(); return; }
+            if (!src) return;
+            const b64 = src.split(",")[1];
+            await openImageNative(b64, attachment.name, attachment.mimeType);
+          }}
+          className="block active:opacity-80"
+          style={{ width: 260 }}
+        >
           <div style={{ width: 260, height: 160, overflow: "hidden", background: "#f0f0f0" }}>
             {!visible || loading ? (
               <div className="w-full h-full flex items-center justify-center" style={{ background: theme.pillBg }}>
@@ -546,11 +573,23 @@ function ImageAttachment({
             </div>
           </div>
         </button>
-        {isLastAtt && bodyText && (
-          <div style={{ padding: "8px 12px", fontSize: 13, color: "white", background: "rgba(0,0,0,0.6)" }}>
-            {bodyText}
+        {selectMode && isSelected && (
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,122,255,0.18)", pointerEvents: "none" }} />
+        )}
+        {selectMode && (
+          <div style={{ position: "absolute", top: 8, right: 8, pointerEvents: "none" }}>
+            {isSelected
+              ? <CheckCircle style={{ width: 24, height: 24, color: '#007AFF', filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.5))" }} />
+              : <Circle style={{ width: 24, height: 24, color: 'rgba(255,255,255,0.85)', filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.5))" }} />
+            }
           </div>
         )}
+      </div>
+      {isLastAtt && bodyText && (
+        <div style={{ padding: "8px 12px", fontSize: 13, color: "white", background: "rgba(0,0,0,0.6)" }}>
+          {bodyText}
+        </div>
+      )}
     </div>
   );
 }
@@ -663,13 +702,14 @@ function highlightText(text: string, query: string): React.ReactNode {
 
 function MessageBubble({
   msg, token, refreshToken, contacts, theme, searchQuery, onOpenPdf,
+  selectMode, selectedAttachments, onToggleAttachment,
 }: {
   msg: GmailMessage; token: string; refreshToken?: string | null; contacts: Contact[]; theme: Theme; searchQuery?: string;
   onOpenPdf?: (att: GmailAttachment, msgId: string) => void;
+  selectMode?: boolean; selectedAttachments?: Set<string>; onToggleAttachment?: (id: string) => void;
 }) {
   const { toast } = useToast();
   const isSent = msg.direction === "sent";
-  const [forwardTarget, setForwardTarget] = useState<GmailAttachment | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleBodyTouchStart = (text: string) => {
@@ -692,30 +732,7 @@ function MessageBubble({
 
   return (
     <>
-      {forwardTarget && (
-        <ForwardSheet
-          contacts={contacts}
-          attachment={forwardTarget}
-          messageId={msg.id}
-          token={token}
-          refreshToken={refreshToken}
-          onClose={() => setForwardTarget(null)}
-          theme={theme}
-        />
-      )}
-
       <div className={`flex items-end gap-1.5 mb-1.5 ${isSent ? "justify-end" : "justify-start"}`}>
-
-        {/* Forward icon — left of bubble for received */}
-        {!isSent && hasAtts && (
-          <button
-            onClick={() => setForwardTarget(msg.attachments[0])}
-            className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-60 mb-0.5"
-            style={{ background: theme.pillBg }}
-          >
-            <Share2 className="w-3.5 h-3.5" style={{ color: theme.subText }} />
-          </button>
-        )}
 
         {/* Bubble */}
         <div
@@ -738,6 +755,7 @@ function MessageBubble({
             return msg.attachments.map((att, idx) => {
               const isLastAtt = idx === msg.attachments.length - 1;
               if (isPdf(att)) {
+                const selId = `${msg.id}::${att.id}`;
                 return (
                   <div key={att.id}>
                     <PdfThumbnail
@@ -749,11 +767,15 @@ function MessageBubble({
                       onTap={() => onOpenPdf?.(att, msg.id)}
                       bodyText={displayBody}
                       isLastAtt={isLastAtt}
+                      selectMode={selectMode}
+                      isSelected={selectedAttachments?.has(selId) ?? false}
+                      onToggle={() => onToggleAttachment?.(selId)}
                     />
                   </div>
                 );
               }
               if (isImage(att)) {
+                const selId = `${msg.id}::${att.id}`;
                 return (
                   <ImageAttachment
                     key={att.id}
@@ -764,6 +786,9 @@ function MessageBubble({
                     theme={theme}
                     bodyText={displayBody}
                     isLastAtt={isLastAtt}
+                    selectMode={selectMode}
+                    isSelected={selectedAttachments?.has(selId) ?? false}
+                    onToggle={() => onToggleAttachment?.(selId)}
                   />
                 );
               }
@@ -821,16 +846,6 @@ function MessageBubble({
           </p>
         </div>
 
-        {/* Forward icon — right of bubble for sent */}
-        {isSent && hasAtts && (
-          <button
-            onClick={() => setForwardTarget(msg.attachments[0])}
-            className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-60 mb-0.5"
-            style={{ background: theme.pillBg }}
-          >
-            <Share2 className="w-3.5 h-3.5" style={{ color: theme.subText }} />
-          </button>
-        )}
       </div>
     </>
   );
@@ -1124,6 +1139,8 @@ function ThreadView({
   const [search, setSearch] = useState("");
   const [showLoadPill, setShowLoadPill] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedAttachments, setSelectedAttachments] = useState<Set<string>>(new Set());
   const handleBackPress = useCallback(() => {
     setShowProfile(false);
     setShowSearch(false);
@@ -1237,6 +1254,42 @@ function ThreadView({
     }
   }, [oldestDate, loadingOlder, contact.email, token, refreshToken]);
 
+  const handleShare = useCallback(async () => {
+    if (selectedAttachments.size === 0) return;
+    hapticMedium();
+    const tempNames: string[] = [];
+    try {
+      const fileUris: string[] = [];
+      for (const selId of selectedAttachments) {
+        const [msgId, attId] = selId.split("::");
+        const msg = messages.find(m => m.id === msgId);
+        const att = msg?.attachments.find(a => a.id === attId);
+        if (!msg || !att) continue;
+        let b64 = base64Cache.get(att.id);
+        if (!b64) {
+          const data = await gmailPost<{ base64: string }>(
+            "/api/gmail/attachment", { messageId: msgId, attachmentId: att.id }, token, refreshToken,
+          );
+          b64 = data.base64;
+          base64Cache.set(att.id, b64);
+        }
+        const fileName = `${att.id}_${att.name}`;
+        const result = await Filesystem.writeFile({ path: fileName, data: b64, directory: Directory.Cache });
+        tempNames.push(fileName);
+        fileUris.push(result.uri);
+      }
+      if (fileUris.length > 0) await Share.share({ files: fileUris });
+    } catch {
+      // user cancelled share or fetch error — clean up below
+    } finally {
+      for (const name of tempNames) {
+        try { await Filesystem.deleteFile({ path: name, directory: Directory.Cache }); } catch {}
+      }
+      setSelectMode(false);
+      setSelectedAttachments(new Set());
+    }
+  }, [selectedAttachments, messages, token, refreshToken]);
+
   const q = search.toLowerCase();
   const visibleMessages = search
     ? messages.filter(m =>
@@ -1259,8 +1312,26 @@ function ThreadView({
         lastDate = isValid(d) ? d : lastDate;
       }
       nodes.push(
-        <MessageBubble key={msg.id} msg={msg} token={token} refreshToken={refreshToken} contacts={contacts} theme={theme} searchQuery={search}
-          onOpenPdf={(att, msgId) => { hapticLight(); openWithQuickLook(att, msgId, token, refreshToken); }} />,
+        <MessageBubble
+          key={msg.id}
+          msg={msg}
+          token={token}
+          refreshToken={refreshToken}
+          contacts={contacts}
+          theme={theme}
+          searchQuery={search}
+          selectMode={selectMode}
+          selectedAttachments={selectedAttachments}
+          onToggleAttachment={(id) => {
+            hapticLight();
+            setSelectedAttachments(prev => {
+              const next = new Set(prev);
+              if (next.has(id)) next.delete(id); else next.add(id);
+              return next;
+            });
+          }}
+          onOpenPdf={(att, msgId) => { hapticLight(); openWithQuickLook(att, msgId, token, refreshToken); }}
+        />,
       );
     }
     return nodes;
@@ -1310,6 +1381,21 @@ function ThreadView({
           >
             <Search style={{ width: 16, height: 16 }} />
           </button>
+          {selectMode ? (
+            <button
+              onClick={() => { setSelectMode(false); setSelectedAttachments(new Set()); }}
+              style={{ background: "none", border: "none", cursor: "pointer", color: '#007AFF', padding: "4px 8px", fontSize: 14, fontWeight: 500, flexShrink: 0 }}
+            >
+              Cancel
+            </button>
+          ) : (
+            <button
+              onClick={() => setSelectMode(true)}
+              style={{ background: "none", border: "none", cursor: "pointer", color: darkMode ? '#fef7ed' : '#00332a', padding: 8, flexShrink: 0 }}
+            >
+              <CheckCircle style={{ width: 16, height: 16 }} />
+            </button>
+          )}
           <button
             onClick={() => load()}
             disabled={loading}
@@ -1391,6 +1477,45 @@ function ThreadView({
         <div ref={bottomRef} />
       </div>
 
+      {selectMode && (
+        <div style={{
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          padding: "10px 16px",
+          gap: 10,
+          borderTop: `1px solid ${theme.border}`,
+          background: darkMode ? '#00332a' : '#fef7ed',
+        }}>
+          <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: darkMode ? 'rgba(254,247,237,0.7)' : 'rgba(0,51,42,0.7)' }}>
+            {selectedAttachments.size} selected
+          </span>
+          <button
+            onClick={handleShare}
+            disabled={selectedAttachments.size === 0}
+            style={{
+              height: 38, paddingLeft: 18, paddingRight: 18, borderRadius: 10,
+              border: "none", cursor: "pointer",
+              background: selectedAttachments.size === 0 ? theme.pillBg : '#007AFF',
+              color: selectedAttachments.size === 0 ? theme.subText : 'white',
+              fontSize: 14, fontWeight: 600,
+            }}
+          >
+            Share
+          </button>
+          <button
+            onClick={() => { setSelectMode(false); setSelectedAttachments(new Set()); }}
+            style={{
+              height: 38, paddingLeft: 14, paddingRight: 14, borderRadius: 10,
+              border: "none", cursor: "pointer",
+              background: theme.pillBg, color: theme.subText,
+              fontSize: 14, fontWeight: 600,
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
       <ChatInput
         contact={contact}
         token={token}
