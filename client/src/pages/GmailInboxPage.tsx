@@ -1260,27 +1260,51 @@ function ThreadView({
     const tempNames: string[] = [];
     try {
       const fileUris: string[] = [];
+      alert(`[Share] Starting with ${selectedAttachments.size} file(s)`);
       for (const selId of selectedAttachments) {
         const [msgId, attId] = selId.split("::");
         const msg = messages.find(m => m.id === msgId);
         const att = msg?.attachments.find(a => a.id === attId);
-        if (!msg || !att) continue;
+        if (!msg || !att) { alert(`[Share] SKIP: could not find msg/att for selId=${selId}`); continue; }
         let b64 = base64Cache.get(att.id);
         if (!b64) {
-          const data = await gmailPost<{ base64: string }>(
-            "/api/gmail/attachment", { messageId: msgId, attachmentId: att.id }, token, refreshToken,
-          );
-          b64 = data.base64;
-          base64Cache.set(att.id, b64);
+          try {
+            const data = await gmailPost<{ base64: string }>(
+              "/api/gmail/attachment", { messageId: msgId, attachmentId: att.id }, token, refreshToken,
+            );
+            b64 = data.base64;
+            base64Cache.set(att.id, b64);
+            alert(`[Share] Fetched base64 for ${att.name}, length: ${b64.length}`);
+          } catch (e: any) {
+            alert(`[Share] FETCH FAILED for ${att.name}: ${e?.message ?? String(e)}`);
+            throw e;
+          }
+        } else {
+          alert(`[Share] Used cached base64 for ${att.name}, length: ${b64.length}`);
         }
         const safe = `${att.id}_${att.name}`.replace(/[^a-z0-9._-]/gi, "_");
-        await Filesystem.writeFile({ path: safe, data: b64, directory: Directory.Cache, recursive: true });
-        tempNames.push(safe);
-        const { uri } = await Filesystem.getUri({ path: safe, directory: Directory.Cache });
-        fileUris.push(uri);
+        try {
+          await Filesystem.writeFile({ path: safe, data: b64, directory: Directory.Cache, recursive: true });
+          tempNames.push(safe);
+          alert(`[Share] writeFile OK: ${safe}`);
+        } catch (e: any) {
+          alert(`[Share] WRITEFILE FAILED for ${safe}: ${e?.message ?? String(e)}`);
+          throw e;
+        }
+        try {
+          const { uri } = await Filesystem.getUri({ path: safe, directory: Directory.Cache });
+          fileUris.push(uri);
+          alert(`[Share] getUri OK: ${uri}`);
+        } catch (e: any) {
+          alert(`[Share] GETURI FAILED for ${safe}: ${e?.message ?? String(e)}`);
+          throw e;
+        }
       }
+      alert(`[Share] Calling Share.share with files: ${JSON.stringify(fileUris)}`);
       if (fileUris.length > 0) await Share.share({ files: fileUris });
-    } catch (err) {
+      alert(`[Share] Share.share resolved successfully`);
+    } catch (err: any) {
+      alert(`[Share] FINAL ERROR: ${err?.message ?? String(err)}\n\nStack: ${err?.stack ?? 'no stack'}`);
       console.error("Share error:", err);
     } finally {
       for (const name of tempNames) {
