@@ -209,6 +209,30 @@ async function openPdfNative(base64: string, name: string) {
   }
 }
 
+async function openImageNative(base64: string, name: string, mimeType: string) {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const { Filesystem, Directory } = await import("@capacitor/filesystem");
+      const ext = mimeType.includes("png") ? ".png" : mimeType.includes("gif") ? ".gif" : ".jpg";
+      const safe = name.replace(/[^a-z0-9._-]/gi, "_");
+      const fileName = safe.endsWith(ext) ? safe : `${safe}${ext}`;
+      await Filesystem.writeFile({
+        path: fileName,
+        data: base64,
+        directory: Directory.Cache,
+        recursive: true,
+      });
+      const { uri } = await Filesystem.getUri({
+        path: fileName,
+        directory: Directory.Cache,
+      });
+      await QuickLook.openPDF({ path: uri });
+    } catch (err) {
+      console.error("Image open error:", err);
+    }
+  }
+}
+
 async function openWithQuickLook(att: GmailAttachment, msgId: string, token: string, refreshToken?: string | null) {
   if (!Capacitor.isNativePlatform()) return;
   try {
@@ -461,7 +485,6 @@ function ImageAttachment({
 }) {
   const [src, setSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [fullscreen, setFullscreen] = useState(false);
   const [visible, setVisible] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -490,23 +513,8 @@ function ImageAttachment({
   }, [visible, attachment.id]);
 
   return (
-    <>
-      {fullscreen && src && (
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.96)", display: "flex", alignItems: "center", justifyContent: "center" }}
-          onClick={() => setFullscreen(false)}
-        >
-          <img src={src} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
-          <button
-            style={{ position: "absolute", top: 52, right: 16, width: 36, height: 36, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.15)", border: "none", cursor: "pointer" }}
-            onClick={e => { e.stopPropagation(); setFullscreen(false); }}
-          >
-            <X className="w-5 h-5 text-white" />
-          </button>
-        </div>
-      )}
-      <div ref={containerRef} style={{ width: 260, borderRadius: 14, overflow: "hidden", marginBottom: 6 }}>
-        <button onClick={() => src && setFullscreen(true)} className="block active:opacity-80" style={{ width: 260 }}>
+    <div ref={containerRef} style={{ width: 260, borderRadius: 14, overflow: "hidden", marginBottom: 6 }}>
+        <button onClick={async () => { if (!src) return; const b64 = src.split(",")[1]; await openImageNative(b64, attachment.name, attachment.mimeType); }} className="block active:opacity-80" style={{ width: 260 }}>
           <div style={{ width: 260, height: 160, overflow: "hidden", background: "#f0f0f0" }}>
             {!visible || loading ? (
               <div className="w-full h-full flex items-center justify-center" style={{ background: theme.pillBg }}>
@@ -535,8 +543,7 @@ function ImageAttachment({
             {bodyText}
           </div>
         )}
-      </div>
-    </>
+    </div>
   );
 }
 
