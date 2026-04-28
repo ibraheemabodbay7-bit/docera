@@ -1533,44 +1533,6 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     }
   });
 
-  // ── Test email endpoint (Resend, no attachment) ────────────────────────────
-  app.post("/api/send-email", requireAuth, async (req, res) => {
-    const schema = z.object({
-      to: z.string().email("Invalid recipient email address"),
-      subject: z.string().min(1, "Subject is required"),
-      message: z.string().min(1, "Message is required"),
-    });
-    const parsed = schema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid input" });
-    }
-
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ error: "RESEND_API_KEY is not configured. Add it in Replit Secrets." });
-    }
-
-    try {
-      const resend = new Resend(apiKey);
-      const fromAddress = process.env.EMAIL_FROM ?? "no-reply@docera.app";
-      const from = `Docera <${fromAddress}>`;
-      const result = await resend.emails.send({
-        from,
-        to: [parsed.data.to],
-        subject: "Email setup check · Docera",
-        text: parsed.data.message,
-      });
-
-      if (result.error) {
-        return res.status(500).json({ error: result.error.message ?? "Resend rejected the request" });
-      }
-
-      res.json({ success: true });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Unexpected error sending email";
-      res.status(500).json({ error: message });
-    }
-  });
 
   // ── Handwriting credits ────────────────────────────────────────────────────
 

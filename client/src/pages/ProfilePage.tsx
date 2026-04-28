@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest, apiFetch } from "@/lib/queryClient";
-import { ArrowLeft, FileText, FolderOpen, LogOut, ChevronRight, Check, X, Crown, Loader2, User, Mail, AtSign, SendHorizonal, SlidersHorizontal, Tag, Download, Sparkles, AlertCircle } from "lucide-react";
+import { ArrowLeft, FileText, FolderOpen, LogOut, ChevronRight, Check, X, Crown, Loader2, User, Mail, AtSign, SlidersHorizontal, Tag, Download, Sparkles } from "lucide-react";
 import { getSetting, setSetting, getBoolSetting, setBoolSetting } from "@/lib/settings";
 import { useToast } from "@/hooks/use-toast";
 import type { Document, Folder } from "@shared/schema";
@@ -23,10 +23,6 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
   const [editingSenderName, setEditingSenderName] = useState(false);
   const [newSenderName, setNewSenderName] = useState(user.senderName ?? "");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [testEmailTo, setTestEmailTo] = useState("");
-  const [testEmailMessage, setTestEmailMessage] = useState("");
-  const [testEmailStatus, setTestEmailStatus] = useState<"idle" | "success" | "error">("idle");
-  const [testEmailError, setTestEmailError] = useState("");
 
   // App preferences (localStorage)
   const [filenamePrefix, setFilenamePrefix] = useState(() => getSetting("filenamePrefix", "Scan"));
@@ -80,38 +76,6 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
   });
 
 
-  const sendTestEmailMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/send-email", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to: testEmailTo.trim(),
-          subject: "Test from Docera",
-          message: testEmailMessage.trim(),
-        }),
-      });
-
-      const ct = res.headers.get("content-type") ?? "";
-      if (ct.includes("application/json")) {
-        const data = await res.json() as { success?: boolean; error?: string };
-        if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
-        return data;
-      }
-
-      const raw = await res.text();
-      throw new Error(`Unexpected server response (${res.status}): ${raw.slice(0, 120)}`);
-    },
-    onSuccess: () => {
-      setTestEmailStatus("success");
-      setTestEmailError("");
-    },
-    onError: (err: unknown) => {
-      setTestEmailStatus("error");
-      setTestEmailError(err instanceof Error ? err.message : "Failed to send email");
-    },
-  });
 
   const totalSizeMB = docs.reduce((acc, d) => acc + d.size, 0) / 1024 / 1024;
   const initials = user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
@@ -120,7 +84,6 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
     : null;
 
   const effectiveSenderName = user.senderName?.trim() || user.name?.trim() || "Docera";
-  const senderPreview = `${effectiveSenderName} via Docera <no-reply@docera.app>`;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -497,76 +460,7 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
                 </div>
               )}
 
-              {/* Preview */}
-              <div className="ml-11 mt-3 px-3 py-2.5 bg-muted rounded-xl">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Preview</p>
-                <p className="text-xs text-foreground font-mono break-all">{senderPreview}</p>
-              </div>
             </div>
-          </div>
-          <p className="text-xs text-muted-foreground mt-2 px-1">
-            The actual sending address is always <span className="font-medium">no-reply@docera.app</span>. Only the display name changes.
-          </p>
-        </div>
-
-        {/* Email setup check */}
-        <div className="px-4 mb-5">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">
-            Email Setup Check
-          </p>
-          <div className="bg-card border border-border rounded-2xl overflow-hidden px-4 py-4 flex flex-col gap-3">
-            <p className="text-xs text-muted-foreground">Send a test message to confirm your email settings are working correctly.</p>
-            <input
-              data-testid="input-test-email-to"
-              type="email"
-              placeholder="Send to (your email)"
-              value={testEmailTo}
-              onChange={(e) => { setTestEmailTo(e.target.value); setTestEmailStatus("idle"); }}
-              className="w-full px-3 py-2.5 rounded-xl bg-muted text-sm text-foreground border border-border outline-none placeholder:text-muted-foreground/50"
-            />
-            <textarea
-              data-testid="input-test-email-message"
-              placeholder="Short message"
-              rows={2}
-              value={testEmailMessage}
-              onChange={(e) => { setTestEmailMessage(e.target.value); setTestEmailStatus("idle"); }}
-              className="w-full px-3 py-2.5 rounded-xl bg-muted text-sm text-foreground border border-border outline-none placeholder:text-muted-foreground/50 resize-none"
-            />
-
-            <button
-              data-testid="button-send-test-email"
-              onClick={() => {
-                setTestEmailStatus("idle");
-                sendTestEmailMutation.mutate();
-              }}
-              disabled={sendTestEmailMutation.isPending || !testEmailTo.trim() || !testEmailMessage.trim()}
-              className="w-full h-11 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50 transition-all active:scale-[0.98] bg-primary text-primary-foreground"
-            >
-              {sendTestEmailMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Sending…
-                </>
-              ) : (
-                <>
-                  <SendHorizonal className="w-4 h-4" />
-                  Send Test
-                </>
-              )}
-            </button>
-
-            {testEmailStatus === "success" && (
-              <div className="flex items-center gap-2 px-3 py-2.5 bg-green-50 dark:bg-green-900/20 rounded-xl">
-                <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
-                <p className="text-sm font-medium text-green-700 dark:text-green-400">Email sent — check your inbox</p>
-              </div>
-            )}
-            {testEmailStatus === "error" && (
-              <div className="flex items-start gap-2 px-3 py-2.5 bg-red-50 dark:bg-red-900/20 rounded-xl">
-                <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-600 dark:text-red-400">{testEmailError || "Failed to send. Please try again."}</p>
-              </div>
-            )}
           </div>
         </div>
 
