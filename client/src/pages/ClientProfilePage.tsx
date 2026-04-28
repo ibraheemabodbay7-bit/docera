@@ -54,6 +54,7 @@ function fmtDate(dateStr: string) {
 // ─── PDF thumbnail cache ───────────────────────────────────────────────────────
 
 const profileThumbCache = new Map<string, string>();
+const profilePageCountCache = new Map<string, number>();
 const profileBase64Cache = new Map<string, string>();
 
 let activeProfileThumbnailLoads = 0;
@@ -77,7 +78,7 @@ function releaseSlot() {
   if (next) next();
 }
 
-async function generatePdfThumbnail(base64: string): Promise<string> {
+async function generatePdfThumbnail(base64: string): Promise<{ thumb: string; pageCount: number }> {
   try {
     const pdfjsLib = await import("pdfjs-dist");
     pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -88,6 +89,7 @@ async function generatePdfThumbnail(base64: string): Promise<string> {
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
     const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+    const pageCount = pdf.numPages;
     const page = await pdf.getPage(1);
     const viewport = page.getViewport({ scale: 2.0 });
     const canvas = document.createElement("canvas");
@@ -97,9 +99,9 @@ async function generatePdfThumbnail(base64: string): Promise<string> {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     await (page.render as any)({ canvasContext: ctx, viewport }).promise;
-    return canvas.toDataURL("image/jpeg", 0.9);
+    return { thumb: canvas.toDataURL("image/jpeg", 0.9), pageCount };
   } catch {
-    return "";
+    return { thumb: "", pageCount: 0 };
   }
 }
 
@@ -230,6 +232,7 @@ function PdfThumbnailCard({
   const theme = getTheme(dark);
   const cached = profileThumbCache.get(att.id) ?? null;
   const [thumb, setThumb] = useState<string | null>(cached);
+  const [pageCount, setPageCount] = useState<number | null>(profilePageCountCache.get(att.id) ?? null);
   const [loading, setLoading] = useState(false);
   const [visible, setVisible] = useState(!!cached);
   const [opening, setOpening] = useState(false);
@@ -269,8 +272,13 @@ function PdfThumbnailCard({
           b64 = data.base64;
           profileBase64Cache.set(att.id, b64);
         }
-        const url = await generatePdfThumbnail(b64);
-        if (!cancelled && url) { profileThumbCache.set(att.id, url); setThumb(url); }
+        const { thumb: url, pageCount: count } = await generatePdfThumbnail(b64);
+        if (!cancelled && url) {
+          profileThumbCache.set(att.id, url);
+          profilePageCountCache.set(att.id, count);
+          setThumb(url);
+          setPageCount(count);
+        }
       } catch { } finally {
         releaseSlot();
         if (!cancelled) setLoading(false);
@@ -335,7 +343,7 @@ function PdfThumbnailCard({
         </div>
         <div style={{ padding: "8px 12px" }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: nameColor, letterSpacing: "-0.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{att.name}</div>
-          <div style={{ fontSize: 10, color: metaColor, marginTop: 2 }}>{fmtSize(att.size)}{dateStr ? ` · ${dateStr}` : ""}</div>
+          <div style={{ fontSize: 10, color: metaColor, marginTop: 2 }}>{pageCount !== null && pageCount > 0 ? `${pageCount} ${pageCount === 1 ? 'page' : 'pages'} · ` : ''}{fmtSize(att.size)}{dateStr ? ` · ${dateStr}` : ""}</div>
         </div>
       </div>
     );
@@ -348,6 +356,8 @@ function PdfThumbnailCard({
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
           <div style={{ fontSize: 13.5, fontWeight: 600, color: theme.ink, letterSpacing: "-0.01em", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{att.name}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: theme.subtle }}>
+            {pageCount !== null && pageCount > 0 && <span>{pageCount} {pageCount === 1 ? 'page' : 'pages'}</span>}
+            {pageCount !== null && pageCount > 0 && <span style={{ width: 2.5, height: 2.5, borderRadius: "50%", background: theme.muted, flexShrink: 0, display: "inline-block" }} />}
             <span>{fmtSize(att.size)}</span>
             {dateStr && <><span style={{ width: 2.5, height: 2.5, borderRadius: "50%", background: theme.muted, flexShrink: 0, display: "inline-block" }} /><span>{dateStr}</span></>}
           </div>
@@ -367,6 +377,8 @@ function PdfThumbnailCard({
           {att.name}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: theme.subtle, letterSpacing: "-0.01em" }}>
+          {pageCount !== null && pageCount > 0 && <span>{pageCount} {pageCount === 1 ? 'page' : 'pages'}</span>}
+          {pageCount !== null && pageCount > 0 && <span style={{ width: 2.5, height: 2.5, borderRadius: "50%", background: theme.muted, flexShrink: 0, display: "inline-block" }} />}
           <span>{fmtSize(att.size)}</span>
           {dateStr && <>
             <span style={{ width: 2.5, height: 2.5, borderRadius: "50%", background: theme.muted, flexShrink: 0, display: "inline-block" }} />

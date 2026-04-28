@@ -124,6 +124,7 @@ type DocItem = { id: string; name: string; type: string; dataUrl: string };
 // ─── PDF thumbnail cache ──────────────────────────────────────────────────────
 
 const thumbCache = new Map<string, string>();
+const pageCountCache = new Map<string, number>();
 
 // ─── PDF base64 cache (reused by viewer to avoid re-fetching) ─────────────────
 const base64Cache = new Map<string, string>();
@@ -152,7 +153,7 @@ function releaseThumbnailSlot() {
   if (next) next();
 }
 
-async function generatePdfThumbnail(base64: string): Promise<string> {
+async function generatePdfThumbnail(base64: string): Promise<{ thumb: string; pageCount: number }> {
   try {
     const pdfjsLib = await import("pdfjs-dist");
     pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -163,6 +164,7 @@ async function generatePdfThumbnail(base64: string): Promise<string> {
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
     const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+    const pageCount = pdf.numPages;
     const page = await pdf.getPage(1);
     const viewport = page.getViewport({ scale: 2.0 });
     const canvas = document.createElement("canvas");
@@ -172,9 +174,9 @@ async function generatePdfThumbnail(base64: string): Promise<string> {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     await (page.render as any)({ canvasContext: ctx, viewport }).promise;
-    return canvas.toDataURL("image/jpeg", 0.9);
+    return { thumb: canvas.toDataURL("image/jpeg", 0.9), pageCount };
   } catch {
-    return "";
+    return { thumb: "", pageCount: 0 };
   }
 }
 
@@ -379,6 +381,7 @@ function PdfThumbnail({
 }) {
   const cached = thumbCache.get(attachment.id) ?? null;
   const [thumb, setThumb] = useState<string | null>(cached);
+  const [pageCount, setPageCount] = useState<number | null>(pageCountCache.get(attachment.id) ?? null);
   const [loading, setLoading] = useState(false);
   const [visible, setVisible] = useState(!!cached);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -414,8 +417,13 @@ function PdfThumbnail({
         );
         if (cancelled) return;
         base64Cache.set(attachment.id, data.base64);
-        const url = await generatePdfThumbnail(data.base64);
-        if (!cancelled && url) { thumbCache.set(attachment.id, url); setThumb(url); }
+        const { thumb: url, pageCount: count } = await generatePdfThumbnail(data.base64);
+        if (!cancelled && url) {
+          thumbCache.set(attachment.id, url);
+          pageCountCache.set(attachment.id, count);
+          setThumb(url);
+          setPageCount(count);
+        }
       } catch { } finally {
         releaseThumbnailSlot();
         if (!cancelled) setLoading(false);
@@ -439,7 +447,7 @@ function PdfThumbnail({
       <p className="text-xs font-semibold px-4 text-center" style={{ color: theme.receivedText, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {attachment.name}
       </p>
-      <p className="text-[11px]" style={{ color: theme.subText }}>{fmtSize(attachment.size)}</p>
+      <p className="text-[11px]" style={{ color: theme.subText }}>{pageCount !== null && pageCount > 0 ? `${pageCount} ${pageCount === 1 ? 'page' : 'pages'} · ` : ''}{fmtSize(attachment.size)}</p>
       {loading && <Loader2 className="w-4 h-4 animate-spin" style={{ color: theme.subText }} />}
     </div>
   );
@@ -458,7 +466,7 @@ function PdfThumbnail({
               </div>
               <div className="flex-1 min-w-0 text-left">
                 <p className="text-white text-[11px] font-semibold truncate">{attachment.name}</p>
-                <p className="text-white/55 text-[10px]">{fmtSize(attachment.size)}</p>
+                <p className="text-white/55 text-[10px]">{pageCount !== null && pageCount > 0 ? `${pageCount} ${pageCount === 1 ? 'page' : 'pages'} · ` : ''}{fmtSize(attachment.size)}</p>
               </div>
             </div>
           </>
