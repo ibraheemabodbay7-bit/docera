@@ -327,7 +327,7 @@ function AppWithAuth() {
       <ScannerPage
         editDocId={view.docId}
         onSaved={goHome}
-        onCancel={goHome}
+        onCancel={() => goViewer(view.docId)}
       />
     );
   }

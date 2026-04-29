@@ -7,7 +7,7 @@ import { useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, apiFetch } from "@/lib/queryClient";
 import {
   ImageIcon, Plus, X, FileText, ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
-  RotateCw, RotateCcw, Check, ScanSearch, Maximize2,
+  RotateCw, RotateCcw, Check, ScanSearch, Maximize2, Trash2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
@@ -421,6 +421,8 @@ export default function ScannerPage({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [cropFullscreen, setCropFullscreen] = useState(false);
   const [cropMode, setCropMode] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [showDeletePageConfirm, setShowDeletePageConfirm] = useState(false);
   const cropContainerRef = useRef<HTMLDivElement>(null);
   const cropImgRectRef = useRef<ImgRect>({ x: 0, y: 0, w: 1, h: 1 });
 
@@ -1067,6 +1069,16 @@ export default function ScannerPage({
     });
   }, [startCamera]);
 
+  const doCancel = useCallback(() => {
+    if (editDocId) { onCancel(); }
+    else { startCamera(); setStage("camera"); }
+  }, [editDocId, onCancel, startCamera]);
+
+  const handleCancel = useCallback(() => {
+    if (pagesModifiedRef.current) { setShowDiscardConfirm(true); }
+    else { doCancel(); }
+  }, [doCancel]);
+
   // ── Canvas-filter lazy compute (only for current visible page) ────────────────
   // Handles "document", "id", and "noshadow" filters — all require canvas work.
   // For "noshadow" the processedUrl also depends on filterStrength, so strength
@@ -1341,7 +1353,7 @@ export default function ScannerPage({
       el?.removeEventListener("touchend",   nativeTouchEnd);
       document.removeEventListener("touchmove", nativeTouchMove);
     };
-  }, [stage]);
+  }, [stage, loadingEdit]);
 
   // ── Fullscreen crop touch handlers ────────────────────────────────────────────
   useEffect(() => {
@@ -1598,14 +1610,12 @@ export default function ScannerPage({
   const rotatePage = useCallback(() => {
     updatePageAt(currentIndex, {
       rotation: ((currentPage?.rotation ?? 0) + 90) % 360,
-      processedUrl: "",
     });
   }, [currentIndex, currentPage?.rotation, updatePageAt]);
 
   const rotateCcwPage = useCallback(() => {
     updatePageAt(currentIndex, {
       rotation: (((currentPage?.rotation ?? 0) - 90) % 360 + 360) % 360,
-      processedUrl: "",
     });
   }, [currentIndex, currentPage?.rotation, updatePageAt]);
 
@@ -2256,17 +2266,18 @@ export default function ScannerPage({
           ) : (
             /* Normal mode */
             <>
-              <button data-testid="button-back-to-camera"
-                onClick={() => { startCamera(); setStage("camera"); }}
-                className="text-white text-sm font-medium opacity-80 active:opacity-50 flex items-center gap-1">
-                <ChevronLeft className="w-4 h-4" /> Add
+              <button data-testid="button-discard-exit"
+                onClick={handleCancel}
+                className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center active:bg-white/30">
+                <X className="w-4 h-4 text-white" />
               </button>
 
               <span className="text-white text-sm font-bold">Edit Scan</span>
 
-              <button data-testid="button-remove-current" onClick={() => removePage(currentIndex)}
-                className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center active:bg-white/30">
-                <X className="w-4 h-4 text-white" />
+              <button data-testid="button-back-to-camera"
+                onClick={() => { startCamera(); setStage("camera"); }}
+                className="text-white text-sm font-medium opacity-80 active:opacity-50 flex items-center gap-1">
+                Add <ChevronRight className="w-4 h-4" />
               </button>
             </>
           )}
@@ -2331,7 +2342,7 @@ export default function ScannerPage({
                 return <line key={seg}
                   x1={svgData.qpx[a].x} y1={svgData.qpx[a].y}
                   x2={svgData.qpx[b].x} y2={svgData.qpx[b].y}
-                  stroke="rgba(220,225,235,0.85)" strokeWidth="1.5" strokeDasharray="7 4" />;
+                  stroke="rgba(59,130,246,0.85)" strokeWidth="1.5" strokeDasharray="7 4" />;
               })}
             </svg>
           )}
@@ -2354,7 +2365,7 @@ export default function ScannerPage({
                     i === currentIndex ? { ...p, manualCrop: true } : p
                   ));
                 }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#d4d4dc', border: '1.5px solid rgba(255,255,255,0.95)', boxShadow: '0 1px 3px rgba(0,0,0,0.4)', flexShrink: 0 }} />
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#3b82f6', border: '1.5px solid rgba(255,255,255,0.95)', boxShadow: '0 1px 3px rgba(0,0,0,0.4)', flexShrink: 0 }} />
               </div>
             );
           })}
@@ -2393,7 +2404,7 @@ export default function ScannerPage({
                     i === currentIndex ? { ...p, manualCrop: true } : p
                   ));
                 }}>
-                <div style={{ width: vw, height: vh, borderRadius: 3, background: '#d4d4dc', border: '1.5px solid rgba(255,255,255,0.95)', boxShadow: '0 1px 3px rgba(0,0,0,0.4)', flexShrink: 0 }} />
+                <div style={{ width: vw, height: vh, borderRadius: 3, background: '#3b82f6', border: '1.5px solid rgba(255,255,255,0.95)', boxShadow: '0 1px 3px rgba(0,0,0,0.4)', flexShrink: 0 }} />
               </div>
             );
           })}
@@ -2447,21 +2458,9 @@ export default function ScannerPage({
         <div className="flex-shrink-0 flex items-center justify-around px-4"
           style={{ height: 58, background: dark ? 'rgba(18,18,22,0.85)' : 'rgba(240,243,248,0.88)', borderTop: `0.5px solid ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.4)'}` }}>
 
-          {/* Rotate left */}
-          <button data-testid="button-rotate-ccw"
-            onClick={rotateCcwPage}
-            onTouchStart={(e) => { e.preventDefault(); rotateCcwPage(); }}
-            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', touchAction: 'manipulation' }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <RotateCcw style={{ width: 16, height: 16, color: '#ececef' }} />
-            </div>
-            <span style={{ fontSize: 8, color: '#8a8a92', fontWeight: 500 }}>Rotate</span>
-          </button>
-
-          {/* Rotate right */}
+          {/* Rotate */}
           <button data-testid="button-rotate"
             onClick={rotatePage}
-            onTouchStart={(e) => { e.preventDefault(); rotatePage(); }}
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', touchAction: 'manipulation' }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <RotateCw style={{ width: 16, height: 16, color: '#ececef' }} />
@@ -2492,7 +2491,6 @@ export default function ScannerPage({
           {/* Fit — opens fullscreen crop view */}
           <button data-testid="button-fit"
             onClick={() => setCropFullscreen(true)}
-            onTouchStart={(e) => { e.preventDefault(); setCropFullscreen(true); }}
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', touchAction: 'manipulation' }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Maximize2 style={{ width: 15, height: 15, color: '#ececef' }} />
@@ -2509,6 +2507,19 @@ export default function ScannerPage({
               <ScanSearch style={{ width: 16, height: 16, color: '#ececef' }} />
             </div>
             <span style={{ fontSize: 8, color: '#8a8a92', fontWeight: 500 }}>Auto</span>
+          </button>
+
+          {/* Delete — removes current page (guarded) */}
+          <button data-testid="button-delete-page"
+            onClick={() => {
+              if (pages.length <= 1) { toast({ title: "Can't delete the only page" }); return; }
+              setShowDeletePageConfirm(true);
+            }}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', touchAction: 'manipulation' }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(239,68,68,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Trash2 style={{ width: 16, height: 16, color: '#ef4444' }} />
+            </div>
+            <span style={{ fontSize: 8, color: '#ef4444', fontWeight: 500 }}>Delete</span>
           </button>
         </div>
 
@@ -2644,6 +2655,48 @@ export default function ScannerPage({
         </div>
 
 
+        {/* ── Discard changes confirmation modal ── */}
+        {showDiscardConfirm && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center px-6"
+            style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}>
+            <div className="w-full max-w-xs rounded-2xl overflow-hidden"
+              style={{ background: dark ? 'rgba(28,28,32,0.97)' : 'rgba(255,255,255,0.97)', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
+              <div className="px-5 pt-5 pb-4">
+                <p className="text-sm font-semibold text-center" style={{ color: dark ? '#ececef' : '#1a1a1f' }}>Discard changes?</p>
+                <p className="text-xs text-center mt-1" style={{ color: '#8a8a92' }}>Your edits will not be saved.</p>
+              </div>
+              <div style={{ borderTop: '0.5px solid rgba(128,128,136,0.25)' }} className="flex">
+                <button className="flex-1 py-3 text-sm font-medium" style={{ color: '#8a8a92', background: 'none', border: 'none', cursor: 'pointer' }}
+                  onClick={() => setShowDiscardConfirm(false)}>Keep Editing</button>
+                <div style={{ width: '0.5px', background: 'rgba(128,128,136,0.25)' }} />
+                <button className="flex-1 py-3 text-sm font-semibold" style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}
+                  onClick={() => { setShowDiscardConfirm(false); doCancel(); }}>Discard</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Delete page confirmation modal ── */}
+        {showDeletePageConfirm && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center px-6"
+            style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}>
+            <div className="w-full max-w-xs rounded-2xl overflow-hidden"
+              style={{ background: dark ? 'rgba(28,28,32,0.97)' : 'rgba(255,255,255,0.97)', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
+              <div className="px-5 pt-5 pb-4">
+                <p className="text-sm font-semibold text-center" style={{ color: dark ? '#ececef' : '#1a1a1f' }}>Delete this page?</p>
+                <p className="text-xs text-center mt-1" style={{ color: '#8a8a92' }}>Page {currentIndex + 1} will be removed.</p>
+              </div>
+              <div style={{ borderTop: '0.5px solid rgba(128,128,136,0.25)' }} className="flex">
+                <button className="flex-1 py-3 text-sm font-medium" style={{ color: '#8a8a92', background: 'none', border: 'none', cursor: 'pointer' }}
+                  onClick={() => setShowDeletePageConfirm(false)}>Cancel</button>
+                <div style={{ width: '0.5px', background: 'rgba(128,128,136,0.25)' }} />
+                <button className="flex-1 py-3 text-sm font-semibold" style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}
+                  onClick={() => { setShowDeletePageConfirm(false); removePage(currentIndex); }}>Delete</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Fullscreen crop overlay ── */}
         {cropFullscreen && cropSvgData && (() => {
           const sd = cropSvgData;
@@ -2675,7 +2728,7 @@ export default function ScannerPage({
                   const [a, b] = seg.split("-") as [keyof typeof sd.qpx, keyof typeof sd.qpx];
                   return <line key={seg}
                     x1={sd.qpx[a].x} y1={sd.qpx[a].y} x2={sd.qpx[b].x} y2={sd.qpx[b].y}
-                    stroke="rgba(220,225,235,0.85)" strokeWidth="1.5" strokeDasharray="7 4" />;
+                    stroke="rgba(59,130,246,0.85)" strokeWidth="1.5" strokeDasharray="7 4" />;
                 })}
               </svg>
 
@@ -2685,7 +2738,7 @@ export default function ScannerPage({
                 return (
                   <div key={corner} className="absolute flex items-center justify-center z-10"
                     style={{ left: pt.x - 22, top: pt.y - 22, width: 44, height: 44, touchAction: "none" }}>
-                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#d4d4dc', border: '1.5px solid rgba(255,255,255,0.95)', boxShadow: '0 1px 3px rgba(0,0,0,0.4)', flexShrink: 0 }} />
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#3b82f6', border: '1.5px solid rgba(255,255,255,0.95)', boxShadow: '0 1px 3px rgba(0,0,0,0.4)', flexShrink: 0 }} />
                   </div>
                 );
               })}
@@ -2702,7 +2755,7 @@ export default function ScannerPage({
                 return (
                   <div key={key} className="absolute flex items-center justify-center z-10"
                     style={{ left: pt.x - tw / 2, top: pt.y - th / 2, width: tw, height: th, touchAction: "none" }}>
-                    <div style={{ width: vw2, height: vh2, borderRadius: 3, background: '#d4d4dc', border: '1.5px solid rgba(255,255,255,0.95)', boxShadow: '0 1px 3px rgba(0,0,0,0.4)', flexShrink: 0 }} />
+                    <div style={{ width: vw2, height: vh2, borderRadius: 3, background: '#3b82f6', border: '1.5px solid rgba(255,255,255,0.95)', boxShadow: '0 1px 3px rgba(0,0,0,0.4)', flexShrink: 0 }} />
                   </div>
                 );
               })}
