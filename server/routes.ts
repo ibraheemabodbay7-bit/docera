@@ -135,13 +135,21 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #fef7ed;
-      color: #1a1a1a;
+      background:
+        radial-gradient(ellipse at 20% 15%, #e8ecf2 0%, #c8d0dc 30%, transparent 60%),
+        radial-gradient(ellipse at 80% 85%, #d8dee8 0%, #a8b0c0 35%, transparent 65%),
+        radial-gradient(ellipse at 50% 50%, #6a7388 0%, transparent 50%),
+        #b8c0cc;
+      color: #1a1f2a;
       line-height: 1.7;
       font-size: 16px;
+      min-height: 100vh;
     }
     header {
-      background: #00332a;
+      background: rgba(232,236,242,0.82);
+      backdrop-filter: blur(30px) saturate(160%);
+      -webkit-backdrop-filter: blur(30px) saturate(160%);
+      border-bottom: 0.5px solid rgba(255,255,255,0.4);
       padding: 20px 24px;
       display: flex;
       align-items: center;
@@ -150,7 +158,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     header .logo {
       font-size: 22px;
       font-weight: 700;
-      color: #ffffff;
+      color: #1a1f2a;
       letter-spacing: -0.02em;
     }
     .container {
@@ -161,40 +169,43 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     h1 {
       font-size: 32px;
       font-weight: 700;
-      color: #00332a;
+      color: #1a1f2a;
       letter-spacing: -0.02em;
       margin-bottom: 8px;
     }
     .updated {
       font-size: 13px;
-      color: #888;
+      color: #4a5262;
       margin-bottom: 40px;
     }
     h2 {
       font-size: 18px;
       font-weight: 600;
-      color: #00332a;
+      color: #1a1f2a;
       margin-top: 36px;
       margin-bottom: 10px;
     }
-    p { margin-bottom: 14px; color: #333; }
+    p { margin-bottom: 14px; color: #2a3040; }
     ul {
       margin: 0 0 14px 20px;
-      color: #333;
+      color: #2a3040;
     }
     ul li { margin-bottom: 6px; }
-    a { color: #00332a; }
+    a { color: #3a5fa0; }
     hr {
       border: none;
-      border-top: 1px solid #e8e8e8;
+      border-top: 0.5px solid rgba(255,255,255,0.4);
       margin: 40px 0;
     }
     .contact-box {
-      background: #f0e8dc;
-      border: 1px solid #d6c9b0;
-      border-radius: 10px;
+      background: rgba(255,255,255,0.55);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 0.5px solid rgba(255,255,255,0.4);
+      border-radius: 12px;
       padding: 20px 24px;
       margin-top: 12px;
+      box-shadow: 0 1px 0 rgba(255,255,255,0.7) inset, 0 4px 16px rgba(0,0,0,0.1);
     }
     .contact-box p { margin: 0; }
   </style>

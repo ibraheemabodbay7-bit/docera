@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import ClientEmailSuggest from "@/components/ClientEmailSuggest";
@@ -9,6 +9,32 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import type { Client, DocumentSummary, DocStatus } from "@shared/schema";
+import { isDarkMode } from "@/lib/theme";
+
+const ORB_LIGHT = [
+  "radial-gradient(ellipse at 20% 15%, #e8ecf2 0%, #c8d0dc 30%, transparent 60%)",
+  "radial-gradient(ellipse at 80% 85%, #d8dee8 0%, #a8b0c0 35%, transparent 65%)",
+  "radial-gradient(ellipse at 50% 50%, #6a7388 0%, transparent 50%)",
+  "#b8c0cc",
+].join(", ");
+
+const ORB_DARK = [
+  "radial-gradient(ellipse at 20% 15%, #1a1a1f 0%, #0e0e12 30%, transparent 60%)",
+  "radial-gradient(ellipse at 80% 85%, #16161a 0%, #0a0a0c 35%, transparent 65%)",
+  "radial-gradient(ellipse at 50% 50%, #000000 0%, transparent 50%)",
+  "#050507",
+].join(", ");
+
+function glassStyle(dark: boolean): React.CSSProperties {
+  return {
+    backdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`,
+    WebkitBackdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`,
+    border: dark ? "0.5px solid rgba(255,255,255,0.08)" : "0.5px solid rgba(255,255,255,0.4)",
+    boxShadow: dark
+      ? "0 1px 0 rgba(255,255,255,0.05) inset, 0 4px 20px rgba(0,0,0,0.5)"
+      : "0 1px 0 rgba(255,255,255,0.7) inset, 0 4px 16px rgba(0,0,0,0.15)",
+  };
+}
 
 interface ClientsPageProps {
   onBack: () => void;
@@ -154,18 +180,22 @@ function ClientForm({
 }
 
 function BottomSheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  const dark = isDarkMode();
+  const sheetBg = dark ? "rgba(18,18,22,0.95)" : "rgba(240,243,248,0.95)";
+  const textP = dark ? "#ececef" : "#1a1f2a";
+  const borderC = dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.4)";
   return (
     <div className="fixed inset-0 z-[70] flex items-end" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50" />
       <div
-        className="relative w-full bg-card rounded-t-3xl shadow-2xl max-h-[90vh] overflow-y-auto"
-        style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+        className="relative w-full max-h-[90vh] overflow-y-auto"
+        style={{ background: sheetBg, backdropFilter: "blur(30px) saturate(160%)", WebkitBackdropFilter: "blur(30px) saturate(160%)", borderRadius: "24px 24px 0 0", border: `0.5px solid ${borderC}`, paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="pt-3 pb-4 px-5 border-b border-border flex-shrink-0">
+        <div className="pt-3 pb-4 px-5 flex-shrink-0" style={{ borderBottom: `0.5px solid ${borderC}` }}>
           <div className="w-10 h-1 bg-muted-foreground/30 rounded-full mx-auto mb-4" />
           <div className="flex items-center justify-between">
-            <p className="text-base font-bold text-foreground">{title}</p>
+            <p className="text-base font-bold" style={{ color: textP }}>{title}</p>
             <button onClick={onClose} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
               <X className="w-4 h-4" />
             </button>
@@ -179,6 +209,19 @@ function BottomSheet({ title, onClose, children }: { title: string; onClose: () 
 
 export default function ClientsPage({ onBack, onOpenDoc, onScan }: ClientsPageProps) {
   const { toast } = useToast();
+  const dark = isDarkMode();
+  const orbBg = dark ? ORB_DARK : ORB_LIGHT;
+  const cardBg = dark ? "rgba(28,28,32,0.65)" : "rgba(255,255,255,0.55)";
+  const headerBg = dark ? "rgba(14,14,18,0.88)" : "rgba(232,236,242,0.82)";
+  const textPrimary = dark ? "#ececef" : "#1a1f2a";
+  const textSecondary = dark ? "#a0a8b8" : "#4a5262";
+  const borderColor = dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.4)";
+
+  useEffect(() => {
+    const prev = document.body.style.backgroundColor;
+    document.body.style.backgroundColor = "transparent";
+    return () => { document.body.style.backgroundColor = prev; };
+  }, []);
   const [search, setSearch] = useState("");
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -287,20 +330,23 @@ export default function ClientsPage({ onBack, onOpenDoc, onScan }: ClientsPagePr
   // ── Detail view ─────────────────────────────────────────────────────────────
   if (selectedClient) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
+      <>
+        <div style={{ position: "fixed", inset: 0, zIndex: 0, background: orbBg, pointerEvents: "none" }} />
+        <div className="min-h-screen flex flex-col" style={{ position: "relative", zIndex: 1, background: "transparent" }}>
         {/* Header */}
         <div
-          className="flex-shrink-0 flex items-center gap-3 px-4 pt-4 pb-4 bg-card border-b border-border"
-          style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
+          className="flex-shrink-0 flex items-center gap-3 px-4 pb-4"
+          style={{ paddingTop: "max(1rem, env(safe-area-inset-top))", background: headerBg, backdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`, WebkitBackdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`, borderBottom: `0.5px solid ${borderColor}` }}
         >
           <button
             data-testid="button-client-back"
             onClick={() => setSelectedClient(null)}
-            className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-foreground active:opacity-60"
+            className="w-9 h-9 rounded-full flex items-center justify-center active:opacity-60"
+          style={{ background: dark ? "rgba(255,255,255,0.08)" : "rgba(26,31,42,0.08)", color: textPrimary }}
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <p className="flex-1 text-base font-bold text-foreground truncate">{selectedClient.name}</p>
+          <p className="flex-1 text-base font-bold truncate" style={{ color: textPrimary }}>{selectedClient.name}</p>
           <button
             data-testid="button-client-edit"
             onClick={() => setShowEdit(true)}
@@ -312,7 +358,7 @@ export default function ClientsPage({ onBack, onOpenDoc, onScan }: ClientsPagePr
 
         <div className="flex-1 overflow-y-auto pb-8">
           {/* Client info card */}
-          <div className="mx-4 mt-5 bg-card rounded-2xl border border-border overflow-hidden">
+          <div className="mx-4 mt-5 rounded-2xl overflow-hidden" style={{ background: cardBg, ...glassStyle(dark) }}>
             <div className="flex items-center gap-4 px-4 py-4 border-b border-border">
               <ClientAvatar name={selectedClient.name} size="lg" />
               <div className="min-w-0">
@@ -417,7 +463,8 @@ export default function ClientsPage({ onBack, onOpenDoc, onScan }: ClientsPagePr
                       <button
                         data-testid={`client-doc-${doc.id}`}
                         onClick={() => onOpenDoc(doc.id)}
-                        className="flex-1 flex items-center gap-3 px-4 py-3.5 bg-card rounded-2xl border border-border active:opacity-70 text-left min-w-0"
+                        className="flex-1 flex items-center gap-3 px-4 py-3.5 rounded-2xl active:opacity-70 text-left min-w-0"
+                        style={{ background: cardBg, ...glassStyle(dark) }}
                       >
                         <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary">
                           <FileText className="w-4 h-4 text-primary-foreground" />
@@ -520,16 +567,16 @@ export default function ClientsPage({ onBack, onOpenDoc, onScan }: ClientsPagePr
           >
             <div className="absolute inset-0 bg-black/50" />
             <div
-              className="relative w-full bg-card rounded-t-3xl shadow-2xl"
-              style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
+              className="relative w-full"
+              style={{ background: dark ? "rgba(18,18,22,0.95)" : "rgba(240,243,248,0.95)", backdropFilter: "blur(30px) saturate(160%)", WebkitBackdropFilter: "blur(30px) saturate(160%)", borderRadius: "24px 24px 0 0", border: `0.5px solid ${borderColor}`, paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="pt-3 pb-4 px-5 border-b border-border">
+              <div className="pt-3 pb-4 px-5" style={{ borderBottom: `0.5px solid ${borderColor}` }}>
                 <div className="w-10 h-1 bg-muted-foreground/30 rounded-full mx-auto mb-4" />
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-base font-bold text-foreground">Send by Email</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[240px]">{sendDoc.name}</p>
+                    <p className="text-base font-bold" style={{ color: textPrimary }}>Send by Email</p>
+                    <p className="text-xs mt-0.5 truncate max-w-[240px]" style={{ color: textSecondary }}>{sendDoc.name}</p>
                   </div>
                   <button
                     onClick={() => { setSendDoc(null); setSendEmailSuccess(false); }}
@@ -614,31 +661,35 @@ export default function ClientsPage({ onBack, onOpenDoc, onScan }: ClientsPagePr
           </div>
         )}
       </div>
+      </>
     );
   }
 
   // ── List view ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <>
+      <div style={{ position: "fixed", inset: 0, zIndex: 0, background: orbBg, pointerEvents: "none" }} />
+      <div className="min-h-screen flex flex-col" style={{ position: "relative", zIndex: 1, background: "transparent" }}>
       {/* Header */}
       <div
-        className="flex-shrink-0 bg-background border-b border-border px-4 pb-3"
-        style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
+        className="flex-shrink-0 px-4 pb-3"
+        style={{ paddingTop: "max(1rem, env(safe-area-inset-top))", background: headerBg, backdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`, WebkitBackdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`, borderBottom: `0.5px solid ${borderColor}` }}
       >
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <button
               data-testid="button-clients-back"
               onClick={onBack}
-              className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-foreground active:opacity-60"
+              className="w-9 h-9 rounded-full flex items-center justify-center active:opacity-60"
+              style={{ background: dark ? "rgba(255,255,255,0.08)" : "rgba(26,31,42,0.08)", color: textPrimary }}
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
             <div className="flex items-center gap-2">
               <Building2 className="w-5 h-5 text-primary" />
-              <h1 className="text-lg font-bold text-foreground">Clients</h1>
+              <h1 className="text-lg font-bold" style={{ color: textPrimary }}>Clients</h1>
               {clients.length > 0 && (
-                <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{clients.length}</span>
+                <span className="text-xs font-medium bg-muted px-2 py-0.5 rounded-full" style={{ color: textSecondary }}>{clients.length}</span>
               )}
             </div>
           </div>
@@ -683,7 +734,7 @@ export default function ClientsPage({ onBack, onOpenDoc, onScan }: ClientsPagePr
             <p className="text-sm text-muted-foreground leading-relaxed mb-7 max-w-xs">
               Add your first client to link documents directly to people or businesses — making it easy to track, organize, and send.
             </p>
-            <div className="w-full bg-card border border-border rounded-2xl px-4 pt-4 pb-4 mb-6 text-left">
+            <div className="w-full rounded-2xl px-4 pt-4 pb-4 mb-6 text-left" style={{ background: cardBg, ...glassStyle(dark) }}>
               <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-3 text-center">Why add clients?</p>
               {[
                 { icon: FileText, text: "Link documents to a specific person or company" },
@@ -721,7 +772,8 @@ export default function ClientsPage({ onBack, onOpenDoc, onScan }: ClientsPagePr
                 key={client.id}
                 data-testid={`client-card-${client.id}`}
                 onClick={() => setSelectedClient(client)}
-                className="flex items-center gap-3 px-4 py-3.5 bg-card rounded-2xl border border-border active:opacity-70 text-left w-full shadow-sm"
+                className="flex items-center gap-3 px-4 py-3.5 rounded-2xl active:opacity-70 text-left w-full"
+                style={{ background: cardBg, ...glassStyle(dark) }}
               >
                 <ClientAvatar name={client.name} size="md" />
                 <div className="flex-1 min-w-0">
@@ -752,5 +804,6 @@ export default function ClientsPage({ onBack, onOpenDoc, onScan }: ClientsPagePr
         </BottomSheet>
       )}
     </div>
+  </>
   );
 }

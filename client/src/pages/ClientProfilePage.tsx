@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { ChevronLeft, Loader2, ImageOff, Paperclip, Image, MessageCircle } from "lucide-react";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { API_BASE } from "@/lib/queryClient";
+import { isDarkMode } from "@/lib/theme";
 
 const QuickLook = registerPlugin<{ openPDF: (options: { path: string }) => Promise<void> }>("QuickLook");
 
@@ -136,6 +137,20 @@ async function openPdfFromProfile(base64: string, name: string) {
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
 
+const ORB_LIGHT = [
+  "radial-gradient(ellipse at 20% 15%, #e8ecf2 0%, #c8d0dc 30%, transparent 60%)",
+  "radial-gradient(ellipse at 80% 85%, #d8dee8 0%, #a8b0c0 35%, transparent 65%)",
+  "radial-gradient(ellipse at 50% 50%, #6a7388 0%, transparent 50%)",
+  "#b8c0cc",
+].join(", ");
+
+const ORB_DARK = [
+  "radial-gradient(ellipse at 20% 15%, #1a1a1f 0%, #0e0e12 30%, transparent 60%)",
+  "radial-gradient(ellipse at 80% 85%, #16161a 0%, #0a0a0c 35%, transparent 65%)",
+  "radial-gradient(ellipse at 50% 50%, #000000 0%, transparent 50%)",
+  "#050507",
+].join(", ");
+
 const TONE_GRADIENTS_LIGHT = [
   "linear-gradient(135deg, #d8d8dc 0%, #c0c0c8 100%)",
   "linear-gradient(135deg, #e8e8ec 0%, #d0d0d8 100%)",
@@ -152,18 +167,18 @@ const TONE_GRADIENTS_DARK = [
 function getTheme(dark: boolean) {
   return dark
     ? {
-        base: "#0a0a0c",
-        headerBg: "#0a0a0c",
+        base: "transparent",
+        headerBg: "rgba(14,14,18,0.88)",
         headerInk: "#e8e8ec",
         headerSubtle: "rgba(232,232,236,0.72)",
         headerFaint: "rgba(232,232,236,0.46)",
         ink: "#e8e8ec",
         subtle: "rgba(232,232,236,0.72)",
         muted: "#a0a0a8",
-        hair: "rgba(232,232,236,0.12)",
-        statsCard: "#1c1c20",
-        statsCardShadow: "0 12px 32px -12px rgba(0,0,0,0.6), inset 0 0.5px 0 rgba(255,255,255,0.06)",
-        statsCardBorder: "0.5px solid rgba(232,232,236,0.10)",
+        hair: "rgba(255,255,255,0.08)",
+        statsCard: "rgba(28,28,32,0.65)",
+        statsCardShadow: "0 1px 0 rgba(255,255,255,0.05) inset, 0 4px 20px rgba(0,0,0,0.5)",
+        statsCardBorder: "0.5px solid rgba(255,255,255,0.08)",
         accentInk: "#e8e8ec",
         accentBg: "linear-gradient(160deg, #3a3a42, #2a2a30)",
         accentShadow: "0 10px 24px -8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)",
@@ -172,18 +187,18 @@ function getTheme(dark: boolean) {
         toneGradients: TONE_GRADIENTS_DARK,
       }
     : {
-        base: "#ececef",
-        headerBg: "#2a2a30",
-        headerInk: "#e8e8ec",
-        headerSubtle: "rgba(232,232,236,0.72)",
-        headerFaint: "rgba(232,232,236,0.46)",
+        base: "transparent",
+        headerBg: "rgba(232,236,242,0.82)",
+        headerInk: "#1a1f2a",
+        headerSubtle: "rgba(26,31,42,0.7)",
+        headerFaint: "rgba(26,31,42,0.45)",
         ink: "#1a1a1f",
         subtle: "#6a6a72",
         muted: "rgba(26,26,31,0.28)",
-        hair: "rgba(26,26,31,0.10)",
-        statsCard: "#ffffff",
-        statsCardShadow: "0 12px 32px -14px rgba(0,0,0,0.15), inset 0 0.5px 0 rgba(255,255,255,0.8)",
-        statsCardBorder: "none",
+        hair: "rgba(255,255,255,0.4)",
+        statsCard: "rgba(255,255,255,0.55)",
+        statsCardShadow: "0 1px 0 rgba(255,255,255,0.7) inset, 0 4px 16px rgba(0,0,0,0.15)",
+        statsCardBorder: "0.5px solid rgba(255,255,255,0.4)",
         accentInk: "#e8e8ec",
         accentBg: "linear-gradient(160deg, #3a3a42, #2a2a30)",
         accentShadow: "0 10px 24px -8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.12)",
@@ -483,8 +498,15 @@ type ContactAtt = { id: string; messageId: string; name: string; mimeType: strin
 export default function ClientProfilePage({
   contact, messages, token, refreshToken, onBack, onOpenConversation,
 }: ClientProfilePageProps) {
-  const darkMode = localStorage.getItem("docera_inbox_dark") === "true";
+  const darkMode = isDarkMode();
   const theme = getTheme(darkMode);
+  const orbBg = darkMode ? ORB_DARK : ORB_LIGHT;
+
+  useEffect(() => {
+    const prev = document.body.style.backgroundColor;
+    document.body.style.backgroundColor = "transparent";
+    return () => { document.body.style.backgroundColor = prev; };
+  }, []);
 
   const [allAtts, setAllAtts] = useState<ContactAtt[]>([]);
   const [attsLoading, setAttsLoading] = useState(true);
@@ -523,13 +545,14 @@ export default function ClientProfilePage({
   ];
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", flexDirection: "column", background: theme.base, overflow: "hidden" }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", flexDirection: "column", background: "transparent", overflow: "hidden" }}>
+      <div style={{ position: "absolute", inset: 0, zIndex: 0, background: orbBg, pointerEvents: "none" }} />
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap');`}</style>
 
-      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
+      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 1 }}>
 
         {/* Header */}
-        <div style={{ background: theme.headerBg, color: theme.headerInk, paddingTop: "max(3rem, env(safe-area-inset-top))", paddingBottom: 26, paddingLeft: 20, paddingRight: 20, position: "relative" }}>
+        <div style={{ background: theme.headerBg, backdropFilter: "blur(30px) saturate(160%)", WebkitBackdropFilter: "blur(30px) saturate(160%)", color: theme.headerInk, paddingTop: "max(3rem, env(safe-area-inset-top))", paddingBottom: 26, paddingLeft: 20, paddingRight: 20, position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", zIndex: 1 }}>
             <button onClick={onBack} style={{ width: 36, height: 36, borderRadius: 10, background: "transparent", border: "none", padding: 0, color: theme.headerInk, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", marginLeft: -6 }}>
               <ChevronLeft style={{ width: 22, height: 22 }} />
@@ -651,9 +674,9 @@ export default function ClientProfilePage({
           : pdfs;
         const searchBg = theme.frameDark ? "rgba(232,232,236,0.08)" : "rgba(26,26,31,0.06)";
         return (
-          <div style={{ position: "absolute", inset: 0, zIndex: 10, background: theme.base, display: "flex", flexDirection: "column" }}>
+          <div style={{ position: "absolute", inset: 0, zIndex: 10, background: darkMode ? "rgba(5,5,7,0.97)" : "rgba(232,236,242,0.97)", backdropFilter: "blur(30px)", WebkitBackdropFilter: "blur(30px)", display: "flex", flexDirection: "column" }}>
             {/* Header */}
-            <div style={{ background: theme.headerBg, paddingTop: "max(3rem, env(safe-area-inset-top))", paddingBottom: 10, paddingLeft: 20, paddingRight: 20, flexShrink: 0 }}>
+            <div style={{ background: theme.headerBg, backdropFilter: "blur(30px) saturate(160%)", WebkitBackdropFilter: "blur(30px) saturate(160%)", paddingTop: "max(3rem, env(safe-area-inset-top))", paddingBottom: 10, paddingLeft: 20, paddingRight: 20, flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <button onClick={() => { setShowAllDocs(false); setDocSearch(""); }} style={{ width: 36, height: 36, borderRadius: 10, background: "transparent", border: "none", padding: 0, color: theme.headerInk, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", marginLeft: -6 }}>
                   <ChevronLeft style={{ width: 22, height: 22 }} />

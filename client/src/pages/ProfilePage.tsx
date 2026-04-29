@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest, apiFetch } from "@/lib/queryClient";
 import { ArrowLeft, FileText, FolderOpen, LogOut, ChevronRight, Check, X, Crown, Loader2, User, Mail, AtSign, SlidersHorizontal, Tag, Download, Sparkles } from "lucide-react";
@@ -6,6 +6,32 @@ import { getSetting, setSetting, getBoolSetting, setBoolSetting } from "@/lib/se
 import { useToast } from "@/hooks/use-toast";
 import type { Document, Folder } from "@shared/schema";
 import type { SubscriptionInfo } from "@/hooks/use-subscription";
+import { isDarkMode } from "@/lib/theme";
+
+const ORB_LIGHT = [
+  "radial-gradient(ellipse at 20% 15%, #e8ecf2 0%, #c8d0dc 30%, transparent 60%)",
+  "radial-gradient(ellipse at 80% 85%, #d8dee8 0%, #a8b0c0 35%, transparent 65%)",
+  "radial-gradient(ellipse at 50% 50%, #6a7388 0%, transparent 50%)",
+  "#b8c0cc",
+].join(", ");
+
+const ORB_DARK = [
+  "radial-gradient(ellipse at 20% 15%, #1a1a1f 0%, #0e0e12 30%, transparent 60%)",
+  "radial-gradient(ellipse at 80% 85%, #16161a 0%, #0a0a0c 35%, transparent 65%)",
+  "radial-gradient(ellipse at 50% 50%, #000000 0%, transparent 50%)",
+  "#050507",
+].join(", ");
+
+function glassStyle(dark: boolean): React.CSSProperties {
+  return {
+    backdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`,
+    WebkitBackdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`,
+    border: dark ? "0.5px solid rgba(255,255,255,0.08)" : "0.5px solid rgba(255,255,255,0.4)",
+    boxShadow: dark
+      ? "0 1px 0 rgba(255,255,255,0.05) inset, 0 4px 20px rgba(0,0,0,0.5)"
+      : "0 1px 0 rgba(255,255,255,0.7) inset, 0 4px 16px rgba(0,0,0,0.15)",
+  };
+}
 
 interface ProfilePageProps {
   user: { id: string; name: string; username: string; senderName: string | null };
@@ -77,6 +103,20 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
 
 
 
+  const dark = isDarkMode();
+  const orbBg = dark ? ORB_DARK : ORB_LIGHT;
+  const cardBg = dark ? "rgba(28,28,32,0.65)" : "rgba(255,255,255,0.55)";
+  const headerBg = dark ? "rgba(14,14,18,0.88)" : "rgba(232,236,242,0.82)";
+  const textPrimary = dark ? "#ececef" : "#1a1f2a";
+  const textSecondary = dark ? "#a0a8b8" : "#4a5262";
+  const borderColor = dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.4)";
+
+  useEffect(() => {
+    const prev = document.body.style.backgroundColor;
+    document.body.style.backgroundColor = "transparent";
+    return () => { document.body.style.backgroundColor = prev; };
+  }, []);
+
   const totalSizeMB = docs.reduce((acc, d) => acc + d.size, 0) / 1024 / 1024;
   const initials = user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   const periodEnd = subscription.currentPeriodEnd
@@ -86,13 +126,15 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
   const effectiveSenderName = user.senderName?.trim() || user.name?.trim() || "Docera";
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <div className="flex-shrink-0 bg-card border-b border-border flex items-center gap-3 px-4 pb-4" style={{ paddingTop: "max(3rem, env(safe-area-inset-top))" }}>
+    <>
+      <div style={{ position: "fixed", inset: 0, zIndex: 0, background: orbBg, pointerEvents: "none" }} />
+      <div className="min-h-screen flex flex-col" style={{ position: "relative", zIndex: 1, background: "transparent" }}>
+      <div className="flex-shrink-0 flex items-center gap-3 px-4 pb-4" style={{ paddingTop: "max(3rem, env(safe-area-inset-top))", background: headerBg, backdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`, WebkitBackdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`, borderBottom: `0.5px solid ${borderColor}` }}>
         <button data-testid="button-back" onClick={onBack}
-          className="w-11 h-11 rounded-xl flex items-center justify-center text-foreground -ml-1">
+          className="w-11 h-11 rounded-xl flex items-center justify-center -ml-1" style={{ color: textPrimary }}>
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-base font-bold text-foreground">Profile & Settings</h1>
+        <h1 className="text-base font-bold" style={{ color: textPrimary }}>Profile & Settings</h1>
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -155,7 +197,7 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
         {/* Subscription */}
         <div className="px-4 mb-5">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">Subscription</p>
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="rounded-2xl overflow-hidden" style={{ background: cardBg, ...glassStyle(dark) }}>
             <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border">
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center">
                 <Crown className="w-4 h-4 text-amber-600" />
@@ -209,7 +251,7 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
         {/* Storage */}
         <div className="px-4 mb-5">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">Storage</p>
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="rounded-2xl overflow-hidden" style={{ background: cardBg, ...glassStyle(dark) }}>
             <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border">
               <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
                 <FileText className="w-4 h-4 text-primary" />
@@ -241,7 +283,7 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
         {/* Account */}
         <div className="px-4 mb-5">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">Account</p>
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="rounded-2xl overflow-hidden" style={{ background: cardBg, ...glassStyle(dark) }}>
             <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border">
               <div className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center">
                 <User className="w-4 h-4 text-muted-foreground" />
@@ -273,7 +315,7 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
         {/* App Preferences */}
         <div className="px-4 mb-5">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">App Preferences</p>
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="rounded-2xl overflow-hidden" style={{ background: cardBg, ...glassStyle(dark) }}>
 
             {/* Filename prefix */}
             <div className="px-4 py-3.5 border-b border-border">
@@ -394,7 +436,7 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
         {/* Email sender name */}
         <div className="px-4 mb-5">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">Email Sending</p>
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="rounded-2xl overflow-hidden" style={{ background: cardBg, ...glassStyle(dark) }}>
             <div className="px-4 py-4">
               <div className="flex items-start gap-3 mb-3">
                 <div className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -467,7 +509,7 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
         {/* App */}
         <div className="px-4 mb-8">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">App</p>
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="rounded-2xl overflow-hidden" style={{ background: cardBg, ...glassStyle(dark) }}>
             <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border">
               <div className="flex-1">
                 <p className="text-sm font-medium text-foreground">Version</p>
@@ -506,7 +548,7 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
 
       {showLogoutConfirm && (
         <div className="fixed inset-0 z-50 flex items-end" onClick={() => setShowLogoutConfirm(false)}>
-          <div className="w-full bg-card rounded-t-3xl shadow-2xl p-4 pb-10" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full rounded-t-3xl p-4 pb-10" style={{ background: cardBg, ...glassStyle(dark), borderRadius: "24px 24px 0 0" }} onClick={(e) => e.stopPropagation()}>
             <div className="w-10 h-1 bg-muted rounded-full mx-auto mb-4" />
             <p className="text-base font-bold text-foreground text-center mb-1">Sign Out</p>
             <p className="text-sm text-muted-foreground text-center mb-6">Are you sure you want to sign out?</p>
@@ -523,6 +565,7 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

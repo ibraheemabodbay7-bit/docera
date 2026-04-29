@@ -1,9 +1,24 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { X, Camera, ImagePlus, FileText, Send, RotateCcw, CheckCircle2, Layers, Copy } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { isDarkMode } from "@/lib/theme";
 import type { ConversationWithContact } from "@shared/schema";
+
+const ORB_LIGHT = [
+  "radial-gradient(ellipse at 20% 15%, #e8ecf2 0%, #c8d0dc 30%, transparent 60%)",
+  "radial-gradient(ellipse at 80% 85%, #d8dee8 0%, #a8b0c0 35%, transparent 65%)",
+  "radial-gradient(ellipse at 50% 50%, #6a7388 0%, transparent 50%)",
+  "#b8c0cc",
+].join(", ");
+
+const ORB_DARK = [
+  "radial-gradient(ellipse at 20% 15%, #1a1a1f 0%, #0e0e12 30%, transparent 60%)",
+  "radial-gradient(ellipse at 80% 85%, #16161a 0%, #0a0a0c 35%, transparent 65%)",
+  "radial-gradient(ellipse at 50% 50%, #000000 0%, transparent 50%)",
+  "#050507",
+].join(", ");
 
 interface ScannerOverlayProps {
   conversationId: string | null;
@@ -15,6 +30,17 @@ type Step = "capture" | "review" | "send";
 type PdfMode = "merge" | "separate";
 
 export default function ScannerOverlay({ conversationId, onClose, onSent }: ScannerOverlayProps) {
+  const dark = isDarkMode();
+  const orbBg = dark ? ORB_DARK : ORB_LIGHT;
+  const headerBg = dark ? "rgba(14,14,18,0.88)" : "rgba(232,236,242,0.82)";
+  const borderColor = dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.4)";
+
+  useEffect(() => {
+    const prev = document.body.style.backgroundColor;
+    document.body.style.backgroundColor = "transparent";
+    return () => { document.body.style.backgroundColor = prev; };
+  }, []);
+
   const [step, setStep] = useState<Step>("capture");
   const [images, setImages] = useState<string[]>([]);
   const [docName, setDocName] = useState("");
@@ -141,8 +167,10 @@ export default function ScannerOverlay({ conversationId, onClose, onSent }: Scan
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-background">
-      <div className="flex-shrink-0 flex items-center justify-between px-4 pb-4 border-b border-border" style={{ paddingTop: "max(3rem, env(safe-area-inset-top))" }}>
+    <>
+    <div style={{ position: "fixed", inset: 0, zIndex: 49, background: orbBg, pointerEvents: "none" }} />
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "transparent" }}>
+      <div className="flex-shrink-0 flex items-center justify-between px-4 pb-4" style={{ paddingTop: "max(3rem, env(safe-area-inset-top))", background: headerBg, backdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`, WebkitBackdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`, borderBottom: `0.5px solid ${borderColor}` }}>
         <button data-testid="button-scanner-close" onClick={onClose}
           className="w-9 h-9 rounded-xl flex items-center justify-center text-foreground hover-elevate">
           <X className="w-5 h-5" />
@@ -196,6 +224,7 @@ export default function ScannerOverlay({ conversationId, onClose, onSent }: Scan
       <input ref={fileInputRef} type="file" accept="image/*" multiple capture="environment"
         className="hidden" onChange={handleFileSelect} />
     </div>
+    </>
   );
 }
 

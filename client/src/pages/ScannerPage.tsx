@@ -2144,8 +2144,8 @@ export default function ScannerPage({
 
         {/* ── Bottom capture bar — fixed above safe-area ── */}
         {/*  Extra 2.5rem ensures the bar clears the Replit mobile UI / browser controls */}
-        <div className="flex-shrink-0 flex items-center justify-between px-8 bg-black"
-          style={{ paddingTop: "1rem", paddingBottom: "max(2.5rem, calc(env(safe-area-inset-bottom) + 1.25rem))" }}>
+        <div className="flex-shrink-0 flex items-center justify-between px-8"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", paddingTop: "1rem", paddingBottom: "max(2.5rem, calc(env(safe-area-inset-bottom) + 1.25rem))" }}>
           <button data-testid="button-library"
             onClick={() => isNative ? nativeGallery() : fileInputRef.current?.click()}
             className="w-16 h-16 rounded-2xl bg-white/20 flex flex-col items-center justify-center gap-1 active:opacity-60">
@@ -2194,9 +2194,9 @@ export default function ScannerPage({
             <span className="text-white/40 text-xs">PDF</span>
           </div>
         </div>
-        <div className="flex-shrink-0 bg-white rounded-t-3xl pt-2" style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}>
-          <div className="w-10 h-1 bg-muted rounded-full mx-auto mb-4" />
-          <p className="text-sm font-semibold text-foreground text-center mb-4">Name your PDF</p>
+        <div className="flex-shrink-0 pt-2" style={{ background: "rgba(18,18,22,0.92)", backdropFilter: "blur(30px) saturate(140%)", WebkitBackdropFilter: "blur(30px) saturate(140%)", borderRadius: "24px 24px 0 0", border: "0.5px solid rgba(255,255,255,0.08)", paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}>
+          <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-4" />
+          <p className="text-sm font-semibold text-white text-center mb-4">Name your PDF</p>
           <div className="px-5 mb-4">
             <input autoFocus data-testid="input-pdf-name" value={pickedPdfName}
               onChange={(e) => setPickedPdfName(e.target.value)} placeholder="Document name…"
@@ -2556,9 +2556,9 @@ export default function ScannerPage({
           )}
         </div>{/* end toolbar */}
 
-        {/* ── White save bar ── */}
-        <div className="flex-shrink-0 bg-white rounded-t-2xl"
-          style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+        {/* ── Save bar ── */}
+        <div className="flex-shrink-0 rounded-t-2xl"
+          style={{ background: "rgba(18,18,22,0.92)", backdropFilter: "blur(30px) saturate(140%)", WebkitBackdropFilter: "blur(30px) saturate(140%)", border: "0.5px solid rgba(255,255,255,0.08)", paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
 
           {onEditedImage ? (
             /* ── RETURN MODE: single "Use This Photo" button ── */

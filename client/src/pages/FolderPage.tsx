@@ -1,10 +1,36 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, apiFetch } from "@/lib/queryClient";
 import { ArrowLeft, Camera, FileText, MoreVertical, Trash2, Edit2, X, Check, User, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { isDarkMode } from "@/lib/theme";
 import type { DocumentSummary, DocStatus } from "@shared/schema";
+
+const ORB_LIGHT = [
+  "radial-gradient(ellipse at 20% 15%, #e8ecf2 0%, #c8d0dc 30%, transparent 60%)",
+  "radial-gradient(ellipse at 80% 85%, #d8dee8 0%, #a8b0c0 35%, transparent 65%)",
+  "radial-gradient(ellipse at 50% 50%, #6a7388 0%, transparent 50%)",
+  "#b8c0cc",
+].join(", ");
+
+const ORB_DARK = [
+  "radial-gradient(ellipse at 20% 15%, #1a1a1f 0%, #0e0e12 30%, transparent 60%)",
+  "radial-gradient(ellipse at 80% 85%, #16161a 0%, #0a0a0c 35%, transparent 65%)",
+  "radial-gradient(ellipse at 50% 50%, #000000 0%, transparent 50%)",
+  "#050507",
+].join(", ");
+
+function glassStyle(dark: boolean): React.CSSProperties {
+  return {
+    backdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`,
+    WebkitBackdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`,
+    border: dark ? "0.5px solid rgba(255,255,255,0.08)" : "0.5px solid rgba(255,255,255,0.4)",
+    boxShadow: dark
+      ? "0 1px 0 rgba(255,255,255,0.05) inset, 0 4px 20px rgba(0,0,0,0.5)"
+      : "0 1px 0 rgba(255,255,255,0.7) inset, 0 4px 16px rgba(0,0,0,0.15)",
+  };
+}
 
 const STATUS_META: Record<DocStatus, { label: string; dot: string }> = {
   draft:    { label: "Draft",    dot: "bg-gray-400" },
@@ -27,6 +53,9 @@ interface FolderPageProps {
 function DocCard({ doc, onOpen, onDelete, onRename, onEdit }: {
   doc: DocumentSummary; onOpen: () => void; onDelete: () => void; onRename: (name: string) => void; onEdit: () => void;
 }) {
+  const dark = isDarkMode();
+  const cardBg = dark ? "rgba(28,28,32,0.65)" : "rgba(255,255,255,0.55)";
+  const footerBg = dark ? "rgba(28,28,32,0.85)" : "rgba(26,26,31,0.82)";
   const [menu, setMenu] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [newName, setNewName] = useState(doc.name);
@@ -42,7 +71,7 @@ function DocCard({ doc, onOpen, onDelete, onRename, onEdit }: {
   })();
 
   return (
-    <div data-testid={`doc-card-${doc.id}`} className="relative bg-card rounded-2xl overflow-hidden shadow-sm border border-border">
+    <div data-testid={`doc-card-${doc.id}`} className="relative rounded-2xl overflow-hidden" style={{ background: cardBg, ...glassStyle(dark) }}>
       <button className="w-full text-left" onClick={onOpen}>
         <div className="h-32 bg-muted flex items-center justify-center overflow-hidden relative">
           {doc.thumbUrl ? (
@@ -56,11 +85,11 @@ function DocCard({ doc, onOpen, onDelete, onRename, onEdit }: {
           )}
           <span className="absolute top-1.5 left-1.5 bg-black/50 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md uppercase">{doc.type}</span>
         </div>
-        <div className="px-2.5 pt-2 pb-2 bg-primary">
-          <p className="text-[13px] font-semibold truncate leading-tight text-primary-foreground">{doc.name}</p>
+        <div className="px-2.5 pt-2 pb-2" style={{ background: footerBg }}>
+          <p className="text-[13px] font-semibold truncate leading-tight text-white">{doc.name}</p>
           <div className="flex items-center gap-1.5 mt-1">
             <span className={`inline-block w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusMeta.dot}`} />
-            <span className="text-[10px] leading-tight text-primary-foreground/65">
+            <span className="text-[10px] leading-tight text-white/65">
               {statusMeta.label}{dateToShow ? ` · ${dateToShow}` : ""}
             </span>
           </div>
@@ -115,6 +144,18 @@ function DocCard({ doc, onOpen, onDelete, onRename, onEdit }: {
 
 export default function FolderPage({ folderId, folderName, onBack, onScan, onOpenDoc, onEditDoc, onProfile }: FolderPageProps) {
   const { toast } = useToast();
+  const dark = isDarkMode();
+  const orbBg = dark ? ORB_DARK : ORB_LIGHT;
+  const cardBg = dark ? "rgba(28,28,32,0.65)" : "rgba(255,255,255,0.55)";
+  const headerBg = dark ? "rgba(14,14,18,0.88)" : "rgba(232,236,242,0.82)";
+  const textPrimary = dark ? "#ececef" : "#1a1f2a";
+  const textSecondary = dark ? "#a0a8b8" : "#4a5262";
+
+  useEffect(() => {
+    const prev = document.body.style.backgroundColor;
+    document.body.style.backgroundColor = "transparent";
+    return () => { document.body.style.backgroundColor = prev; };
+  }, []);
 
   const { data: docs = [], isLoading } = useQuery<DocumentSummary[]>({
     queryKey: ["/api/documents", folderId],
@@ -142,14 +183,16 @@ export default function FolderPage({ folderId, folderName, onBack, onScan, onOpe
   });
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <div className="flex-shrink-0 bg-card border-b border-border px-3 pb-3" style={{ paddingTop: "max(3rem, env(safe-area-inset-top))" }}>
+    <>
+      <div style={{ position: "fixed", inset: 0, zIndex: 0, background: orbBg, pointerEvents: "none" }} />
+      <div className="min-h-screen flex flex-col" style={{ position: "relative", zIndex: 1, background: "transparent" }}>
+      <div className="flex-shrink-0 px-3 pb-3" style={{ paddingTop: "max(3rem, env(safe-area-inset-top))", background: headerBg, backdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`, WebkitBackdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`, borderBottom: dark ? "0.5px solid rgba(255,255,255,0.08)" : "0.5px solid rgba(255,255,255,0.4)" }}>
         <div className="flex items-center gap-2">
           <button data-testid="button-back" onClick={onBack}
-            className="w-11 h-11 rounded-xl flex items-center justify-center text-foreground -ml-1 flex-shrink-0">
+            className="w-11 h-11 rounded-xl flex items-center justify-center -ml-1 flex-shrink-0" style={{ color: textPrimary }}>
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <p className="flex-1 text-base font-bold text-foreground truncate">{folderName}</p>
+          <p className="flex-1 text-base font-bold truncate" style={{ color: textPrimary }}>{folderName}</p>
         </div>
       </div>
 
@@ -160,10 +203,10 @@ export default function FolderPage({ folderId, folderName, onBack, onScan, onOpe
           </div>
         ) : docs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
-              <FileText className="w-8 h-8 text-muted-foreground" />
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: dark ? "rgba(255,255,255,0.06)" : "rgba(26,31,42,0.06)" }}>
+              <FileText className="w-8 h-8" style={{ color: textSecondary }} />
             </div>
-            <p className="text-sm text-muted-foreground text-center">No documents in this folder yet.</p>
+            <p className="text-sm text-center" style={{ color: textSecondary }}>No documents in this folder yet.</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
@@ -181,9 +224,9 @@ export default function FolderPage({ folderId, folderName, onBack, onScan, onOpe
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border">
+      <div className="fixed bottom-0 left-0 right-0" style={{ background: headerBg, backdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`, WebkitBackdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`, borderTop: dark ? "0.5px solid rgba(255,255,255,0.08)" : "0.5px solid rgba(255,255,255,0.4)" }}>
         <div className="flex items-center justify-around px-2" style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}>
-          <button data-testid="tab-docs" onClick={onBack} className="flex flex-col items-center gap-1 pt-3 pb-1 px-8 text-muted-foreground">
+          <button data-testid="tab-docs" onClick={onBack} className="flex flex-col items-center gap-1 pt-3 pb-1 px-8" style={{ color: textSecondary }}>
             <FileText className="w-5 h-5" />
             <span className="text-[10px] font-semibold">Docs</span>
           </button>
@@ -191,22 +234,24 @@ export default function FolderPage({ folderId, folderName, onBack, onScan, onOpe
           <button
             data-testid="button-scan"
             onClick={onScan}
-            className="-mt-6 w-16 h-16 rounded-full bg-primary flex items-center justify-center active:scale-95 transition-transform"
-            style={{ boxShadow: "0 4px 24px hsl(212 100% 47% / 0.5)" }}
+            className="-mt-6 w-16 h-16 rounded-full flex items-center justify-center active:scale-95 transition-transform"
+            style={{ background: "radial-gradient(circle at 35% 30%, #5a5a66 0%, #2a2a30 60%, #1a1a1f 100%)", boxShadow: "0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)" }}
           >
-            <Camera className="w-7 h-7 text-primary-foreground" />
+            <Camera className="w-7 h-7 text-white" />
           </button>
 
           <button
             data-testid="tab-me"
             onClick={onProfile}
-            className="flex flex-col items-center gap-1 pt-3 pb-1 px-8 text-muted-foreground"
+            className="flex flex-col items-center gap-1 pt-3 pb-1 px-8"
+            style={{ color: textSecondary }}
           >
             <User className="w-5 h-5" />
             <span className="text-[10px] font-semibold">Profile</span>
           </button>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
