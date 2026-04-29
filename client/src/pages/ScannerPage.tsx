@@ -18,6 +18,7 @@ import {
 import { detectDocumentCorners } from "@/lib/documentDetection";
 import { getSetting, getBoolSetting } from "@/lib/settings";
 import { dataUrlToBlob, docFilename } from "@/lib/docUtils";
+import { isDarkMode } from "@/lib/theme";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -2218,6 +2219,7 @@ export default function ScannerPage({
   // ══════════════════════════════════════════════════════════════════════════
 
   if (stage === "editor" && currentPage) {
+    const dark = isDarkMode();
     const rot = currentPage.rotation;
     const showCropOverlay = true; // crop works at any rotation via coordinate transform
 
@@ -2459,8 +2461,8 @@ export default function ScannerPage({
         </div>
 
         {/* ── Compact dark toolbar: prev arrow | controls | next arrow ── */}
-        <div className="flex-shrink-0 bg-neutral-900 flex items-center"
-          style={{ paddingTop: 3, paddingBottom: 3 }}>
+        <div className="flex-shrink-0 flex items-center"
+          style={{ paddingTop: 3, paddingBottom: 3, background: dark ? "rgba(28,28,32,0.65)" : "rgba(255,255,255,0.55)", backdropFilter: `blur(30px) saturate(${dark ? "140%" : "160%"})`, WebkitBackdropFilter: `blur(30px) saturate(${dark ? "140%" : "160%"})`, borderTop: `0.5px solid ${dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.4)"}` }}>
 
           {/* Prev page arrow */}
           {pages.length > 1 && (
@@ -2468,7 +2470,7 @@ export default function ScannerPage({
               data-testid="button-prev-page"
               onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
               disabled={currentIndex === 0}
-              className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-white/15 text-white disabled:opacity-25 disabled:pointer-events-none active:bg-white/30 ml-1"
+              className={`flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full disabled:opacity-25 disabled:pointer-events-none ml-1 ${dark ? "bg-white/15 text-white active:bg-white/30" : "bg-black/10 text-[#1a1f2a] active:bg-black/20"}`}
               style={{ touchAction: "manipulation" }}>
               <ChevronLeft className="w-5 h-5" />
             </button>
@@ -2478,52 +2480,51 @@ export default function ScannerPage({
           <div className="flex-1 flex items-center gap-2 overflow-x-auto scrollbar-none px-1">
 
             {/* Rotate + detect grouped in one pill */}
-            <div className="flex-shrink-0 flex items-center rounded-lg overflow-hidden" style={{ background: "rgba(255,255,255,0.12)" }}>
+            <div className="flex-shrink-0 flex items-center rounded-lg overflow-hidden" style={{ background: dark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.07)" }}>
               <button data-testid="button-rotate-ccw"
                 onClick={rotateCcwPage}
                 onTouchStart={(e) => { e.preventDefault(); rotateCcwPage(); }}
-                className="flex items-center justify-center w-10 h-10 active:bg-white/20"
+                className={`flex items-center justify-center w-10 h-10 ${dark ? "active:bg-white/20" : "active:bg-black/10"}`}
                 style={{ touchAction: "manipulation" }}>
-                <RotateCcw className="w-4 h-4 text-white" />
+                <RotateCcw className={`w-4 h-4 ${dark ? "text-white" : "text-[#1a1f2a]"}`} />
               </button>
-              <div className="w-px h-4 bg-white/20 flex-shrink-0" />
+              <div className={`w-px h-4 flex-shrink-0 ${dark ? "bg-white/20" : "bg-black/15"}`} />
               <button data-testid="button-rotate"
                 onClick={rotatePage}
                 onTouchStart={(e) => { e.preventDefault(); rotatePage(); }}
-                className="flex items-center justify-center w-10 h-10 active:bg-white/20"
+                className={`flex items-center justify-center w-10 h-10 ${dark ? "active:bg-white/20" : "active:bg-black/10"}`}
                 style={{ touchAction: "manipulation" }}>
-                <RotateCw className="w-4 h-4 text-white" />
+                <RotateCw className={`w-4 h-4 ${dark ? "text-white" : "text-[#1a1f2a]"}`} />
               </button>
-              <div className="w-px h-4 bg-white/20 flex-shrink-0" />
+              <div className={`w-px h-4 flex-shrink-0 ${dark ? "bg-white/20" : "bg-black/15"}`} />
               <button data-testid="button-redetect" onClick={rerunDetection}
                 disabled={detectingIds.has(currentPage.id)}
-                className="flex items-center justify-center w-8 h-8 active:bg-white/20 disabled:opacity-35">
-                <ScanSearch className="w-4 h-4 text-white" />
+                className={`flex items-center justify-center w-8 h-8 disabled:opacity-35 ${dark ? "active:bg-white/20" : "active:bg-black/10"}`}>
+                <ScanSearch className={`w-4 h-4 ${dark ? "text-white" : "text-[#1a1f2a]"}`} />
               </button>
-              <div className="w-px h-4 bg-white/20 flex-shrink-0" />
+              <div className={`w-px h-4 flex-shrink-0 ${dark ? "bg-white/20" : "bg-black/15"}`} />
               <button data-testid="button-crop-fullscreen"
                 onClick={() => setCropFullscreen(true)}
                 onTouchStart={(e) => { e.preventDefault(); setCropFullscreen(true); }}
-                className="flex items-center justify-center w-10 h-10 active:bg-white/20"
+                className={`flex items-center justify-center w-10 h-10 ${dark ? "active:bg-white/20" : "active:bg-black/10"}`}
                 style={{ touchAction: "manipulation" }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={dark ? "white" : "#1a1f2a"} strokeWidth="2">
                   <path d="M6 2v4M2 6h4M18 2v4M22 6h-4M6 22v-4M2 18h4M18 22v-4M22 18h-4"/>
                 </svg>
               </button>
             </div>
 
             {/* Divider */}
-            <div className="w-px h-5 bg-white/20 flex-shrink-0" />
+            <div className={`w-px h-5 flex-shrink-0 ${dark ? "bg-white/20" : "bg-black/15"}`} />
 
             {/* Filter chips */}
             {(["none", "auto", "noshadow", "document", "id"] as FilterMode[]).map((f) => (
               <button key={f} data-testid={`filter-${f}`} onClick={() => handleFilterChange(f)}
-                className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
-                  currentPage.filterMode === f
-                    ? "bg-white text-black"
-                    : "text-white/75 active:bg-white/20"
-                }`}
-                style={currentPage.filterMode === f ? {} : { background: "rgba(255,255,255,0.10)" }}>
+                className="flex-shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors active:opacity-70"
+                style={currentPage.filterMode === f
+                  ? { background: dark ? "rgba(40,45,60,0.9)" : "rgba(255,255,255,0.95)", color: dark ? "#ececef" : "#1a1f2a" }
+                  : { background: dark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.07)", color: dark ? "rgba(255,255,255,0.75)" : "rgba(26,31,42,0.65)" }
+                }>
                 {FILTER_LABELS[f]}
               </button>
             ))}
@@ -2531,14 +2532,14 @@ export default function ScannerPage({
             {/* Noshadow strength slider inline — only shown when that filter is active */}
             {currentPage.filterMode === "noshadow" && (
               <>
-                <div className="w-px h-5 bg-white/20 flex-shrink-0" />
-                <span className="text-[10px] text-white/45 flex-shrink-0">0%</span>
+                <div className={`w-px h-5 flex-shrink-0 ${dark ? "bg-white/20" : "bg-black/15"}`} />
+                <span className={`text-[10px] flex-shrink-0 ${dark ? "text-white/45" : "text-[#1a1f2a]/40"}`}>0%</span>
                 <input type="range" min="0" max="100" step="1" value={localStrength}
                   onChange={(e) => handleStrengthChange(Number(e.target.value))}
                   className="flex-shrink-0 accent-white w-24" style={{ height: 3 }}
                   data-testid="slider-noshadow-strength" />
-                <span className="text-[10px] text-white/45 flex-shrink-0">100%</span>
-                <span className="text-[11px] font-semibold text-white/80 flex-shrink-0">{localStrength}%</span>
+                <span className={`text-[10px] flex-shrink-0 ${dark ? "text-white/45" : "text-[#1a1f2a]/40"}`}>100%</span>
+                <span className={`text-[11px] font-semibold flex-shrink-0 ${dark ? "text-white/80" : "text-[#1a1f2a]/80"}`}>{localStrength}%</span>
               </>
             )}
           </div>{/* end scrollable strip */}
@@ -2549,7 +2550,7 @@ export default function ScannerPage({
               data-testid="button-next-page"
               onClick={() => setCurrentIndex((i) => Math.min(pages.length - 1, i + 1))}
               disabled={currentIndex === pages.length - 1}
-              className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-white/15 text-white disabled:opacity-25 disabled:pointer-events-none active:bg-white/30 mr-1"
+              className={`flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full disabled:opacity-25 disabled:pointer-events-none mr-1 ${dark ? "bg-white/15 text-white active:bg-white/30" : "bg-black/10 text-[#1a1f2a] active:bg-black/20"}`}
               style={{ touchAction: "manipulation" }}>
               <ChevronRight className="w-5 h-5" />
             </button>
@@ -2558,7 +2559,7 @@ export default function ScannerPage({
 
         {/* ── Save bar ── */}
         <div className="flex-shrink-0 rounded-t-2xl"
-          style={{ background: "rgba(18,18,22,0.92)", backdropFilter: "blur(30px) saturate(140%)", WebkitBackdropFilter: "blur(30px) saturate(140%)", border: "0.5px solid rgba(255,255,255,0.08)", paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+          style={{ background: dark ? "rgba(18,18,22,0.92)" : "rgba(255,255,255,0.55)", backdropFilter: `blur(30px) saturate(${dark ? "140%" : "160%"})`, WebkitBackdropFilter: `blur(30px) saturate(${dark ? "140%" : "160%"})`, border: `0.5px solid ${dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.4)"}`, paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
 
           {onEditedImage ? (
             /* ── RETURN MODE: single "Use This Photo" button ── */
@@ -2614,7 +2615,8 @@ export default function ScannerPage({
                 {/* Save / Update button — always accessible without expanding */}
                 <button data-testid="button-export-pdf" onClick={() => exportMutation.mutate()}
                   disabled={exportMutation.isPending || !pages.length}
-                  className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-primary text-primary-foreground font-semibold disabled:opacity-50 active:scale-[0.98] transition-transform">
+                  className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-2xl font-semibold disabled:opacity-50 active:scale-[0.98] transition-transform"
+                  style={{ background: "radial-gradient(at 30% 25%, #f8f8fc 0%, #b8b8c4 50%, #2c2c34 100%)", boxShadow: "0 1px 0 rgba(255,255,255,0.5) inset, 0 4px 16px rgba(0,0,0,0.25)", color: "#f8f8fc" }}>
                   {exportMutation.isPending
                     ? <>
                         <div className="w-3.5 h-3.5 rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground animate-spin" />

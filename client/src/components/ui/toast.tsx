@@ -4,6 +4,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { isDarkMode } from "@/lib/theme"
 
 const ToastProvider = ToastPrimitives.Provider
 
@@ -42,11 +43,21 @@ const Toast = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Root>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitives.Root> &
     VariantProps<typeof toastVariants>
->(({ className, variant, ...props }, ref) => {
+>(({ className, variant, style, ...props }, ref) => {
+  const dark = isDarkMode();
+  const isDefault = !variant || variant === "default";
+  const themedStyle: React.CSSProperties = isDefault ? {
+    background: dark ? "rgba(232,236,239,0.92)" : "rgba(28,28,32,0.92)",
+    color: dark ? "#1a1f2a" : "#ececef",
+    border: "none",
+    boxShadow: dark ? "0 4px 12px rgba(0,0,0,0.5)" : "0 4px 12px rgba(0,0,0,0.2)",
+    ...style,
+  } : style;
   return (
     <ToastPrimitives.Root
       ref={ref}
       className={cn(toastVariants({ variant }), className)}
+      style={themedStyle}
       {...props}
     />
   )

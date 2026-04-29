@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
+import { isDarkMode } from "@/lib/theme";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, apiFetch, API_BASE } from "@/lib/queryClient";
 import {
@@ -318,6 +319,21 @@ async function nativeShareDoc(doc: { name: string; type: string; dataUrl: string
   });
 }
 
+// ── Theme helpers ──────────────────────────────────────────────────────────
+
+const ORB_LIGHT = "radial-gradient(ellipse 80% 50% at 20% 20%, rgba(180,195,220,0.55) 0%, transparent 60%), radial-gradient(ellipse 60% 70% at 80% 80%, rgba(160,180,210,0.45) 0%, transparent 55%), radial-gradient(ellipse 100% 100% at 50% 50%, rgba(200,210,230,0.25) 0%, transparent 70%), linear-gradient(135deg, #d8e2ef 0%, #c8d4e6 50%, #b8c8e0 100%)";
+const ORB_DARK  = "radial-gradient(ellipse 80% 50% at 20% 20%, rgba(40,55,90,0.7) 0%, transparent 60%), radial-gradient(ellipse 60% 70% at 80% 80%, rgba(30,45,80,0.6) 0%, transparent 55%), radial-gradient(ellipse 100% 100% at 50% 50%, rgba(20,30,60,0.4) 0%, transparent 70%), linear-gradient(135deg, #0e0e14 0%, #121620 50%, #0a0e18 100%)";
+
+function glassStyle(dark: boolean): React.CSSProperties {
+  return {
+    backdropFilter: `blur(30px) saturate(${dark ? "140%" : "160%"})`,
+    WebkitBackdropFilter: `blur(30px) saturate(${dark ? "140%" : "160%"})`,
+    background: dark ? "rgba(28,28,32,0.65)" : "rgba(255,255,255,0.55)",
+    borderBottom: `0.5px solid ${dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.4)"}`,
+    boxShadow: dark ? "0 1px 0 rgba(255,255,255,0.04)" : "0 1px 0 rgba(255,255,255,0.6)",
+  };
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 
 export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditText, subscription, onPaywall }: ViewerPageProps) {
@@ -349,6 +365,18 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
   const [notesSaved, setNotesSaved] = useState(false);
 
   const isNative = Capacitor.isNativePlatform();
+
+  const dark = isDarkMode();
+  const orbBg = dark ? ORB_DARK : ORB_LIGHT;
+  const headerBg = dark ? "rgba(14,14,18,0.88)" : "rgba(232,236,242,0.82)";
+  const actionBarBg = dark ? "rgba(28,28,32,0.65)" : "rgba(255,255,255,0.55)";
+  const textPrimary = dark ? "#ececef" : "#1a1f2a";
+
+  useEffect(() => {
+    const prev = document.body.style.backgroundColor;
+    document.body.style.backgroundColor = "transparent";
+    return () => { document.body.style.backgroundColor = prev; };
+  }, []);
 
   const { data: doc, isLoading } = useQuery<Document>({
     queryKey: ["/api/documents", docId],
@@ -744,17 +772,21 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
   );
 
   return (
-    <div className="fixed inset-0 bg-background flex flex-col z-50">
+    <div className="fixed inset-0 flex flex-col z-50" style={{ background: "transparent" }}>
+      <div style={{ position: "fixed", inset: 0, zIndex: 0, background: orbBg, pointerEvents: "none" }} />
+      <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
 
       {/* ── Header ── */}
-      <div className="flex-shrink-0 flex items-center gap-2 px-3 pt-12 pb-3 border-b border-border bg-card">
+      <div className="flex-shrink-0 flex items-center gap-2 px-3 pt-12 pb-3"
+        style={{ ...glassStyle(dark), background: headerBg, backdropFilter: `blur(30px) saturate(${dark ? "140%" : "160%"})`, WebkitBackdropFilter: `blur(30px) saturate(${dark ? "140%" : "160%"})` }}>
         <button data-testid="button-back" onClick={onBack}
-          className="w-11 h-11 rounded-xl flex items-center justify-center text-foreground -ml-1 flex-shrink-0">
+          className="w-11 h-11 rounded-xl flex items-center justify-center -ml-1 flex-shrink-0"
+          style={{ color: textPrimary }}>
           <ArrowLeft className="w-5 h-5" />
         </button>
 
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground truncate leading-tight">
+          <p className="text-sm font-semibold truncate leading-tight" style={{ color: textPrimary }}>
             {isLoading ? "Loading…" : doc?.name ?? "Document"}
           </p>
           {doc && (
@@ -774,7 +806,8 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
       </div>
 
       {showBrightness && (
-        <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-card border-b border-border">
+        <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3"
+          style={{ background: actionBarBg, backdropFilter: `blur(30px) saturate(${dark ? "140%" : "160%"})`, WebkitBackdropFilter: `blur(30px) saturate(${dark ? "140%" : "160%"})`, borderBottom: `0.5px solid ${dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.4)"}` }}>
           <Sun className="w-4 h-4 text-muted-foreground flex-shrink-0" />
           <input type="range" min="1" max="2" step="0.05" value={brightness}
             onChange={(e) => setBrightness(parseFloat(e.target.value))}
@@ -788,7 +821,7 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
       )}
 
       {/* ── Document preview ── */}
-      <div className="flex-1 overflow-hidden bg-neutral-100 relative">
+      <div className="flex-1 overflow-hidden relative" style={{ background: "transparent" }}>
         {isLoading ? (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
@@ -803,11 +836,12 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
       </div>
 
       {/* ── Bottom action bar ── */}
-      <div className="flex-shrink-0 flex items-center bg-card border-t border-border"
-        style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
+      <div className="flex-shrink-0 flex items-center"
+        style={{ background: actionBarBg, backdropFilter: `blur(30px) saturate(${dark ? "140%" : "160%"})`, WebkitBackdropFilter: `blur(30px) saturate(${dark ? "140%" : "160%"})`, borderTop: `0.5px solid ${dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.4)"}`, paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
 
         <button data-testid="button-download" onClick={handleDownload} disabled={!blobUrl}
-          className="flex-1 flex flex-col items-center gap-1 pt-3 pb-1 text-foreground disabled:opacity-40 active:opacity-60">
+          className="flex-1 flex flex-col items-center gap-1 pt-3 pb-1 disabled:opacity-40 active:opacity-60"
+          style={{ color: textPrimary }}>
           <Download className="w-5 h-5" />
           <span className="text-[10px] font-semibold">Download</span>
         </button>
@@ -835,13 +869,15 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
             setShowEmailModal(true);
           }}
           disabled={!doc}
-          className="flex-1 flex flex-col items-center gap-1 pt-3 pb-1 text-foreground disabled:opacity-40 active:opacity-60">
+          className="flex-1 flex flex-col items-center gap-1 pt-3 pb-1 disabled:opacity-40 active:opacity-60"
+          style={{ color: textPrimary }}>
           <Mail className="w-5 h-5" />
           <span className="text-[10px] font-semibold">Send</span>
         </button>
 
         <button data-testid="button-duplicate" onClick={() => duplicateDoc.mutate()} disabled={!doc || duplicateDoc.isPending}
-          className="flex-1 flex flex-col items-center gap-1 pt-3 pb-1 text-foreground disabled:opacity-40 active:opacity-60">
+          className="flex-1 flex flex-col items-center gap-1 pt-3 pb-1 disabled:opacity-40 active:opacity-60"
+          style={{ color: textPrimary }}>
           {duplicateDoc.isPending
             ? <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
             : <Copy className="w-5 h-5" />}
@@ -849,7 +885,8 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
         </button>
 
         <button data-testid="button-info" onClick={() => setShowInfoSheet(true)} disabled={!doc}
-          className="flex-1 flex flex-col items-center gap-1 pt-3 pb-1 text-foreground disabled:opacity-40 active:opacity-60">
+          className="flex-1 flex flex-col items-center gap-1 pt-3 pb-1 disabled:opacity-40 active:opacity-60"
+          style={{ color: textPrimary }}>
           <div className="relative">
             <Info className="w-5 h-5" />
             {doc?.notes && (
@@ -861,14 +898,16 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
 
         {isTextDoc && (
           <button data-testid="button-edit-text" onClick={() => onEditText(docId)}
-            className="flex-1 flex flex-col items-center gap-1 pt-3 pb-1 text-foreground active:opacity-60">
+            className="flex-1 flex flex-col items-center gap-1 pt-3 pb-1 active:opacity-60"
+            style={{ color: textPrimary }}>
             <Pencil className="w-5 h-5" />
             <span className="text-[10px] font-semibold">Edit</span>
           </button>
         )}
         {hasScanPages && (
           <button data-testid="button-edit-doc" onClick={() => onEdit(docId)}
-            className="flex-1 flex flex-col items-center gap-1 pt-3 pb-1 text-foreground active:opacity-60">
+            className="flex-1 flex flex-col items-center gap-1 pt-3 pb-1 active:opacity-60"
+            style={{ color: textPrimary }}>
             <Pencil className="w-5 h-5" />
             <span className="text-[10px] font-semibold">Edit</span>
           </button>
@@ -1361,6 +1400,7 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
