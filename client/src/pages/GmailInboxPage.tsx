@@ -57,25 +57,25 @@ interface Theme {
 function getTheme(dark: boolean): Theme {
   return dark
     ? {
-        bg: "#0a0a0c",
+        bg: "#050507",
         orbBg: [
-          "radial-gradient(ellipse at 20% 15%, #4a5060 0%, #2c3242 30%, transparent 60%)",
-          "radial-gradient(ellipse at 80% 85%, #3a4054 0%, #1c2030 35%, transparent 65%)",
-          "radial-gradient(ellipse at 50% 50%, #0a0c14 0%, transparent 50%)",
-          "#1c2030",
+          "radial-gradient(ellipse at 20% 15%, #1a1a1f 0%, #0e0e12 30%, transparent 60%)",
+          "radial-gradient(ellipse at 80% 85%, #16161a 0%, #0a0a0c 35%, transparent 65%)",
+          "radial-gradient(ellipse at 50% 50%, #000000 0%, transparent 50%)",
+          "#050507",
         ].join(", "),
-        header: "rgba(28,32,48,0.82)",
-        cardBg: "rgba(40,45,60,0.55)",
-        receivedBg: "rgba(40,45,60,0.55)",
+        header: "rgba(14,14,18,0.88)",
+        cardBg: "rgba(28,28,32,0.65)",
+        receivedBg: "rgba(28,28,32,0.65)",
         receivedText: "#ececef",
-        sentBg: "rgba(55,65,90,0.65)",
+        sentBg: "rgba(38,38,46,0.72)",
         sentText: "#ececef",
         subText: "#a0a8b8",
-        inputBg: "rgba(40,45,60,0.55)",
-        border: "rgba(255,255,255,0.1)",
-        pillBg: "rgba(40,45,60,0.55)",
-        searchBg: "rgba(40,45,60,0.55)",
-        avatarBg: "#3a4054",
+        inputBg: "rgba(28,28,32,0.65)",
+        border: "rgba(255,255,255,0.08)",
+        pillBg: "rgba(28,28,32,0.65)",
+        searchBg: "rgba(28,28,32,0.65)",
+        avatarBg: "#1a1a1f",
         avatarText: "#d4d4dc",
         dark: true,
       }
@@ -108,17 +108,18 @@ function glassStyle(dark: boolean): React.CSSProperties {
   return {
     backdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`,
     WebkitBackdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`,
-    border: dark ? "0.5px solid rgba(255,255,255,0.1)" : "0.5px solid rgba(255,255,255,0.4)",
+    border: dark ? "0.5px solid rgba(255,255,255,0.08)" : "0.5px solid rgba(255,255,255,0.4)",
     boxShadow: dark
-      ? "0 1px 0 rgba(255,255,255,0.08) inset, 0 4px 20px rgba(0,0,0,0.4)"
+      ? "0 1px 0 rgba(255,255,255,0.05) inset, 0 4px 20px rgba(0,0,0,0.5)"
       : "0 1px 0 rgba(255,255,255,0.7) inset, 0 4px 16px rgba(0,0,0,0.15)",
   };
 }
 
 function orbTextStyle(dark: boolean): React.CSSProperties {
+  if (!dark) return { color: "#1a1f2a" };
   return {
     color: "rgba(255,255,255,0.9)",
-    textShadow: dark ? "0 1px 2px rgba(0,0,0,0.5)" : "0 1px 2px rgba(0,0,0,0.3)",
+    textShadow: "0 1px 2px rgba(0,0,0,0.5)",
   };
 }
 
@@ -2003,8 +2004,8 @@ function ContactList({
               style={{
                 position: "absolute", top: 2, bottom: 2, left: 0,
                 width: "calc(50% - 2px)", borderRadius: 7,
-                background: theme.dark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.9)",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+                background: theme.dark ? "rgba(40,45,60,0.9)" : "rgba(255,255,255,0.95)",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
                 pointerEvents: "none",
               }}
             />
@@ -2012,10 +2013,13 @@ function ContactList({
               onClick={() => { hapticLight(); setTabDir(-1); setInboxTab("important"); }}
               style={{
                 flex: 1, borderRadius: 7, padding: "6px 0", border: "none", cursor: "pointer",
-                fontSize: 13, fontWeight: 600,
+                fontSize: 13,
+                fontWeight: inboxTab === "important" ? 600 : 500,
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
                 background: "transparent",
-                color: inboxTab === "important" ? theme.avatarBg : theme.subText,
+                color: inboxTab === "important"
+                  ? (theme.dark ? "#ececef" : "#1a1f2a")
+                  : (theme.dark ? "#a0a8b8" : "#4a5262"),
                 position: "relative", zIndex: 1,
               }}
             >
@@ -2025,10 +2029,13 @@ function ContactList({
               onClick={() => { hapticLight(); setTabDir(1); setInboxTab("other"); }}
               style={{
                 flex: 1, borderRadius: 7, padding: "6px 0", border: "none", cursor: "pointer",
-                fontSize: 13, fontWeight: 600,
+                fontSize: 13,
+                fontWeight: inboxTab === "other" ? 600 : 500,
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
                 background: "transparent",
-                color: inboxTab === "other" ? theme.avatarBg : theme.subText,
+                color: inboxTab === "other"
+                  ? (theme.dark ? "#ececef" : "#1a1f2a")
+                  : (theme.dark ? "#a0a8b8" : "#4a5262"),
                 position: "relative", zIndex: 1,
               }}
             >
@@ -2446,7 +2453,9 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
   return (
     <>
       <OfflineBanner />
-      <div className="flex flex-col" style={{ height: "100dvh", background: theme.orbBg }}>
+      {/* Fixed orb — bleeds edge-to-edge behind iOS safe areas */}
+      <div style={{ position: "fixed", inset: 0, zIndex: 0, background: theme.orbBg, pointerEvents: "none" }} />
+      <div className="flex flex-col" style={{ height: "100dvh", background: "transparent", position: "relative", zIndex: 1 }}>
         <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
           {/* ContactList — always mounted, never transformed */}
           <div style={{ position: "absolute", inset: 0, zIndex: 1, pointerEvents: selectedContact ? "none" : "auto" }}>

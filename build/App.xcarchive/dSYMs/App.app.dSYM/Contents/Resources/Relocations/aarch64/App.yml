@@ -1,6 +1,6 @@
 ---
 triple:          'arm64-apple-darwin'
-binary-path:     '/Users/user/Library/Developer/Xcode/DerivedData/App-eaybpbninmwhfiaurkldcrwheprq/Build/Intermediates.noindex/ArchiveIntermediates/App/InstallationBuildProductsLocation/Applications/App.app/App'
+binary-path:     '/Users/user/Library/Developer/Xcode/DerivedData/App-dckdjnrzhukbrjfncttutudabxgb/Build/Intermediates.noindex/ArchiveIntermediates/App/InstallationBuildProductsLocation/Applications/App.app/App'
 relocations:
   - { offset: 0x13E11B, size: 0x8, addend: 0x0, symName: '-[QuickLookPlugin(CAPPluginCategory) pluginMethods]', symObjAddr: 0x0, symBinAddr: 0x100004000, symSize: 0x64 }
   - { offset: 0x13E129, size: 0x8, addend: 0x0, symName: '-[QuickLookPlugin(CAPPluginCategory) pluginMethods]', symObjAddr: 0x0, symBinAddr: 0x100004000, symSize: 0x64 }
@@ -3613,7 +3613,7 @@ relocations:
   - { offset: 0x1D9D19, size: 0x8, addend: 0x0, symName: '_$s10RevenueCat15DirectoryHelperO25defaultPersistenceBaseUrl10Foundation3URLVSgvgZ', symObjAddr: 0x0, symBinAddr: 0x1000C17B0, symSize: 0x1B4 }
   - { offset: 0x1D9D9E, size: 0x8, addend: 0x0, symName: '_$s10RevenueCat15DirectoryHelperO7baseUrl3for013inAppSpecificC010Foundation3URLVSgAC0C4TypeO_SbtFZ', symObjAddr: 0x1B4, symBinAddr: 0x1000C1964, symSize: 0x1F8 }
   - { offset: 0x1D9E48, size: 0x8, addend: 0x0, symName: '_$s10RevenueCat15DirectoryHelperO0C4TypeO3url33_7F7FC4077AF649535B941D8030A7B3A6LL10Foundation3URLVSgvg', symObjAddr: 0x3FC, symBinAddr: 0x1000C1B5C, symSize: 0x468 }
-  - { offset: 0x1DA0F3, size: 0x8, addend: 0x0, symName: '_$s10RevenueCat14FileRepositoryC6sharedACvpZ', symObjAddr: 0x12AF8, symBinAddr: 0x1005EA1C8, symSize: 0x0 }
+  - { offset: 0x1DA0F3, size: 0x8, addend: 0x0, symName: '_$s10RevenueCat14FileRepositoryC6sharedACvpZ', symObjAddr: 0x12AF0, symBinAddr: 0x1005EA1C8, symSize: 0x0 }
   - { offset: 0x1DA611, size: 0x8, addend: 0x0, symName: '_$s10RevenueCat14FileRepositoryC6shared_WZ', symObjAddr: 0xC8, symBinAddr: 0x1000C2BE0, symSize: 0xCC }
   - { offset: 0x1DA681, size: 0x8, addend: 0x0, symName: '_$s10RevenueCat14FileRepositoryC6sharedACvau', symObjAddr: 0x220, symBinAddr: 0x1000C2D38, symSize: 0x40 }
   - { offset: 0x1DA95A, size: 0x8, addend: 0x0, symName: '_$s10RevenueCat14FileRepositoryC8prefetch4urlsySay10Foundation3URLVG_tFAHSgyYaKcfU_TA', symObjAddr: 0x2B68, symBinAddr: 0x1000C55DC, symSize: 0x98 }
@@ -16665,7 +16665,7 @@ relocations:
   - { offset: 0x43B297, size: 0x8, addend: 0x0, symName: '_$s10RevenueCat18ProductsFetcherSK1C7request_16didFailWithErrorySo9SKRequestC_s0J0_ptFyyYbcfU_', symObjAddr: 0x3088, symBinAddr: 0x1003D6620, symSize: 0x7E4 }
   - { offset: 0x43B571, size: 0x8, addend: 0x0, symName: '_$s10RevenueCat18ProductsFetcherSK1C7request_16didFailWithErrorySo9SKRequestC_s0J0_ptFyyYbcfU_yyYbcfU_', symObjAddr: 0x386C, symBinAddr: 0x1003D6E04, symSize: 0x11C }
   - { offset: 0x43B6B7, size: 0x8, addend: 0x0, symName: '_$s10RevenueCat18ProductsFetcherSK1C7request_16didFailWithErrorySo9SKRequestC_s0J0_ptFTo', symObjAddr: 0x3988, symBinAddr: 0x1003D6F20, symSize: 0x6C }
-  - { offset: 0x43B9A8, size: 0x8, addend: 0x0, symName: '_$s10RevenueCat16StoreKit1WrapperC26simulatesAskToBuyInSandboxSbvpZ', symObjAddr: 0x15660, symBinAddr: 0x1005EABF0, symSize: 0x0 }
+  - { offset: 0x43B9A8, size: 0x8, addend: 0x0, symName: '_$s10RevenueCat16StoreKit1WrapperC26simulatesAskToBuyInSandboxSbvpZ', symObjAddr: 0x15658, symBinAddr: 0x1005EABF0, symSize: 0x0 }
   - { offset: 0x43B9B6, size: 0x8, addend: 0x0, symName: '_$sIeyB_Ieg_TR', symObjAddr: 0x0, symBinAddr: 0x1003D82F0, symSize: 0x8 }
   - { offset: 0x43BDD8, size: 0x8, addend: 0x0, symName: '_$s10RevenueCat16StoreKit1WrapperCfETo', symObjAddr: 0x254, symBinAddr: 0x1003D8544, symSize: 0x8C }
   - { offset: 0x43BE1D, size: 0x8, addend: 0x0, symName: '_$s10RevenueCat16StoreKit1WrapperCMa', symObjAddr: 0x30C, symBinAddr: 0x1003D85FC, symSize: 0x20 }
