@@ -12,6 +12,7 @@ import ProfilePage from "./pages/ProfilePage";
 import PaywallPage from "./pages/PaywallPage";
 import ClientsPage from "./pages/ClientsPage";
 import GmailInboxPage from "./pages/GmailInboxPage";
+import AllDocumentsPage from "./pages/AllDocumentsPage";
 import { useSubscription } from "./hooks/use-subscription";
 import { Loader2, Sparkles, X } from "lucide-react";
 
@@ -26,7 +27,8 @@ type View =
   | { name: "profile" }
   | { name: "paywall"; returnTo: View; lockedFeature?: string }
   | { name: "clients" }
-  | { name: "inbox" };
+  | { name: "inbox" }
+  | { name: "allDocs" };
 
 interface AppUser {
   id: string;
@@ -267,6 +269,7 @@ function AppWithAuth() {
 
   const goClients = () => setView({ name: "clients" });
   const goInbox = () => setView({ name: "inbox" });
+  const goAllDocs = () => setView({ name: "allDocs" });
 
   // Logout clears the server session then immediately restores the same
   // device-scoped guest account — so documents stay accessible.
@@ -303,6 +306,10 @@ function AppWithAuth() {
 
   if (view.name === "inbox") {
     return <GmailInboxPage onBack={goHome} onUnreadCount={setInboxUnreadCount} />;
+  }
+
+  if (view.name === "allDocs") {
+    return <AllDocumentsPage onBack={goHome} onOpenDoc={goViewer} onEditDoc={goEditor} />;
   }
 
   if (view.name === "scanner") {
@@ -398,6 +405,7 @@ function AppWithAuth() {
         onOpenInbox={goInbox}
         inboxUnreadCount={inboxUnreadCount}
         onLogout={handleLogout}
+        onOpenAllDocs={goAllDocs}
       />
     </>
   );

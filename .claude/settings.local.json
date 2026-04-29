@@ -15,7 +15,9 @@
       "Bash(awk *)",
       "Bash(git -C /Users/user/Desktop/app_output diff --stat HEAD client/src/pages/GmailInboxPage.tsx)",
       "Bash(git -C /Users/user/Desktop/app_output diff HEAD client/src/pages/GmailInboxPage.tsx)",
-      "Bash(git -C /Users/user/Desktop/app_output status --short)"
+      "Bash(git -C /Users/user/Desktop/app_output status --short)",
+      "Bash(git fetch *)",
+      "Bash(git config *)"
     ]
   }
 }

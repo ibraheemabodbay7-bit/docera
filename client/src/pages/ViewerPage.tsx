@@ -3,7 +3,7 @@ import { isDarkMode } from "@/lib/theme";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, apiFetch, API_BASE } from "@/lib/queryClient";
 import {
-  ArrowLeft, Download, Trash2, Sun, Pencil, Share2, Mail, Info,
+  ArrowLeft, Download, Trash2, Pencil, Share2, Mail, Info,
   Edit2, Send, Check, Tag, Clock, FilePlus2, X, AlertCircle, FileText,
   User, UserMinus, UserPlus, ChevronRight, Search, Copy,
 } from "lucide-react";
@@ -126,9 +126,9 @@ function loadImageDims(src: string): Promise<PageDims> {
 // Only renders the <img> when the placeholder div enters the viewport (+ 300px
 // buffer), preventing off-screen pages from decoding all at once.
 function LazyPageImage({
-  src, renderW, renderH, pageIndex, brightnessFilter,
+  src, renderW, renderH, pageIndex,
 }: {
-  src: string; renderW: number; renderH: number; pageIndex: number; brightnessFilter?: string;
+  src: string; renderW: number; renderH: number; pageIndex: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(pageIndex === 0); // first page is always eager
@@ -154,7 +154,7 @@ function LazyPageImage({
           data-testid={`pdf-page-${pageIndex}`}
           width={renderW}
           height={renderH}
-          style={{ display: "block", width: renderW, height: renderH, filter: brightnessFilter }}
+          style={{ display: "block", width: renderW, height: renderH }}
           decoding="async"
         />
       ) : (
@@ -166,7 +166,7 @@ function LazyPageImage({
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
-function PdfImageViewer({ dataUrl, brightnessFilter }: { dataUrl: string; brightnessFilter?: string }) {
+function PdfImageViewer({ dataUrl }: { dataUrl: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pages, setPages] = useState<PageDims[]>([]);
   const [containerSize, setContainerSize] = useState<{ w: number; h: number } | null>(null);
@@ -230,17 +230,21 @@ function PdfImageViewer({ dataUrl, brightnessFilter }: { dataUrl: string; bright
       ) : (
         pages.map((page, i) => {
           let renderW = 0; let renderH = 0;
+          const isSingle = pages.length === 1;
           if (availW > 0 && availH > 0 && page.naturalWidth > 1 && page.naturalHeight > 1) {
             const scale = Math.min(availW / page.naturalWidth, availH / page.naturalHeight);
             renderW = Math.round(page.naturalWidth * scale);
             renderH = Math.round(page.naturalHeight * scale);
           }
           return (
-            <div key={i} style={{ width: "100%", height: containerSize ? containerSize.h : "100%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <div key={i} style={isSingle
+              ? { width: "100%", height: containerSize ? containerSize.h : "100%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }
+              : { width: "100%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, paddingTop: i === 0 ? 12 : 6, paddingBottom: i === pages.length - 1 ? 12 : 6 }
+            }>
               {renderW > 0 && renderH > 0 ? (
                 <LazyPageImage
                   src={page.src} renderW={renderW} renderH={renderH}
-                  pageIndex={i} brightnessFilter={brightnessFilter}
+                  pageIndex={i}
                 />
               ) : null}
             </div>
@@ -251,7 +255,7 @@ function PdfImageViewer({ dataUrl, brightnessFilter }: { dataUrl: string; bright
   );
 }
 
-function FittedImage({ src, alt, brightnessFilter, testId }: { src: string; alt: string; brightnessFilter?: string; testId: string }) {
+function FittedImage({ src, alt, testId }: { src: string; alt: string; testId: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [dims, setDims] = useState<{ nw: number; nh: number } | null>(null);
@@ -289,8 +293,8 @@ function FittedImage({ src, alt, brightnessFilter, testId }: { src: string; alt:
   return (
     <div ref={containerRef} className="absolute inset-0 flex items-center justify-center" style={{ padding: pad }}>
       <img src={src} alt={alt} data-testid={testId}
-        style={renderW > 0 ? { display: "block", width: renderW, height: renderH, filter: brightnessFilter }
-          : { display: "block", maxWidth: "100%", maxHeight: "100%", objectFit: "contain", filter: brightnessFilter }} />
+        style={renderW > 0 ? { display: "block", width: renderW, height: renderH }
+          : { display: "block", maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
     </div>
   );
 }
@@ -339,8 +343,6 @@ function glassStyle(dark: boolean): React.CSSProperties {
 export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditText, subscription, onPaywall }: ViewerPageProps) {
   const { toast } = useToast();
   const [blobUrl, setBlobUrl] = useState<string>("");
-  const [brightness, setBrightness] = useState(1);
-  const [showBrightness, setShowBrightness] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [showInfoSheet, setShowInfoSheet] = useState(false);
@@ -762,8 +764,6 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
   const isPdf = doc?.type === "pdf" || doc?.type === "text-he";
   const isTextDoc = isTextDocument(doc?.pages);
   const hasScanPages = !isTextDoc && doc?.pages && doc.pages !== "[]";
-  const brightnessFilter = brightness !== 1 ? `brightness(${brightness}) contrast(${1 + (brightness - 1) * 0.4})` : undefined;
-
   const docStatus = (doc?.status as DocStatus | undefined) ?? "draft";
   const statusMeta = STATUS_META[docStatus] ?? STATUS_META.draft;
   const linkedClient = doc?.clientId ? clientsAll.find((c) => c.id === doc.clientId) : undefined;
@@ -797,28 +797,7 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
           )}
         </div>
 
-        <button data-testid="button-brightness"
-          onClick={() => setShowBrightness((v) => !v)}
-          className={`flex items-center gap-1.5 px-3 h-11 rounded-xl flex-shrink-0 transition-colors ${showBrightness ? "bg-amber-100 text-amber-600" : "bg-muted text-foreground"}`}>
-          <Sun className="w-4 h-4" />
-          <span className="text-xs font-semibold">Whiten</span>
-        </button>
       </div>
-
-      {showBrightness && (
-        <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3"
-          style={{ background: actionBarBg, backdropFilter: `blur(30px) saturate(${dark ? "140%" : "160%"})`, WebkitBackdropFilter: `blur(30px) saturate(${dark ? "140%" : "160%"})`, borderBottom: `0.5px solid ${dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.4)"}` }}>
-          <Sun className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-          <input type="range" min="1" max="2" step="0.05" value={brightness}
-            onChange={(e) => setBrightness(parseFloat(e.target.value))}
-            className="flex-1 accent-amber-500 h-2" data-testid="slider-brightness" />
-          <Sun className="w-5 h-5 text-amber-500 flex-shrink-0" />
-          <button onClick={() => setBrightness(1)}
-            className="text-xs text-muted-foreground font-semibold px-3 py-1.5 rounded-lg bg-muted active:opacity-60 flex-shrink-0">
-            Reset
-          </button>
-        </div>
-      )}
 
       {/* ── Document preview ── */}
       <div className="flex-1 overflow-hidden relative" style={{ background: "transparent" }}>
@@ -829,9 +808,9 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
         ) : !doc ? (
           <p className="absolute inset-0 flex items-center justify-center text-foreground/50 text-sm">Document not found</p>
         ) : isImg ? (
-          <FittedImage src={blobUrl} alt={doc.name} brightnessFilter={brightnessFilter} testId="doc-image" />
+          <FittedImage src={blobUrl} alt={doc.name} testId="doc-image" />
         ) : isPdf ? (
-          <PdfImageViewer dataUrl={doc.dataUrl} brightnessFilter={brightnessFilter} />
+          <PdfImageViewer dataUrl={doc.dataUrl} />
         ) : null}
       </div>
 

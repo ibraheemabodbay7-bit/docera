@@ -25,6 +25,7 @@ interface HomePageProps {
   onProfile: () => void;
   onOpenClients: () => void;
   onOpenInbox: () => void;
+  onOpenAllDocs: () => void;
   onLogout: () => void;
   inboxUnreadCount?: number;
 }
@@ -60,7 +61,7 @@ function sizeStr(size: number) {
   return `${size} B`;
 }
 
-const STATUS_META: Record<DocStatus, { label: string; dot: string }> = {
+export const STATUS_META: Record<DocStatus, { label: string; dot: string }> = {
   draft:    { label: "Draft",    dot: "bg-gray-400" },
   pending:  { label: "Waiting for Reply", dot: "bg-amber-400" },
   sent:     { label: "Sent",     dot: "bg-blue-400" },
@@ -70,7 +71,7 @@ const STATUS_META: Record<DocStatus, { label: string; dot: string }> = {
 
 const ALL_STATUSES: DocStatus[] = ["draft", "pending", "sent", "approved", "rejected"];
 
-const DocCard = memo(function DocCard({ doc, onOpen, onDelete, onRename, onEdit, onDuplicate, onMoveToFolder, onSetStatus, onSendEmail, onSetClient, onToggleFavorite, onShare, onDownload, folders, clients, clientName, variant = "grid" }: {
+export const DocCard = memo(function DocCard({ doc, onOpen, onDelete, onRename, onEdit, onDuplicate, onMoveToFolder, onSetStatus, onSendEmail, onSetClient, onToggleFavorite, onShare, onDownload, folders, clients, clientName, variant = "grid" }: {
   doc: DocumentSummary;
   onOpen: () => void;
   onDelete: () => void;
@@ -384,7 +385,7 @@ function FolderChip({ folder, onOpen, onDelete, onRename }: { folder: Folder; on
   );
 }
 
-export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFolder, onProfile, onOpenClients, onOpenInbox, onLogout, inboxUnreadCount = 0 }: HomePageProps) {
+export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFolder, onProfile, onOpenClients, onOpenInbox, onOpenAllDocs, onLogout, inboxUnreadCount = 0 }: HomePageProps) {
   const { toast } = useToast();
   const [, forceUpdate] = useReducer(x => x + 1, 0);
   const dark = isDarkMode();
@@ -792,12 +793,17 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
         {/* All documents grid */}
         <div ref={docsRef} style={{ padding: '0 20px' }}>
           {(filteredDocs.length > 0 || isFiltering) && (
-            <div style={{ marginBottom: 12 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: textSecondary, textTransform: 'uppercase' }}>
-                {showFavoritesOnly ? 'Starred' : isFiltering ? 'Results' : 'All Documents'}
-              </span>
-              {filteredDocs.length > 0 && (
-                <span style={{ fontWeight: 400, marginLeft: 6, color: textSecondary, fontSize: 12 }}>({filteredDocs.length})</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: textSecondary, textTransform: 'uppercase' }}>
+                  {showFavoritesOnly ? 'Starred' : isFiltering ? 'Results' : 'All Documents'}
+                </span>
+                <span style={{ fontWeight: 400, marginLeft: 6, color: textSecondary, fontSize: 12 }}>({docs.length})</span>
+              </div>
+              {!isFiltering && !showFavoritesOnly && docs.length > 10 && (
+                <button onClick={onOpenAllDocs} style={{ fontSize: 13, fontWeight: 600, color: textPrimary, background: 'none', border: 'none', cursor: 'pointer' }}>
+                  See All
+                </button>
               )}
             </div>
           )}
@@ -818,7 +824,7 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
             )
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              {filteredDocs.map((doc) => (
+              {(isFiltering || showFavoritesOnly ? filteredDocs : filteredDocs.slice(0, 10)).map((doc) => (
                 <DocCard
                   key={doc.id}
                   doc={doc}
