@@ -25,9 +25,9 @@ const config: CapacitorConfig = {
   },
 
   ios: {
-    contentInset: "automatic",
+    contentInset: "never",
     limitsNavigationsToAppBoundDomains: false,
-    backgroundColor: '#fef7ed',
+    backgroundColor: '#000000',
   },
 
   android: {

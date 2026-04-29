@@ -87,7 +87,7 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <div className="flex-shrink-0 bg-card border-b border-border flex items-center gap-3 px-4 pt-12 pb-4">
+      <div className="flex-shrink-0 bg-card border-b border-border flex items-center gap-3 px-4 pb-4" style={{ paddingTop: "max(3rem, env(safe-area-inset-top))" }}>
         <button data-testid="button-back" onClick={onBack}
           className="w-11 h-11 rounded-xl flex items-center justify-center text-foreground -ml-1">
           <ArrowLeft className="w-5 h-5" />

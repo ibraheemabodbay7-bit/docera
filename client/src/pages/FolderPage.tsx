@@ -143,7 +143,7 @@ export default function FolderPage({ folderId, folderName, onBack, onScan, onOpe
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <div className="flex-shrink-0 bg-card border-b border-border px-3 pt-12 pb-3">
+      <div className="flex-shrink-0 bg-card border-b border-border px-3 pb-3" style={{ paddingTop: "max(3rem, env(safe-area-inset-top))" }}>
         <div className="flex items-center gap-2">
           <button data-testid="button-back" onClick={onBack}
             className="w-11 h-11 rounded-xl flex items-center justify-center text-foreground -ml-1 flex-shrink-0">

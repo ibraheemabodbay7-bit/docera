@@ -142,7 +142,7 @@ export default function ScannerOverlay({ conversationId, onClose, onSent }: Scan
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
-      <div className="flex-shrink-0 flex items-center justify-between px-4 pt-12 pb-4 border-b border-border">
+      <div className="flex-shrink-0 flex items-center justify-between px-4 pb-4 border-b border-border" style={{ paddingTop: "max(3rem, env(safe-area-inset-top))" }}>
         <button data-testid="button-scanner-close" onClick={onClose}
           className="w-9 h-9 rounded-xl flex items-center justify-center text-foreground hover-elevate">
           <X className="w-5 h-5" />
