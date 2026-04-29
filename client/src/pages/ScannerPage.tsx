@@ -2462,10 +2462,10 @@ export default function ScannerPage({
           <button data-testid="button-rotate"
             onClick={rotatePage}
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', touchAction: 'manipulation' }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <RotateCw style={{ width: 16, height: 16, color: '#ececef' }} />
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <RotateCw style={{ width: 16, height: 16, color: dark ? '#ececef' : '#1a1f2a' }} />
             </div>
-            <span style={{ fontSize: 8, color: '#8a8a92', fontWeight: 500 }}>Rotate</span>
+            <span style={{ fontSize: 8, color: dark ? '#8a8a92' : '#4a4f5a', fontWeight: 500 }}>Rotate</span>
           </button>
 
           {/* CROP — prominent metallic toggle */}
@@ -2492,10 +2492,10 @@ export default function ScannerPage({
           <button data-testid="button-fit"
             onClick={() => setCropFullscreen(true)}
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', touchAction: 'manipulation' }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Maximize2 style={{ width: 15, height: 15, color: '#ececef' }} />
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Maximize2 style={{ width: 15, height: 15, color: dark ? '#ececef' : '#1a1f2a' }} />
             </div>
-            <span style={{ fontSize: 8, color: '#8a8a92', fontWeight: 500 }}>Fit</span>
+            <span style={{ fontSize: 8, color: dark ? '#8a8a92' : '#4a4f5a', fontWeight: 500 }}>Fit</span>
           </button>
 
           {/* Auto — re-detect corners, enters crop mode */}
@@ -2503,13 +2503,13 @@ export default function ScannerPage({
             onClick={() => { rerunDetection(); setCropMode(true); }}
             disabled={detectingIds.has(currentPage.id)}
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', opacity: detectingIds.has(currentPage.id) ? 0.35 : 1 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <ScanSearch style={{ width: 16, height: 16, color: '#ececef' }} />
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ScanSearch style={{ width: 16, height: 16, color: dark ? '#ececef' : '#1a1f2a' }} />
             </div>
-            <span style={{ fontSize: 8, color: '#8a8a92', fontWeight: 500 }}>Auto</span>
+            <span style={{ fontSize: 8, color: dark ? '#8a8a92' : '#4a4f5a', fontWeight: 500 }}>Auto</span>
           </button>
 
-          {/* Delete — removes current page (guarded) */}
+          {/* Delete — removes current page (guarded); red in both modes */}
           <button data-testid="button-delete-page"
             onClick={() => {
               if (pages.length <= 1) { toast({ title: "Can't delete the only page" }); return; }
@@ -2532,8 +2532,8 @@ export default function ScannerPage({
               style={{
                 padding: '6px 12px', borderRadius: 14, fontSize: 11, whiteSpace: 'nowrap', border: 'none', cursor: 'pointer',
                 fontWeight: currentPage.filterMode === f ? 600 : 500,
-                background: currentPage.filterMode === f ? '#ececef' : 'rgba(255,255,255,0.08)',
-                color: currentPage.filterMode === f ? '#1a1a1f' : '#c0c0c8',
+                background: currentPage.filterMode === f ? '#ececef' : (dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)'),
+                color: currentPage.filterMode === f ? '#1a1a1f' : (dark ? '#c0c0c8' : '#4a4f5a'),
               }}>
               {FILTER_LABELS[f]}
             </button>
@@ -2544,13 +2544,21 @@ export default function ScannerPage({
         {currentPage.filterMode === "noshadow" && (
           <div className="flex-shrink-0 flex items-center gap-2 px-4"
             style={{ height: 28, background: dark ? 'rgba(14,14,18,0.88)' : 'rgba(232,236,242,0.88)' }}>
-            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', width: 20, textAlign: 'right', flexShrink: 0 }}>0%</span>
+            <span style={{ fontSize: 10, color: dark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.4)', width: 20, textAlign: 'right', flexShrink: 0 }}>0%</span>
             <input type="range" min="0" max="100" step="1" value={localStrength}
               onChange={(e) => handleStrengthChange(Number(e.target.value))}
-              className="flex-1 accent-white" style={{ height: 3 }}
-              data-testid="slider-noshadow-strength" />
-            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', width: 28, flexShrink: 0 }}>100%</span>
-            <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.8)', width: 32, flexShrink: 0 }}>{localStrength}%</span>
+              className="flex-1 accent-white" style={{ height: 3, touchAction: 'pan-x' }}
+              data-testid="slider-noshadow-strength"
+              onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); }}
+              onPointerMove={(e) => {
+                if (e.buttons !== 1) return;
+                const rect = e.currentTarget.getBoundingClientRect();
+                const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                handleStrengthChange(Math.round(ratio * 100));
+              }}
+            />
+            <span style={{ fontSize: 10, color: dark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.4)', width: 28, flexShrink: 0 }}>100%</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: dark ? 'rgba(255,255,255,0.8)' : '#1a1f2a', width: 32, flexShrink: 0 }}>{localStrength}%</span>
           </div>
         )}
 
