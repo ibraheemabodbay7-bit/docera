@@ -7,7 +7,7 @@ import { useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, apiFetch } from "@/lib/queryClient";
 import {
   ImageIcon, Plus, X, FileText, ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
-  RotateCw, RotateCcw, Check, ScanSearch,
+  RotateCw, RotateCcw, Check, ScanSearch, Maximize2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
@@ -420,6 +420,7 @@ export default function ScannerPage({
   const [loadingEdit, setLoadingEdit] = useState(!!editDocId);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [cropFullscreen, setCropFullscreen] = useState(false);
+  const [cropMode, setCropMode] = useState(false);
   const cropContainerRef = useRef<HTMLDivElement>(null);
   const cropImgRectRef = useRef<ImgRect>({ x: 0, y: 0, w: 1, h: 1 });
 
@@ -2221,7 +2222,7 @@ export default function ScannerPage({
   if (stage === "editor" && currentPage) {
     const dark = isDarkMode();
     const rot = currentPage.rotation;
-    const showCropOverlay = true; // crop works at any rotation via coordinate transform
+    const showCropOverlay = cropMode; // handles only visible when crop mode is active
 
     // Image display: use cached processedUrl for canvas-processed filters (document/id/noshadow),
     // else fall back to previewUrl + CSS filter for auto/color, or raw for none.
@@ -2261,9 +2262,7 @@ export default function ScannerPage({
                 <ChevronLeft className="w-4 h-4" /> Add
               </button>
 
-              <span className="text-white text-sm font-bold">
-                Page {currentIndex + 1} of {pages.length}
-              </span>
+              <span className="text-white text-sm font-bold">Edit Scan</span>
 
               <button data-testid="button-remove-current" onClick={() => removePage(currentIndex)}
                 className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center active:bg-white/30">
@@ -2318,67 +2317,33 @@ export default function ScannerPage({
             />
           </div>
 
-          {/* Crop overlay — always shown; quad coords are rotation-transformed in svgData */}
+          {/* Crop overlay — visible only in crop mode; platinum dashed frame */}
           {showCropOverlay && (
             <svg className="absolute inset-0 w-full h-full pointer-events-none"
               viewBox={`0 0 ${containerSize.w} ${containerSize.h}`} data-testid="quad-overlay">
 
               {/* Dark mask outside crop area */}
-              <path d={svgData.path} fill="rgba(0,0,0,0.52)" fillRule="evenodd" />
+              <path d={svgData.path} fill="rgba(0,0,0,0.45)" fillRule="evenodd" />
 
-              {/* Crop edges — dashed orange lines */}
+              {/* Crop frame — platinum dashed outline */}
               {(["tl-tr","tr-br","br-bl","bl-tl"] as const).map((seg) => {
                 const [a, b] = seg.split("-") as [keyof typeof svgData.qpx, keyof typeof svgData.qpx];
                 return <line key={seg}
                   x1={svgData.qpx[a].x} y1={svgData.qpx[a].y}
                   x2={svgData.qpx[b].x} y2={svgData.qpx[b].y}
-                  stroke="rgba(251,146,60,0.95)" strokeWidth="2.5" strokeDasharray="9 5" />;
-              })}
-
-              {/* Corner L-brackets — white arms pointing inward for clear corner markers */}
-              {(["tl", "tr", "bl", "br"] as const).map((c) => {
-                const pt = svgData.qpx[c];
-                const cx = (svgData.qpx.tl.x + svgData.qpx.tr.x + svgData.qpx.bl.x + svgData.qpx.br.x) / 4;
-                const cy = (svgData.qpx.tl.y + svgData.qpx.tr.y + svgData.qpx.bl.y + svgData.qpx.br.y) / 4;
-                const L = 22;
-                const sx = Math.sign(cx - pt.x);
-                const sy = Math.sign(cy - pt.y);
-                return (
-                  <g key={c} stroke="white" strokeWidth="4" strokeLinecap="round" fill="none">
-                    <line x1={pt.x} y1={pt.y} x2={pt.x + sx * L} y2={pt.y} />
-                    <line x1={pt.x} y1={pt.y} x2={pt.x} y2={pt.y + sy * L} />
-                  </g>
-                );
-              })}
-
-              {/* Mid-side tick marks — short white bars at each edge midpoint */}
-              {(["tc", "bc"] as const).map((e) => {
-                const pt = svgData.mid[e];
-                return (
-                  <g key={e} stroke="white" strokeWidth="4" strokeLinecap="round" fill="none">
-                    <line x1={pt.x - 14} y1={pt.y} x2={pt.x + 14} y2={pt.y} />
-                  </g>
-                );
-              })}
-              {(["lc", "rc"] as const).map((e) => {
-                const pt = svgData.mid[e];
-                return (
-                  <g key={e} stroke="white" strokeWidth="4" strokeLinecap="round" fill="none">
-                    <line x1={pt.x} y1={pt.y - 14} x2={pt.x} y2={pt.y + 14} />
-                  </g>
-                );
+                  stroke="rgba(220,225,235,0.85)" strokeWidth="1.5" strokeDasharray="7 4" />;
               })}
             </svg>
           )}
 
-          {/* Corner crop handles — 88×88px touch target */}
+          {/* Corner crop handles — 44×44px touch target, 10px platinum visual */}
           {showCropOverlay && (["tl", "tr", "bl", "br"] as const).map((corner) => {
             const pt = svgData.qpx[corner];
             return (
               <div key={corner} data-testid={`crop-handle-${corner}`}
                 className="absolute flex items-center justify-center cursor-pointer z-10"
                 style={{
-                  left: pt.x - 44, top: pt.y - 44, width: 88, height: 88,
+                  left: pt.x - 22, top: pt.y - 22, width: 44, height: 44,
                   touchAction: "none",
                 }}
                 onMouseDown={(e) => {
@@ -2389,14 +2354,12 @@ export default function ScannerPage({
                     i === currentIndex ? { ...p, manualCrop: true } : p
                   ));
                 }}>
-                <div className="w-12 h-12 rounded-full bg-orange-400/25 flex items-center justify-center shadow-lg">
-                  <div className="w-8 h-8 rounded-full bg-orange-400 shadow-xl border-[3px] border-white" />
-                </div>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#d4d4dc', border: '1.5px solid rgba(255,255,255,0.95)', boxShadow: '0 1px 3px rgba(0,0,0,0.4)', flexShrink: 0 }} />
               </div>
             );
           })}
 
-          {/* Mid-side edge handles — pill-shaped, axis-constrained drag.
+          {/* Mid-side edge handles — platinum pill, axis-constrained drag.
               For rotation=90/270 the tc/bc handles visually appear on the
               left/right sides of the display, so their pill orientation and
               cursor must flip accordingly. */}
@@ -2410,9 +2373,9 @@ export default function ScannerPage({
             ] as const;
           })().map(({ key, pt, horiz }) => {
             // Touch target: wide for top/bottom edges, tall for left/right edges
-            const tw = horiz ? 88 : 52, th = horiz ? 52 : 88;
-            // Visual pill orientation
-            const vw = horiz ? 36 : 14, vh = horiz ? 14 : 36;
+            const tw = horiz ? 44 : 32, th = horiz ? 32 : 44;
+            // Visual pill dimensions
+            const vw = horiz ? 18 : 6, vh = horiz ? 6 : 18;
             return (
               <div key={key} data-testid={`crop-handle-${key}`}
                 className="absolute flex items-center justify-center z-10"
@@ -2430,12 +2393,7 @@ export default function ScannerPage({
                     i === currentIndex ? { ...p, manualCrop: true } : p
                   ));
                 }}>
-                {/* Visual: semi-transparent halo + white-bordered orange pill */}
-                <div className="bg-orange-400/20 rounded-full flex items-center justify-center shadow"
-                  style={{ width: vw + 14, height: vh + 14 }}>
-                  <div className="bg-orange-400 border-[3px] border-white shadow-lg"
-                    style={{ width: vw, height: vh, borderRadius: 999 }} />
-                </div>
+                <div style={{ width: vw, height: vh, borderRadius: 3, background: '#d4d4dc', border: '1.5px solid rgba(255,255,255,0.95)', boxShadow: '0 1px 3px rgba(0,0,0,0.4)', flexShrink: 0 }} />
               </div>
             );
           })}
@@ -2460,102 +2418,130 @@ export default function ScannerPage({
 
         </div>
 
-        {/* ── Compact dark toolbar: prev arrow | controls | next arrow ── */}
-        <div className="flex-shrink-0 flex items-center"
-          style={{ paddingTop: 3, paddingBottom: 3, background: dark ? "rgba(28,28,32,0.65)" : "rgba(255,255,255,0.55)", backdropFilter: `blur(30px) saturate(${dark ? "140%" : "160%"})`, WebkitBackdropFilter: `blur(30px) saturate(${dark ? "140%" : "160%"})`, borderTop: `0.5px solid ${dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.4)"}` }}>
-
-          {/* Prev page arrow */}
-          {pages.length > 1 && (
+        {/* ── Page nav strip — below image ── */}
+        {pages.length > 1 && (
+          <div className="flex-shrink-0 flex items-center justify-center gap-2.5"
+            style={{ height: 36, background: 'rgba(0,0,0,0.45)' }}>
             <button
               data-testid="button-prev-page"
               onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
               disabled={currentIndex === 0}
-              className={`flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full disabled:opacity-25 disabled:pointer-events-none ml-1 ${dark ? "bg-white/15 text-white active:bg-white/30" : "bg-black/10 text-[#1a1f2a] active:bg-black/20"}`}
-              style={{ touchAction: "manipulation" }}>
-              <ChevronLeft className="w-5 h-5" />
+              style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: currentIndex === 0 ? 0.3 : 1, cursor: currentIndex === 0 ? 'default' : 'pointer', touchAction: 'manipulation', flexShrink: 0 }}>
+              <ChevronLeft className="w-4 h-4 text-white" />
             </button>
-          )}
-
-          {/* Scrollable controls strip */}
-          <div className="flex-1 flex items-center gap-2 overflow-x-auto scrollbar-none px-1">
-
-            {/* Rotate + detect grouped in one pill */}
-            <div className="flex-shrink-0 flex items-center rounded-lg overflow-hidden" style={{ background: dark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.07)" }}>
-              <button data-testid="button-rotate-ccw"
-                onClick={rotateCcwPage}
-                onTouchStart={(e) => { e.preventDefault(); rotateCcwPage(); }}
-                className={`flex items-center justify-center w-10 h-10 ${dark ? "active:bg-white/20" : "active:bg-black/10"}`}
-                style={{ touchAction: "manipulation" }}>
-                <RotateCcw className={`w-4 h-4 ${dark ? "text-white" : "text-[#1a1f2a]"}`} />
-              </button>
-              <div className={`w-px h-4 flex-shrink-0 ${dark ? "bg-white/20" : "bg-black/15"}`} />
-              <button data-testid="button-rotate"
-                onClick={rotatePage}
-                onTouchStart={(e) => { e.preventDefault(); rotatePage(); }}
-                className={`flex items-center justify-center w-10 h-10 ${dark ? "active:bg-white/20" : "active:bg-black/10"}`}
-                style={{ touchAction: "manipulation" }}>
-                <RotateCw className={`w-4 h-4 ${dark ? "text-white" : "text-[#1a1f2a]"}`} />
-              </button>
-              <div className={`w-px h-4 flex-shrink-0 ${dark ? "bg-white/20" : "bg-black/15"}`} />
-              <button data-testid="button-redetect" onClick={rerunDetection}
-                disabled={detectingIds.has(currentPage.id)}
-                className={`flex items-center justify-center w-8 h-8 disabled:opacity-35 ${dark ? "active:bg-white/20" : "active:bg-black/10"}`}>
-                <ScanSearch className={`w-4 h-4 ${dark ? "text-white" : "text-[#1a1f2a]"}`} />
-              </button>
-              <div className={`w-px h-4 flex-shrink-0 ${dark ? "bg-white/20" : "bg-black/15"}`} />
-              <button data-testid="button-crop-fullscreen"
-                onClick={() => setCropFullscreen(true)}
-                onTouchStart={(e) => { e.preventDefault(); setCropFullscreen(true); }}
-                className={`flex items-center justify-center w-10 h-10 ${dark ? "active:bg-white/20" : "active:bg-black/10"}`}
-                style={{ touchAction: "manipulation" }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={dark ? "white" : "#1a1f2a"} strokeWidth="2">
-                  <path d="M6 2v4M2 6h4M18 2v4M22 6h-4M6 22v-4M2 18h4M18 22v-4M22 18h-4"/>
-                </svg>
-              </button>
-            </div>
-
-            {/* Divider */}
-            <div className={`w-px h-5 flex-shrink-0 ${dark ? "bg-white/20" : "bg-black/15"}`} />
-
-            {/* Filter chips */}
-            {(["none", "auto", "noshadow", "document", "id"] as FilterMode[]).map((f) => (
-              <button key={f} data-testid={`filter-${f}`} onClick={() => handleFilterChange(f)}
-                className="flex-shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors active:opacity-70"
-                style={currentPage.filterMode === f
-                  ? { background: dark ? "rgba(40,45,60,0.9)" : "rgba(255,255,255,0.95)", color: dark ? "#ececef" : "#1a1f2a" }
-                  : { background: dark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.07)", color: dark ? "rgba(255,255,255,0.75)" : "rgba(26,31,42,0.65)" }
-                }>
-                {FILTER_LABELS[f]}
-              </button>
+            {Array.from({ length: Math.min(pages.length, 7) }, (_, i) => (
+              <div key={i} style={{ width: 4, height: 4, borderRadius: 2, background: i === currentIndex ? '#ececef' : 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
             ))}
-
-            {/* Noshadow strength slider inline — only shown when that filter is active */}
-            {currentPage.filterMode === "noshadow" && (
-              <>
-                <div className={`w-px h-5 flex-shrink-0 ${dark ? "bg-white/20" : "bg-black/15"}`} />
-                <span className={`text-[10px] flex-shrink-0 ${dark ? "text-white/45" : "text-[#1a1f2a]/40"}`}>0%</span>
-                <input type="range" min="0" max="100" step="1" value={localStrength}
-                  onChange={(e) => handleStrengthChange(Number(e.target.value))}
-                  className="flex-shrink-0 accent-white w-24" style={{ height: 3 }}
-                  data-testid="slider-noshadow-strength" />
-                <span className={`text-[10px] flex-shrink-0 ${dark ? "text-white/45" : "text-[#1a1f2a]/40"}`}>100%</span>
-                <span className={`text-[11px] font-semibold flex-shrink-0 ${dark ? "text-white/80" : "text-[#1a1f2a]/80"}`}>{localStrength}%</span>
-              </>
-            )}
-          </div>{/* end scrollable strip */}
-
-          {/* Next page arrow */}
-          {pages.length > 1 && (
+            <span style={{ fontSize: 10, color: '#8a8a92', fontWeight: 500, flexShrink: 0 }}>{currentIndex + 1} of {pages.length}</span>
             <button
               data-testid="button-next-page"
               onClick={() => setCurrentIndex((i) => Math.min(pages.length - 1, i + 1))}
               disabled={currentIndex === pages.length - 1}
-              className={`flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full disabled:opacity-25 disabled:pointer-events-none mr-1 ${dark ? "bg-white/15 text-white active:bg-white/30" : "bg-black/10 text-[#1a1f2a] active:bg-black/20"}`}
-              style={{ touchAction: "manipulation" }}>
-              <ChevronRight className="w-5 h-5" />
+              style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: currentIndex === pages.length - 1 ? 0.3 : 1, cursor: currentIndex === pages.length - 1 ? 'default' : 'pointer', touchAction: 'manipulation', flexShrink: 0 }}>
+              <ChevronRight className="w-4 h-4 text-white" />
             </button>
-          )}
-        </div>{/* end toolbar */}
+          </div>
+        )}
+
+        {/* ── Tool row — 5 labeled buttons ── */}
+        <div className="flex-shrink-0 flex items-center justify-around px-4"
+          style={{ height: 58, background: dark ? 'rgba(18,18,22,0.85)' : 'rgba(240,243,248,0.88)', borderTop: `0.5px solid ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.4)'}` }}>
+
+          {/* Rotate left */}
+          <button data-testid="button-rotate-ccw"
+            onClick={rotateCcwPage}
+            onTouchStart={(e) => { e.preventDefault(); rotateCcwPage(); }}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', touchAction: 'manipulation' }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <RotateCcw style={{ width: 16, height: 16, color: '#ececef' }} />
+            </div>
+            <span style={{ fontSize: 8, color: '#8a8a92', fontWeight: 500 }}>Rotate</span>
+          </button>
+
+          {/* Rotate right */}
+          <button data-testid="button-rotate"
+            onClick={rotatePage}
+            onTouchStart={(e) => { e.preventDefault(); rotatePage(); }}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', touchAction: 'manipulation' }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <RotateCw style={{ width: 16, height: 16, color: '#ececef' }} />
+            </div>
+            <span style={{ fontSize: 8, color: '#8a8a92', fontWeight: 500 }}>Rotate</span>
+          </button>
+
+          {/* CROP — prominent metallic toggle */}
+          <button data-testid="button-crop-toggle"
+            onClick={() => setCropMode((v) => !v)}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer' }}>
+            <div style={{
+              width: 44, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: cropMode
+                ? 'linear-gradient(180deg, rgba(232,232,244,0.98) 0%, rgba(195,195,210,0.98) 100%)'
+                : 'linear-gradient(180deg, rgba(212,212,220,0.95) 0%, rgba(168,168,180,0.95) 100%)',
+              boxShadow: cropMode
+                ? '0 1px 0 rgba(255,255,255,0.7) inset, 0 2px 8px rgba(0,0,0,0.35), 0 0 0 1.5px rgba(255,255,255,0.5)'
+                : '0 1px 0 rgba(255,255,255,0.4) inset, 0 2px 6px rgba(0,0,0,0.25)',
+            }}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1a1a1f" strokeWidth="2.2" strokeLinecap="round">
+                <path d="M6 2v4M2 6h4M18 2v4M22 6h-4M6 22v-4M2 18h4M18 22v-4M22 18h-4"/>
+              </svg>
+            </div>
+            <span style={{ fontSize: 8, color: dark ? '#ececef' : '#1a1f2a', fontWeight: 600 }}>Crop</span>
+          </button>
+
+          {/* Fit — opens fullscreen crop view */}
+          <button data-testid="button-fit"
+            onClick={() => setCropFullscreen(true)}
+            onTouchStart={(e) => { e.preventDefault(); setCropFullscreen(true); }}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', touchAction: 'manipulation' }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Maximize2 style={{ width: 15, height: 15, color: '#ececef' }} />
+            </div>
+            <span style={{ fontSize: 8, color: '#8a8a92', fontWeight: 500 }}>Fit</span>
+          </button>
+
+          {/* Auto — re-detect corners, enters crop mode */}
+          <button data-testid="button-redetect"
+            onClick={() => { rerunDetection(); setCropMode(true); }}
+            disabled={detectingIds.has(currentPage.id)}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', opacity: detectingIds.has(currentPage.id) ? 0.35 : 1 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ScanSearch style={{ width: 16, height: 16, color: '#ececef' }} />
+            </div>
+            <span style={{ fontSize: 8, color: '#8a8a92', fontWeight: 500 }}>Auto</span>
+          </button>
+        </div>
+
+        {/* ── Filter pills row ── */}
+        <div className="flex-shrink-0 flex items-center gap-1.5 overflow-x-auto scrollbar-none px-3"
+          style={{ height: 38, background: dark ? 'rgba(14,14,18,0.88)' : 'rgba(232,236,242,0.88)', borderTop: `0.5px solid ${dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}` }}>
+          {(["none", "auto", "noshadow", "document", "id"] as FilterMode[]).map((f) => (
+            <button key={f} data-testid={`filter-${f}`} onClick={() => handleFilterChange(f)}
+              className="flex-shrink-0 active:opacity-70"
+              style={{
+                padding: '6px 12px', borderRadius: 14, fontSize: 11, whiteSpace: 'nowrap', border: 'none', cursor: 'pointer',
+                fontWeight: currentPage.filterMode === f ? 600 : 500,
+                background: currentPage.filterMode === f ? '#ececef' : 'rgba(255,255,255,0.08)',
+                color: currentPage.filterMode === f ? '#1a1a1f' : '#c0c0c8',
+              }}>
+              {FILTER_LABELS[f]}
+            </button>
+          ))}
+        </div>
+
+        {/* Noshadow strength slider — shown only when noshadow filter is active */}
+        {currentPage.filterMode === "noshadow" && (
+          <div className="flex-shrink-0 flex items-center gap-2 px-4"
+            style={{ height: 28, background: dark ? 'rgba(14,14,18,0.88)' : 'rgba(232,236,242,0.88)' }}>
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', width: 20, textAlign: 'right', flexShrink: 0 }}>0%</span>
+            <input type="range" min="0" max="100" step="1" value={localStrength}
+              onChange={(e) => handleStrengthChange(Number(e.target.value))}
+              className="flex-1 accent-white" style={{ height: 3 }}
+              data-testid="slider-noshadow-strength" />
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', width: 28, flexShrink: 0 }}>100%</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.8)', width: 32, flexShrink: 0 }}>{localStrength}%</span>
+          </div>
+        )}
 
         {/* ── Save bar ── */}
         <div className="flex-shrink-0 rounded-t-2xl"
@@ -2684,67 +2670,39 @@ export default function ScannerPage({
               {/* Crop mask + lines */}
               <svg className="absolute inset-0 w-full h-full pointer-events-none"
                 viewBox={`0 0 ${sd.cw} ${sd.ch}`}>
-                <path d={sd.path} fill="rgba(0,0,0,0.52)" fillRule="evenodd" />
+                <path d={sd.path} fill="rgba(0,0,0,0.45)" fillRule="evenodd" />
                 {(["tl-tr","tr-br","br-bl","bl-tl"] as const).map((seg) => {
                   const [a, b] = seg.split("-") as [keyof typeof sd.qpx, keyof typeof sd.qpx];
                   return <line key={seg}
                     x1={sd.qpx[a].x} y1={sd.qpx[a].y} x2={sd.qpx[b].x} y2={sd.qpx[b].y}
-                    stroke="rgba(251,146,60,0.95)" strokeWidth="2.5" strokeDasharray="9 5" />;
-                })}
-                {(["tl","tr","bl","br"] as const).map((c) => {
-                  const pt = sd.qpx[c];
-                  const cx2 = (sd.qpx.tl.x + sd.qpx.tr.x + sd.qpx.bl.x + sd.qpx.br.x) / 4;
-                  const cy2 = (sd.qpx.tl.y + sd.qpx.tr.y + sd.qpx.bl.y + sd.qpx.br.y) / 4;
-                  const L = 22, sx = Math.sign(cx2 - pt.x), sy = Math.sign(cy2 - pt.y);
-                  return <g key={c} stroke="white" strokeWidth="4" strokeLinecap="round" fill="none">
-                    <line x1={pt.x} y1={pt.y} x2={pt.x + sx * L} y2={pt.y} />
-                    <line x1={pt.x} y1={pt.y} x2={pt.x} y2={pt.y + sy * L} />
-                  </g>;
-                })}
-                {(["tc","bc"] as const).map((e2) => {
-                  const pt = sd.mid[e2];
-                  return <g key={e2} stroke="white" strokeWidth="4" strokeLinecap="round" fill="none">
-                    <line x1={pt.x - 14} y1={pt.y} x2={pt.x + 14} y2={pt.y} />
-                  </g>;
-                })}
-                {(["lc","rc"] as const).map((e2) => {
-                  const pt = sd.mid[e2];
-                  return <g key={e2} stroke="white" strokeWidth="4" strokeLinecap="round" fill="none">
-                    <line x1={pt.x} y1={pt.y - 14} x2={pt.x} y2={pt.y + 14} />
-                  </g>;
+                    stroke="rgba(220,225,235,0.85)" strokeWidth="1.5" strokeDasharray="7 4" />;
                 })}
               </svg>
 
-              {/* Corner handles */}
+              {/* Corner handles — platinum */}
               {(["tl","tr","bl","br"] as const).map((corner) => {
                 const pt = sd.qpx[corner];
                 return (
                   <div key={corner} className="absolute flex items-center justify-center z-10"
-                    style={{ left: pt.x - 44, top: pt.y - 44, width: 88, height: 88, touchAction: "none" }}>
-                    <div className="w-12 h-12 rounded-full bg-orange-400/25 flex items-center justify-center shadow-lg">
-                      <div className="w-8 h-8 rounded-full bg-orange-400 shadow-xl border-[3px] border-white" />
-                    </div>
+                    style={{ left: pt.x - 22, top: pt.y - 22, width: 44, height: 44, touchAction: "none" }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#d4d4dc', border: '1.5px solid rgba(255,255,255,0.95)', boxShadow: '0 1px 3px rgba(0,0,0,0.4)', flexShrink: 0 }} />
                   </div>
                 );
               })}
 
-              {/* Edge handles */}
+              {/* Edge handles — platinum pills */}
               {[
                 { key: "tc", pt: sd.mid.tc, horiz: !rot90or270 },
                 { key: "bc", pt: sd.mid.bc, horiz: !rot90or270 },
                 { key: "lc", pt: sd.mid.lc, horiz:  rot90or270 },
                 { key: "rc", pt: sd.mid.rc, horiz:  rot90or270 },
               ].map(({ key, pt, horiz }) => {
-                const tw = horiz ? 88 : 52, th = horiz ? 52 : 88;
-                const vw2 = horiz ? 36 : 14, vh2 = horiz ? 14 : 36;
+                const tw = horiz ? 44 : 32, th = horiz ? 32 : 44;
+                const vw2 = horiz ? 18 : 6, vh2 = horiz ? 6 : 18;
                 return (
                   <div key={key} className="absolute flex items-center justify-center z-10"
                     style={{ left: pt.x - tw / 2, top: pt.y - th / 2, width: tw, height: th, touchAction: "none" }}>
-                    <div className="bg-orange-400/20 rounded-full flex items-center justify-center shadow"
-                      style={{ width: vw2 + 14, height: vh2 + 14 }}>
-                      <div className="bg-orange-400 border-[3px] border-white shadow-lg"
-                        style={{ width: vw2, height: vh2, borderRadius: 999 }} />
-                    </div>
+                    <div style={{ width: vw2, height: vh2, borderRadius: 3, background: '#d4d4dc', border: '1.5px solid rgba(255,255,255,0.95)', boxShadow: '0 1px 3px rgba(0,0,0,0.4)', flexShrink: 0 }} />
                   </div>
                 );
               })}
