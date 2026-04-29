@@ -763,7 +763,7 @@ function MessageBubble({
 
   const bubbleBg = isSent ? theme.sentBg : theme.receivedBg;
   const bubbleText = isSent ? theme.sentText : theme.receivedText;
-  const bubbleSub = isSent ? "rgba(255,255,255,0.55)" : theme.subText;
+  const bubbleSub = theme.dark ? "rgba(236,236,239,0.6)" : "rgba(26,31,42,0.5)";
   const hasAtts = msg.attachments.length > 0;
 
   return (
@@ -2349,6 +2349,13 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
     return saved !== null ? saved === "true" : true;
   });
   const theme = getTheme(darkMode);
+
+  // Let the orb div bleed into iOS safe-area zones — body bg would otherwise show beige there
+  useEffect(() => {
+    const prev = document.body.style.backgroundColor;
+    document.body.style.backgroundColor = "transparent";
+    return () => { document.body.style.backgroundColor = prev; };
+  }, []);
 
   // displayContact lags behind selectedContact so ThreadView stays mounted during slide-out
   const [displayContact, setDisplayContact] = useState<Contact | null>(null);
