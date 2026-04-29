@@ -37,6 +37,7 @@ const GMAIL_SCOPE = [
 
 interface Theme {
   bg: string;
+  orbBg: string;
   header: string;
   cardBg: string;
   receivedBg: string;
@@ -57,38 +58,68 @@ function getTheme(dark: boolean): Theme {
   return dark
     ? {
         bg: "#0a0a0c",
-        header: "#0a0a0c",
-        cardBg: "#1c1c20",
-        receivedBg: "rgba(255,255,255,0.06)",
-        receivedText: "#e8e8ec",
-        sentBg: "#2a2a30",
-        sentText: "#e8e8ec",
-        subText: "#a0a0a8",
-        inputBg: "rgba(255,255,255,0.08)",
-        border: "rgba(255,255,255,0.08)",
-        pillBg: "rgba(255,255,255,0.08)",
-        searchBg: "rgba(255,255,255,0.08)",
-        avatarBg: "#2a2a30",
+        orbBg: [
+          "radial-gradient(ellipse at 20% 15%, #4a5060 0%, #2c3242 30%, transparent 60%)",
+          "radial-gradient(ellipse at 80% 85%, #3a4054 0%, #1c2030 35%, transparent 65%)",
+          "radial-gradient(ellipse at 50% 50%, #0a0c14 0%, transparent 50%)",
+          "#1c2030",
+        ].join(", "),
+        header: "rgba(28,32,48,0.82)",
+        cardBg: "rgba(40,45,60,0.55)",
+        receivedBg: "rgba(40,45,60,0.55)",
+        receivedText: "#ececef",
+        sentBg: "rgba(55,65,90,0.65)",
+        sentText: "#ececef",
+        subText: "#a0a8b8",
+        inputBg: "rgba(40,45,60,0.55)",
+        border: "rgba(255,255,255,0.1)",
+        pillBg: "rgba(40,45,60,0.55)",
+        searchBg: "rgba(40,45,60,0.55)",
+        avatarBg: "#3a4054",
         avatarText: "#d4d4dc",
         dark: true,
       }
     : {
         bg: "#ececef",
-        header: "#ececef",
-        cardBg: "#ffffff",
-        receivedBg: "rgba(26,26,31,0.06)",
-        receivedText: "#1a1a1f",
-        sentBg: "#2a2a30",
-        sentText: "#e8e8ec",
-        subText: "#6a6a72",
-        inputBg: "rgba(26,26,31,0.06)",
-        border: "rgba(0,0,0,0.06)",
-        pillBg: "rgba(26,26,31,0.06)",
-        searchBg: "rgba(26,26,31,0.06)",
+        orbBg: [
+          "radial-gradient(ellipse at 20% 15%, #e8ecf2 0%, #c8d0dc 30%, transparent 60%)",
+          "radial-gradient(ellipse at 80% 85%, #d8dee8 0%, #a8b0c0 35%, transparent 65%)",
+          "radial-gradient(ellipse at 50% 50%, #6a7388 0%, transparent 50%)",
+          "#b8c0cc",
+        ].join(", "),
+        header: "rgba(232,236,242,0.82)",
+        cardBg: "rgba(255,255,255,0.55)",
+        receivedBg: "rgba(255,255,255,0.55)",
+        receivedText: "#1a1f2a",
+        sentBg: "rgba(200,215,240,0.65)",
+        sentText: "#1a1f2a",
+        subText: "#4a5262",
+        inputBg: "rgba(255,255,255,0.55)",
+        border: "rgba(255,255,255,0.4)",
+        pillBg: "rgba(255,255,255,0.55)",
+        searchBg: "rgba(255,255,255,0.55)",
         avatarBg: "#2a2a30",
         avatarText: "#e8e8ec",
         dark: false,
       };
+}
+
+function glassStyle(dark: boolean): React.CSSProperties {
+  return {
+    backdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`,
+    WebkitBackdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`,
+    border: dark ? "0.5px solid rgba(255,255,255,0.1)" : "0.5px solid rgba(255,255,255,0.4)",
+    boxShadow: dark
+      ? "0 1px 0 rgba(255,255,255,0.08) inset, 0 4px 20px rgba(0,0,0,0.4)"
+      : "0 1px 0 rgba(255,255,255,0.7) inset, 0 4px 16px rgba(0,0,0,0.15)",
+  };
+}
+
+function orbTextStyle(dark: boolean): React.CSSProperties {
+  return {
+    color: "rgba(255,255,255,0.9)",
+    textShadow: dark ? "0 1px 2px rgba(0,0,0,0.5)" : "0 1px 2px rgba(0,0,0,0.3)",
+  };
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -367,7 +398,7 @@ function DateSeparator({ dateStr, theme }: { dateStr: string; theme: Theme }) {
   if (!label) return null;
   return (
     <div className="flex items-center justify-center my-3">
-      <div style={{ fontSize: 10, letterSpacing: '0.22em', color: theme.subText, textTransform: 'uppercase' }}>
+      <div style={{ fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', ...orbTextStyle(theme.dark) }}>
         {label}
       </div>
     </div>
@@ -443,7 +474,8 @@ function PdfThumbnail({
         width: 260, height: 160,
         background: theme.cardBg,
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8,
-        border: `1px solid ${theme.border}`,
+        ...glassStyle(theme.dark),
+        borderRadius: 0,
       }}
     >
       <div className="w-12 h-12 rounded-xl bg-red-500 flex items-center justify-center">
@@ -744,6 +776,7 @@ function MessageBubble({
             borderRadius: isSent ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
             overflow: "hidden",
             ...(hasAtts ? { width: 260 } : { maxWidth: "78%" }),
+            ...(!hasAtts && glassStyle(theme.dark)),
           }}
         >
           {/* Attachments — 260px uniform cards */}
@@ -798,7 +831,7 @@ function MessageBubble({
               return (
                 <div key={att.id} style={{ width: 260, borderRadius: 14, overflow: "hidden", marginBottom: 6 }}>
                   <button onClick={() => { if (isPdf(att)) onOpenPdf?.(att, msg.id); }} className="block active:opacity-80" style={{ width: 260 }}>
-                    <div style={{ width: 260, height: 160, background: theme.cardBg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, border: `1px solid ${theme.border}` }}>
+                    <div style={{ width: 260, height: 160, background: theme.cardBg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, ...glassStyle(theme.dark), borderRadius: 0 }}>
                       <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.15)" }}>
                         <FileText className="w-6 h-6 text-white" />
                       </div>
@@ -1077,6 +1110,9 @@ function ChatInput({
           paddingBottom: `max(${keyboardOffset + 8}px, calc(env(safe-area-inset-bottom) + 8px))`,
           background: theme.header,
           borderTop: `1px solid ${theme.border}`,
+          ...glassStyle(theme.dark),
+          borderRadius: 0,
+          boxShadow: "none",
         }}
       >
         <button
@@ -1373,9 +1409,9 @@ function ThreadView({
         onOpenConversation={() => setShowProfile(false)}
       />
     )}
-    <div className="flex flex-col h-full" style={{ background: theme.bg }}>
+    <div className="flex flex-col h-full" style={{ background: theme.orbBg }}>
       {/* Header — compact iOS style */}
-      <div style={{ flexShrink: 0, background: theme.header, borderBottom: `1px solid ${theme.border}`, paddingTop: "max(3rem, env(safe-area-inset-top))" }}>
+      <div style={{ flexShrink: 0, background: theme.header, borderBottom: `1px solid ${theme.border}`, paddingTop: "max(3rem, env(safe-area-inset-top))", ...glassStyle(theme.dark), borderRadius: 0, boxShadow: "none" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 8px 8px" }}>
           <button
             onClick={handleBackPress}
@@ -1433,14 +1469,14 @@ function ThreadView({
               placeholder="Search messages…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              style={{ width: "100%", height: 34, borderRadius: 10, border: "none", outline: "none", background: theme.searchBg, color: theme.receivedText, padding: "0 12px", fontSize: 14, boxSizing: "border-box" }}
+              style={{ width: "100%", height: 34, borderRadius: 10, outline: "none", background: theme.searchBg, color: theme.receivedText, padding: "0 12px", fontSize: 14, boxSizing: "border-box", ...glassStyle(theme.dark) }}
             />
           </div>
         )}
       </div>
 
       {/* Messages */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-4 messages-scroll" style={{ position: "relative" }}>
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-4 messages-scroll" style={{ position: "relative", background: "transparent" }}>
         {showLoadPill && (
           <div
             style={{
@@ -1507,6 +1543,9 @@ function ThreadView({
           gap: 10,
           borderTop: `1px solid ${theme.border}`,
           background: theme.header,
+          ...glassStyle(theme.dark),
+          borderRadius: 0,
+          boxShadow: "none",
         }}>
           <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: theme.subText }}>
             {selectedAttachments.size} selected
@@ -1861,7 +1900,7 @@ function ContactList({
 
 
   return (
-    <div className="flex flex-col h-full" style={{ background: theme.bg }}>
+    <div className="flex flex-col h-full" style={{ background: "transparent" }}>
       {/* Long-press action sheet */}
       <GlassModal
         open={!!longPressTarget}
@@ -1890,7 +1929,7 @@ function ContactList({
         </div>
       </GlassModal>
       {/* Header */}
-      <div style={{ background: theme.header, paddingTop: "max(3rem, env(safe-area-inset-top))", borderBottom: `1px solid ${theme.border}`, flexShrink: 0 }}>
+      <div style={{ background: theme.header, paddingTop: "max(3rem, env(safe-area-inset-top))", borderBottom: `1px solid ${theme.border}`, flexShrink: 0, ...glassStyle(theme.dark), borderRadius: 0, boxShadow: "none" }}>
         {/* Top row */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "0 16px 4px" }}>
           <div style={{ display: "flex", flexDirection: "column" }}>
@@ -1946,24 +1985,26 @@ function ContactList({
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{
-              width: "100%", height: 36, borderRadius: 10, border: "none", outline: "none",
+              width: "100%", height: 36, borderRadius: 10, outline: "none",
               background: theme.searchBg, color: theme.receivedText,
               paddingLeft: 32, paddingRight: 12, fontSize: 15,
               boxSizing: "border-box",
+              ...glassStyle(theme.dark),
             }}
           />
         </div>
 
         {/* Segmented tabs */}
         <div style={{ padding: "0 16px 12px" }}>
-          <div style={{ display: "flex", background: theme.pillBg, borderRadius: 9, padding: 2, position: "relative" }}>
+          <div style={{ display: "flex", background: theme.pillBg, borderRadius: 9, padding: 2, position: "relative", ...glassStyle(theme.dark) }}>
             <motion.div
               animate={{ x: inboxTab === "important" ? 2 : "calc(100% + 4px)" }}
               transition={{ type: "spring", stiffness: 400, damping: 35 }}
               style={{
                 position: "absolute", top: 2, bottom: 2, left: 0,
                 width: "calc(50% - 2px)", borderRadius: 7,
-                background: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
+                background: theme.dark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.9)",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
                 pointerEvents: "none",
               }}
             />
@@ -1998,7 +2039,7 @@ function ContactList({
       </div>
 
       {/* Contact list */}
-      <div ref={contactListRef} style={{ flex: 1, overflowY: "auto", background: theme.bg, paddingBottom: 80 }}>
+      <div ref={contactListRef} style={{ flex: 1, overflowY: "auto", background: "transparent", paddingBottom: 80 }}>
         {loading && contacts.length === 0 ? (
           <div style={{ padding: "8px 16px" }}>
             {[1, 2, 3, 4, 5].map(i => (
@@ -2034,7 +2075,7 @@ function ContactList({
                 const isOther = inboxTab === "other";
                 const isSelected = selectedEmails.has(c.email);
                 return (
-                  <div style={{ display: "block", WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>
+                  <div style={{ display: "block", WebkitTapHighlightColor: 'transparent', margin: "3px 12px" } as React.CSSProperties}>
                     <button
                       onClick={() => {
                         if (blockTaps) return;
@@ -2049,7 +2090,7 @@ function ContactList({
                         hapticLight();
                         onSelect(c);
                       }}
-                      style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "none", border: "none", cursor: "pointer", width: "100%", WebkitTapHighlightColor: 'transparent', outline: 'none' } as React.CSSProperties}
+                      style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: theme.cardBg, border: "none", cursor: "pointer", width: "100%", WebkitTapHighlightColor: 'transparent', outline: 'none', borderRadius: 14, ...glassStyle(theme.dark) } as React.CSSProperties}
                     >
                       {selectMode ? (
                         <div style={{ width: 22, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -2099,20 +2140,20 @@ function ContactList({
                         </>
                       )}
                     </button>
-                    <div style={{ marginLeft: 76, height: 1, background: theme.border }} />
+                    <div style={{ height: 0 }} />
                   </div>
                 );
               };
               return (
                 <>
                   {todayRows.length > 0 && (
-                    <div style={{ padding: "8px 16px 4px", fontSize: 11, fontWeight: 600, letterSpacing: 0.8, color: theme.subText, textTransform: "uppercase" }}>
+                    <div style={{ padding: "8px 16px 4px", fontSize: 11, fontWeight: 600, letterSpacing: 0.8, textTransform: "uppercase", ...orbTextStyle(theme.dark) }}>
                       Today · Recent
                     </div>
                   )}
                   {todayRows.map(c => <div key={c.email} style={{ WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>{renderRow(c)}</div>)}
                   {earlierRows.length > 0 && todayRows.length > 0 && (
-                    <div style={{ padding: "12px 16px 4px", fontSize: 11, fontWeight: 600, letterSpacing: 0.8, color: theme.subText, textTransform: "uppercase" }}>
+                    <div style={{ padding: "12px 16px 4px", fontSize: 11, fontWeight: 600, letterSpacing: 0.8, textTransform: "uppercase", ...orbTextStyle(theme.dark) }}>
                       Earlier
                     </div>
                   )}
@@ -2126,7 +2167,7 @@ function ContactList({
 
       {/* Select mode bottom action bar */}
       {selectMode && (
-        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 60, background: theme.header, borderTop: `1px solid ${theme.border}`, padding: `12px 16px max(16px, env(safe-area-inset-bottom))`, display: "flex", gap: 12 }}>
+        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 60, background: theme.header, borderTop: `1px solid ${theme.border}`, padding: `12px 16px max(16px, env(safe-area-inset-bottom))`, display: "flex", gap: 12, ...glassStyle(theme.dark), borderRadius: 0, boxShadow: "none" }}>
           {inboxTab === "other" ? (
             <button
               onClick={() => {
@@ -2162,12 +2203,13 @@ function ContactList({
           position: "fixed",
           bottom: "max(24px, env(safe-area-inset-bottom))",
           right: 20, width: 56, height: 56, borderRadius: 16,
-          background: theme.avatarBg, border: "none", cursor: "pointer",
+          background: "radial-gradient(at 30% 25%, #f8f8fc 0%, #b8b8c4 50%, #2c2c34 100%)",
+          border: "none", cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: "0 4px 16px rgba(0,0,0,0.18)", zIndex: 50,
+          boxShadow: "0 1px 0 rgba(255,255,255,0.5) inset, 0 4px 16px rgba(0,0,0,0.25)", zIndex: 50,
         }}
       >
-        <PenLine style={{ width: 22, height: 22, color: theme.avatarText }} />
+        <PenLine style={{ width: 22, height: 22, color: "#ffffff" }} />
       </AnimatedButton>
 
       {/* Compose sheet */}
@@ -2404,7 +2446,7 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
   return (
     <>
       <OfflineBanner />
-      <div className="flex flex-col" style={{ height: "100dvh", background: theme.bg }}>
+      <div className="flex flex-col" style={{ height: "100dvh", background: theme.orbBg }}>
         <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
           {/* ContactList — always mounted, never transformed */}
           <div style={{ position: "absolute", inset: 0, zIndex: 1, pointerEvents: selectedContact ? "none" : "auto" }}>

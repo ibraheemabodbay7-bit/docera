@@ -12,7 +12,10 @@
       "Bash(python3 *)",
       "Bash(node *)",
       "Bash(awk '/Begin PBXSourcesBuildPhase/,/End PBXSourcesBuildPhase/' /Users/user/Downloads/app_output/ios/App/App.xcodeproj/project.pbxproj)",
-      "Bash(awk *)"
+      "Bash(awk *)",
+      "Bash(git -C /Users/user/Desktop/app_output diff --stat HEAD client/src/pages/GmailInboxPage.tsx)",
+      "Bash(git -C /Users/user/Desktop/app_output diff HEAD client/src/pages/GmailInboxPage.tsx)",
+      "Bash(git -C /Users/user/Desktop/app_output status --short)"
     ]
   }
 }
