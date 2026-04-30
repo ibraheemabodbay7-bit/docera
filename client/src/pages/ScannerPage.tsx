@@ -389,7 +389,6 @@ export default function ScannerPage({
   singleImageCanvas, onEditedImage,
 }: ScannerPageProps) {
   const { toast } = useToast();
-  console.log("isNative:", Capacitor.isNativePlatform());
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -453,6 +452,21 @@ export default function ScannerPage({
   // svgDataRef: always-current mirror of svgData (set each render) so native
   // touch handlers can read handle screen positions without stale closures.
   const svgDataRef = useRef<{ qpx: Record<string, { x: number; y: number }>; mid: Record<string, { x: number; y: number }> } | null>(null);
+
+  // ── Live detection refs ───────────────────────────────────────────────────────
+  // cameraContainerRef: wraps the video element; used to read display dimensions
+  // for the object-cover coordinate mapping in the SVG overlay.
+  const cameraContainerRef = useRef<HTMLDivElement>(null);
+  // Smoothed quad from the live detection loop (EMA-filtered). Written by the
+  // detection interval, read by capture() to seed the initial crop quad.
+  const smoothedQuadRef = useRef<QuadPoints | null>(null);
+  // Consecutive null-detection count — overlay fades after 3 misses.
+  const liveDetNullCountRef = useRef(0);
+  // Guard flag — prevents overlapping detection runs when a frame takes > 100 ms.
+  const liveDetIsRunningRef = useRef(false);
+  // Ref mirror of detectionConfidence so capture() can read a non-stale value
+  // without adding the state to its useCallback dependency array.
+  const detectionConfidenceRef = useRef(0);
 
   // ── PERFORMANCE: local slider state, debounced commit to pages[] ────────────
   const [localStrength, setLocalStrength] = useState(60);
@@ -661,41 +675,85 @@ export default function ScannerPage({
     return () => { streamRef.current?.getTracks().forEach((t) => t.stop()); };
   }, [startCamera, editDocId]);
 
-  // ── Live document detection — samples a down-scaled video frame every 600 ms ──
-  // Computes the brightness contrast between the centre region and the outer border
-  // of the frame. A significant difference indicates a document (typically bright)
-  // against a contrasting background. The result drives the scanner overlay UI.
+  // ── Live document detection — runs detectDocumentCorners ~10× per second ────────
+  // Samples a downscaled video frame (≤800px), calls the full corner detector,
+  // and applies EMA smoothing so the SVG polygon overlay doesn't jitter.
+  // Guard flag (liveDetIsRunningRef) skips frames when detection takes > 100 ms.
   useEffect(() => {
-    if (stage !== "camera" || cameraError) {
-      setDocDetected("searching");
+    if (stage !== "camera" || cameraError || showReview) {
+      setLiveDetectedQuad(null);
+      setDetectionConfidence(0);
+      detectionConfidenceRef.current = 0;
+      smoothedQuadRef.current = null;
+      liveDetNullCountRef.current = 0;
       return;
     }
-    const analyze = () => {
+
+    const sampleCanvas = document.createElement("canvas");
+    const ctx = sampleCanvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return;
+
+    const detect = () => {
+      if (liveDetIsRunningRef.current) return;
       const video = videoRef.current;
       if (!video || video.readyState < 2 || video.videoWidth === 0) return;
+
+      liveDetIsRunningRef.current = true;
       try {
-        const W = 80, H = 60;
-        const tmp = document.createElement("canvas");
-        tmp.width = W; tmp.height = H;
-        const ctx = tmp.getContext("2d", { willReadFrequently: true });
-        if (!ctx) return;
+        const MAX_LIVE_DIM = 800;
+        const scale = Math.min(1, MAX_LIVE_DIM / Math.max(video.videoWidth, video.videoHeight));
+        const W = Math.max(1, Math.round(video.videoWidth * scale));
+        const H = Math.max(1, Math.round(video.videoHeight * scale));
+        if (sampleCanvas.width !== W) sampleCanvas.width = W;
+        if (sampleCanvas.height !== H) sampleCanvas.height = H;
         ctx.drawImage(video, 0, 0, W, H);
-        const { data } = ctx.getImageData(0, 0, W, H);
-        let cSum = 0, oSum = 0, cN = 0, oN = 0;
-        for (let y = 0; y < H; y++) {
-          for (let x = 0; x < W; x++) {
-            const idx = (y * W + x) * 4;
-            const b = data[idx] * 0.299 + data[idx + 1] * 0.587 + data[idx + 2] * 0.114;
-            const inC = x > W * 0.15 && x < W * 0.85 && y > H * 0.15 && y < H * 0.85;
-            if (inC) { cSum += b; cN++; } else { oSum += b; oN++; }
+
+        const result = detectDocumentCorners(sampleCanvas);
+
+        if (result) {
+          liveDetNullCountRef.current = 0;
+          const q = result.quad;
+          const prev = smoothedQuadRef.current;
+          if (!prev) {
+            smoothedQuadRef.current = { tl: { ...q.tl }, tr: { ...q.tr }, bl: { ...q.bl }, br: { ...q.br } };
+          } else {
+            const ALPHA = 0.35;
+            const lerp = (a: number, b: number) => ALPHA * b + (1 - ALPHA) * a;
+            smoothedQuadRef.current = {
+              tl: { x: lerp(prev.tl.x, q.tl.x), y: lerp(prev.tl.y, q.tl.y) },
+              tr: { x: lerp(prev.tr.x, q.tr.x), y: lerp(prev.tr.y, q.tr.y) },
+              bl: { x: lerp(prev.bl.x, q.bl.x), y: lerp(prev.bl.y, q.bl.y) },
+              br: { x: lerp(prev.br.x, q.br.x), y: lerp(prev.br.y, q.br.y) },
+            };
+          }
+          detectionConfidenceRef.current = 1;
+          setDetectionConfidence(1);
+          setLiveDetectedQuad({ ...smoothedQuadRef.current });
+        } else {
+          liveDetNullCountRef.current += 1;
+          if (liveDetNullCountRef.current >= 3) {
+            smoothedQuadRef.current = null;
+            detectionConfidenceRef.current = 0;
+            setDetectionConfidence(0);
+            setLiveDetectedQuad(null);
           }
         }
-        setDocDetected(Math.abs(cSum / cN - oSum / oN) > 18 ? "detected" : "searching");
-      } catch { /* ignore — frame not ready */ }
+      } catch { /* ignore — frame may not be ready */ }
+      finally {
+        liveDetIsRunningRef.current = false;
+      }
     };
-    const id = window.setInterval(analyze, 600);
-    return () => window.clearInterval(id);
-  }, [stage, cameraError]);
+
+    const id = window.setInterval(detect, 100);
+    return () => {
+      window.clearInterval(id);
+      setLiveDetectedQuad(null);
+      setDetectionConfidence(0);
+      detectionConfidenceRef.current = 0;
+      smoothedQuadRef.current = null;
+      liveDetNullCountRef.current = 0;
+    };
+  }, [stage, cameraError, showReview]);
 
   // ── Edit mode: fetch existing document and reconstruct pages ─────────────────
   // Runs once on mount when editDocId is provided. Fetches the document from the
@@ -850,8 +908,10 @@ export default function ScannerPage({
   const [captureFlash, setCaptureFlash] = useState(false);
   // Prevents double-taps while an async capture (ImageCapture.takePhoto) is in progress.
   const [capturing, setCapturing] = useState(false);
-  // "detected" when live frame analysis sees a bright rectangle in the guide frame.
-  const [docDetected, setDocDetected] = useState<"searching" | "detected">("searching");
+  // Smoothed corner output from the live detection loop; null when no document found.
+  const [liveDetectedQuad, setLiveDetectedQuad] = useState<QuadPoints | null>(null);
+  // Confidence ∈ [0,1] — drives SVG overlay opacity (fades out after 3 consecutive misses).
+  const [detectionConfidence, setDetectionConfidence] = useState(0);
 
   const capture = useCallback(() => {
     const video = videoRef.current;
@@ -865,6 +925,13 @@ export default function ScannerPage({
     const addPage = (raw: HTMLCanvasElement) => {
       const canvas = downscaleCanvas(raw);
       const page = makeScanPage(canvas);
+      // Seed the initial crop quad from the live-detected corners if confidence is
+      // high. The user sees a correctly-framed crop immediately without waiting for
+      // the post-capture full-resolution detection pass. runDetection() below will
+      // still refine it (manualCrop stays false so it can overwrite this seed).
+      if (detectionConfidenceRef.current > 0.5 && smoothedQuadRef.current) {
+        page.quad = { ...smoothedQuadRef.current };
+      }
       if (retakeIndex !== null) {
         setPages((prev) => prev.map((p, i) => i === retakeIndex ? page : p));
         setRetakeIndex(null);
@@ -1977,7 +2044,7 @@ export default function ScannerPage({
         </div>
 
         {/* ── Camera preview ── */}
-        <div className="flex-1 relative overflow-hidden">
+        <div ref={cameraContainerRef} className="flex-1 relative overflow-hidden">
           {cameraError
             ? <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8">
                 <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center">
@@ -2013,97 +2080,64 @@ export default function ScannerPage({
               />}
           {!cameraError && (
             <>
-              {/* Scanner animation keyframes */}
-              <style>{`
-                @keyframes docScanLine {
-                  0%   { top: 0%;   opacity: 0; }
-                  6%   { opacity: 1; }
-                  94%  { opacity: 1; }
-                  100% { top: 100%; opacity: 0; }
-                }
-                @keyframes docCornerPop {
-                  0%, 100% { transform: scale(1); }
-                  45%       { transform: scale(1.22); }
-                }
-                @keyframes docFrameGlow {
-                  0%, 100% { opacity: 0.65; }
-                  50%       { opacity: 1; }
-                }
-                @keyframes docBadgeFade {
-                  from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
-                  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
-                }
-              `}</style>
-
-              {/* Guide frame — colour and glow shift on detection */}
-              <div
-                className="absolute inset-x-6 inset-y-12 rounded-2xl pointer-events-none"
-                style={docDetected === "detected" ? {
-                  border: "2px solid rgba(59,130,246,0.9)",
-                  boxShadow: "0 0 0 1px rgba(59,130,246,0.2), inset 0 0 32px rgba(59,130,246,0.06)",
-                  animation: "docFrameGlow 1.8s ease-in-out infinite",
-                } : {
-                  border: "1px solid rgba(255,255,255,0.22)",
-                }}
-              >
-                {/* Corner brackets */}
-                {([
-                  "top-0 left-0 border-t-[3px] border-l-[3px] rounded-tl-xl",
-                  "top-0 right-0 border-t-[3px] border-r-[3px] rounded-tr-xl",
-                  "bottom-0 left-0 border-b-[3px] border-l-[3px] rounded-bl-xl",
-                  "bottom-0 right-0 border-b-[3px] border-r-[3px] rounded-br-xl",
-                ] as const).map((cls, i) => (
-                  <div
-                    key={i}
-                    className={`absolute w-7 h-7 ${cls}`}
-                    style={docDetected === "detected" ? {
-                      borderColor: "rgba(59,130,246,1)",
-                      animation: "docCornerPop 1.6s ease-in-out infinite",
-                      animationDelay: `${i * 0.13}s`,
-                    } : {
-                      borderColor: "rgba(255,255,255,0.85)",
-                    }}
-                  />
-                ))}
-
-                {/* Sweep scan line — only while searching */}
-                {docDetected === "searching" && (
-                  <div
-                    className="absolute left-0 right-0 h-[2px] pointer-events-none"
+              {/* Live document polygon overlay — tracks actual document edges via
+                  detectDocumentCorners running at ~10fps. Fades in/out smoothly.
+                  Coordinate mapping accounts for the video's object-cover scaling. */}
+              {liveDetectedQuad && (() => {
+                const container = cameraContainerRef.current;
+                const video = videoRef.current;
+                if (!container || !video || !video.videoWidth) return null;
+                const cW = container.clientWidth;
+                const cH = container.clientHeight;
+                const vW = video.videoWidth;
+                const vH = video.videoHeight;
+                // object-cover: largest scale that fills both dimensions
+                const scale = Math.max(cW / vW, cH / vH);
+                const rendW = vW * scale;
+                const rendH = vH * scale;
+                const xOff = (rendW - cW) / 2;
+                const yOff = (rendH - cH) / 2;
+                const toPx = (nx: number, ny: number) =>
+                  `${nx * rendW - xOff},${ny * rendH - yOff}`;
+                const q = liveDetectedQuad;
+                const corners: [number, number][] = [
+                  [q.tl.x, q.tl.y],
+                  [q.tr.x, q.tr.y],
+                  [q.br.x, q.br.y],
+                  [q.bl.x, q.bl.y],
+                ];
+                const polygonPoints = corners.map(([nx, ny]) => toPx(nx, ny)).join(' ');
+                return (
+                  <svg
+                    className="absolute inset-0 pointer-events-none"
                     style={{
-                      top: 0,
-                      background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.1) 10%, rgba(255,255,255,0.7) 40%, rgba(255,255,255,0.95) 50%, rgba(255,255,255,0.7) 60%, rgba(255,255,255,0.1) 90%, transparent 100%)",
-                      animation: "docScanLine 2.6s ease-in-out infinite",
-                    }}
-                  />
-                )}
-              </div>
-
-              {/* "Document detected" floating badge */}
-              {docDetected === "detected" && (
-                <div
-                  className="absolute pointer-events-none"
-                  style={{
-                    top: "calc(3rem + 14px)",
-                    left: "50%",
-                    animation: "docBadgeFade 0.3s ease-out forwards",
-                  }}
-                >
-                  <div
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full"
-                    style={{
-                      background: "rgba(37,99,235,0.88)",
-                      backdropFilter: "blur(8px)",
-                      transform: "translateX(-50%)",
+                      width: cW, height: cH,
+                      opacity: detectionConfidence,
+                      transition: "opacity 0.4s ease-out",
                     }}
                   >
-                    <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                    <span className="text-white font-semibold" style={{ fontSize: 11, letterSpacing: "0.04em" }}>
-                      Document detected
-                    </span>
-                  </div>
-                </div>
-              )}
+                    <polygon
+                      points={polygonPoints}
+                      fill="rgba(59,130,246,0.07)"
+                      stroke="#3b82f6"
+                      strokeWidth="2.5"
+                      strokeLinejoin="round"
+                    />
+                    {corners.map(([nx, ny], i) => {
+                      const cx = nx * rendW - xOff;
+                      const cy = ny * rendH - yOff;
+                      return (
+                        <circle key={i}
+                          cx={cx} cy={cy} r={5}
+                          fill="#3b82f6"
+                          stroke="rgba(255,255,255,0.9)"
+                          strokeWidth="1.5"
+                        />
+                      );
+                    })}
+                  </svg>
+                );
+              })()}
 
               {/* Capture flash */}
               {captureFlash && (
