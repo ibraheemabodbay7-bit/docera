@@ -27,6 +27,7 @@
 		"FilesystemPlugin",
 		"HapticsPlugin",
 		"SharePlugin",
+		"DocumentScannerPlugin",
 		"PurchasesPlugin",
 		"QuickLookPlugin"
 	]

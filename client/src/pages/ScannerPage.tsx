@@ -940,12 +940,32 @@ export default function ScannerPage({
           });
         }
         const canvas = await dataUrlToCanvas(dataUrl);
-        newPages.push(makeScanPage(canvas, isScreenshotLike(canvas)));
+        const page = makeScanPage(canvas, isScreenshotLike(canvas));
+
+        // Try Apple native document edge detection (iOS only, non-blocking fallback)
+        if (Capacitor.isNativePlatform() && (photo.path || photo.webPath)) {
+          try {
+            const { DocumentDetector } = await import("document-detector");
+            const nativePath = photo.path ?? photo.webPath;
+            const detected = await DocumentDetector.detectFromImage({ path: nativePath });
+            if (detected.quad) {
+              page.quad = detected.quad;
+              page.manualCrop = true; // protect native quad from JS detection overwrite
+            }
+          } catch {
+            // detector unavailable or failed — JS detection runs below
+          }
+        }
+
+        newPages.push(page);
       }
       if (!newPages.length) return;
       setPages((prev) => [...prev, ...newPages]);
       setStage("editor");
-      newPages.forEach((p, i) => setTimeout(() => runDetection(p), 80 + i * 60));
+      // Only run JS detection on pages where native detection didn't return a quad
+      newPages.forEach((p, i) => {
+        if (!p.manualCrop) setTimeout(() => runDetection(p), 80 + i * 60);
+      });
     } catch (err) {
       console.error("Gallery error:", err);
       const msg = err instanceof Error ? err.message : String(err);
