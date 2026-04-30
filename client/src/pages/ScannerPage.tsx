@@ -453,21 +453,6 @@ export default function ScannerPage({
   // touch handlers can read handle screen positions without stale closures.
   const svgDataRef = useRef<{ qpx: Record<string, { x: number; y: number }>; mid: Record<string, { x: number; y: number }> } | null>(null);
 
-  // ── Live detection refs ───────────────────────────────────────────────────────
-  // cameraContainerRef: wraps the video element; used to read display dimensions
-  // for the object-cover coordinate mapping in the SVG overlay.
-  const cameraContainerRef = useRef<HTMLDivElement>(null);
-  // Smoothed quad from the live detection loop (EMA-filtered). Written by the
-  // detection interval, read by capture() to seed the initial crop quad.
-  const smoothedQuadRef = useRef<QuadPoints | null>(null);
-  // Consecutive null-detection count — overlay fades after 3 misses.
-  const liveDetNullCountRef = useRef(0);
-  // Guard flag — prevents overlapping detection runs when a frame takes > 100 ms.
-  const liveDetIsRunningRef = useRef(false);
-  // Ref mirror of detectionConfidence so capture() can read a non-stale value
-  // without adding the state to its useCallback dependency array.
-  const detectionConfidenceRef = useRef(0);
-
   // ── PERFORMANCE: local slider state, debounced commit to pages[] ────────────
   const [localStrength, setLocalStrength] = useState(60);
   const strengthDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -675,86 +660,6 @@ export default function ScannerPage({
     return () => { streamRef.current?.getTracks().forEach((t) => t.stop()); };
   }, [startCamera, editDocId]);
 
-  // ── Live document detection — runs detectDocumentCorners ~10× per second ────────
-  // Samples a downscaled video frame (≤800px), calls the full corner detector,
-  // and applies EMA smoothing so the SVG polygon overlay doesn't jitter.
-  // Guard flag (liveDetIsRunningRef) skips frames when detection takes > 100 ms.
-  useEffect(() => {
-    if (stage !== "camera" || cameraError || showReview) {
-      setLiveDetectedQuad(null);
-      setDetectionConfidence(0);
-      detectionConfidenceRef.current = 0;
-      smoothedQuadRef.current = null;
-      liveDetNullCountRef.current = 0;
-      return;
-    }
-
-    const sampleCanvas = document.createElement("canvas");
-    const ctx = sampleCanvas.getContext("2d", { willReadFrequently: true });
-    if (!ctx) return;
-
-    const detect = () => {
-      if (liveDetIsRunningRef.current) return;
-      const video = videoRef.current;
-      if (!video || video.readyState < 2 || video.videoWidth === 0) return;
-
-      liveDetIsRunningRef.current = true;
-      try {
-        const MAX_LIVE_DIM = 800;
-        const scale = Math.min(1, MAX_LIVE_DIM / Math.max(video.videoWidth, video.videoHeight));
-        const W = Math.max(1, Math.round(video.videoWidth * scale));
-        const H = Math.max(1, Math.round(video.videoHeight * scale));
-        if (sampleCanvas.width !== W) sampleCanvas.width = W;
-        if (sampleCanvas.height !== H) sampleCanvas.height = H;
-        ctx.drawImage(video, 0, 0, W, H);
-
-        const result = detectDocumentCorners(sampleCanvas);
-
-        if (result) {
-          liveDetNullCountRef.current = 0;
-          const q = result.quad;
-          const prev = smoothedQuadRef.current;
-          if (!prev) {
-            smoothedQuadRef.current = { tl: { ...q.tl }, tr: { ...q.tr }, bl: { ...q.bl }, br: { ...q.br } };
-          } else {
-            const ALPHA = 0.35;
-            const lerp = (a: number, b: number) => ALPHA * b + (1 - ALPHA) * a;
-            smoothedQuadRef.current = {
-              tl: { x: lerp(prev.tl.x, q.tl.x), y: lerp(prev.tl.y, q.tl.y) },
-              tr: { x: lerp(prev.tr.x, q.tr.x), y: lerp(prev.tr.y, q.tr.y) },
-              bl: { x: lerp(prev.bl.x, q.bl.x), y: lerp(prev.bl.y, q.bl.y) },
-              br: { x: lerp(prev.br.x, q.br.x), y: lerp(prev.br.y, q.br.y) },
-            };
-          }
-          detectionConfidenceRef.current = 1;
-          setDetectionConfidence(1);
-          setLiveDetectedQuad({ ...smoothedQuadRef.current });
-        } else {
-          liveDetNullCountRef.current += 1;
-          if (liveDetNullCountRef.current >= 3) {
-            smoothedQuadRef.current = null;
-            detectionConfidenceRef.current = 0;
-            setDetectionConfidence(0);
-            setLiveDetectedQuad(null);
-          }
-        }
-      } catch { /* ignore — frame may not be ready */ }
-      finally {
-        liveDetIsRunningRef.current = false;
-      }
-    };
-
-    const id = window.setInterval(detect, 100);
-    return () => {
-      window.clearInterval(id);
-      setLiveDetectedQuad(null);
-      setDetectionConfidence(0);
-      detectionConfidenceRef.current = 0;
-      smoothedQuadRef.current = null;
-      liveDetNullCountRef.current = 0;
-    };
-  }, [stage, cameraError, showReview]);
-
   // ── Edit mode: fetch existing document and reconstruct pages ─────────────────
   // Runs once on mount when editDocId is provided. Fetches the document from the
   // DB, deserializes its pages JSON into ScanPage objects, then enters the editor.
@@ -908,10 +813,6 @@ export default function ScannerPage({
   const [captureFlash, setCaptureFlash] = useState(false);
   // Prevents double-taps while an async capture (ImageCapture.takePhoto) is in progress.
   const [capturing, setCapturing] = useState(false);
-  // Smoothed corner output from the live detection loop; null when no document found.
-  const [liveDetectedQuad, setLiveDetectedQuad] = useState<QuadPoints | null>(null);
-  // Confidence ∈ [0,1] — drives SVG overlay opacity (fades out after 3 consecutive misses).
-  const [detectionConfidence, setDetectionConfidence] = useState(0);
 
   const capture = useCallback(() => {
     const video = videoRef.current;
@@ -925,13 +826,6 @@ export default function ScannerPage({
     const addPage = (raw: HTMLCanvasElement) => {
       const canvas = downscaleCanvas(raw);
       const page = makeScanPage(canvas);
-      // Seed the initial crop quad from the live-detected corners if confidence is
-      // high. The user sees a correctly-framed crop immediately without waiting for
-      // the post-capture full-resolution detection pass. runDetection() below will
-      // still refine it (manualCrop stays false so it can overwrite this seed).
-      if (detectionConfidenceRef.current > 0.5 && smoothedQuadRef.current) {
-        page.quad = { ...smoothedQuadRef.current };
-      }
       if (retakeIndex !== null) {
         setPages((prev) => prev.map((p, i) => i === retakeIndex ? page : p));
         setRetakeIndex(null);
@@ -2044,7 +1938,7 @@ export default function ScannerPage({
         </div>
 
         {/* ── Camera preview ── */}
-        <div ref={cameraContainerRef} className="flex-1 relative overflow-hidden">
+        <div className="flex-1 relative overflow-hidden">
           {cameraError
             ? <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8">
                 <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center">
@@ -2078,72 +1972,8 @@ export default function ScannerPage({
                 disableRemotePlayback
                 className="w-full h-full object-cover"
               />}
-          {!cameraError && (
-            <>
-              {/* Live document polygon overlay — tracks actual document edges via
-                  detectDocumentCorners running at ~10fps. Fades in/out smoothly.
-                  Coordinate mapping accounts for the video's object-cover scaling. */}
-              {liveDetectedQuad && (() => {
-                const container = cameraContainerRef.current;
-                const video = videoRef.current;
-                if (!container || !video || !video.videoWidth) return null;
-                const cW = container.clientWidth;
-                const cH = container.clientHeight;
-                const vW = video.videoWidth;
-                const vH = video.videoHeight;
-                // object-cover: largest scale that fills both dimensions
-                const scale = Math.max(cW / vW, cH / vH);
-                const rendW = vW * scale;
-                const rendH = vH * scale;
-                const xOff = (rendW - cW) / 2;
-                const yOff = (rendH - cH) / 2;
-                const toPx = (nx: number, ny: number) =>
-                  `${nx * rendW - xOff},${ny * rendH - yOff}`;
-                const q = liveDetectedQuad;
-                const corners: [number, number][] = [
-                  [q.tl.x, q.tl.y],
-                  [q.tr.x, q.tr.y],
-                  [q.br.x, q.br.y],
-                  [q.bl.x, q.bl.y],
-                ];
-                const polygonPoints = corners.map(([nx, ny]) => toPx(nx, ny)).join(' ');
-                return (
-                  <svg
-                    className="absolute inset-0 pointer-events-none"
-                    style={{
-                      width: cW, height: cH,
-                      opacity: detectionConfidence,
-                      transition: "opacity 0.4s ease-out",
-                    }}
-                  >
-                    <polygon
-                      points={polygonPoints}
-                      fill="rgba(59,130,246,0.07)"
-                      stroke="#3b82f6"
-                      strokeWidth="2.5"
-                      strokeLinejoin="round"
-                    />
-                    {corners.map(([nx, ny], i) => {
-                      const cx = nx * rendW - xOff;
-                      const cy = ny * rendH - yOff;
-                      return (
-                        <circle key={i}
-                          cx={cx} cy={cy} r={5}
-                          fill="#3b82f6"
-                          stroke="rgba(255,255,255,0.9)"
-                          strokeWidth="1.5"
-                        />
-                      );
-                    })}
-                  </svg>
-                );
-              })()}
-
-              {/* Capture flash */}
-              {captureFlash && (
-                <div className="absolute inset-0 bg-white/60 pointer-events-none" />
-              )}
-            </>
+          {captureFlash && (
+            <div className="absolute inset-0 bg-white/60 pointer-events-none" />
           )}
         </div>
 
