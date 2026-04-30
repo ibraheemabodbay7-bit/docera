@@ -47,6 +47,12 @@ interface ScannerPageProps {
    * Defaults to "camera" (existing behavior).
    */
   entryMode?: "camera" | "gallery";
+  /**
+   * Pre-captured pages from Apple's VNDocumentCameraViewController.
+   * When provided, skips the camera and loads these file:// URIs directly into the editor.
+   * Images are already perspective-corrected by Apple — DEFAULT_QUAD is used as-is.
+   */
+  preCapturedFileUris?: string[];
 }
 
 /** Serializable form of a ScanPage stored in the DB for later re-editing */
@@ -392,7 +398,7 @@ const PageDots = memo(function PageDots({ count, current, onSelect }: PageDotsPr
 
 export default function ScannerPage({
   folderId, editDocId, clientId, onSaved, onCancel,
-  singleImageCanvas, onEditedImage, entryMode,
+  singleImageCanvas, onEditedImage, entryMode, preCapturedFileUris,
 }: ScannerPageProps) {
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -967,6 +973,30 @@ export default function ScannerPage({
     }, 50);
     return () => clearTimeout(t);
   }, [entryMode, nativeGallery, onCancel]);
+
+  // ── Native scanner pre-captured pages — fires once on mount when preCapturedFileUris is set ──
+  // Apple's VNDocumentCameraViewController already applied perspective correction.
+  // We load each file URI into a canvas, build ScanPages with DEFAULT_QUAD (no further
+  // warp needed), then jump straight to the editor. No runDetection — images are clean.
+  useEffect(() => {
+    if (!preCapturedFileUris || preCapturedFileUris.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const newPages: ScanPage[] = [];
+      for (const uri of preCapturedFileUris) {
+        if (cancelled) return;
+        const webUrl = Capacitor.convertFileSrc(uri);
+        const canvas = await dataUrlToCanvas(webUrl);
+        newPages.push(makeScanPage(canvas));
+      }
+      if (cancelled) return;
+      if (!newPages.length) { onCancel(); return; }
+      setPages(newPages);
+      setStage("editor");
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -1853,6 +1883,10 @@ export default function ScannerPage({
     // Gallery entry mode: photo picker is about to open — show blank rather than
     // flashing the camera UI for ~50ms before the native picker appears.
     if (entryMode === "gallery" && pages.length === 0) {
+      return <div className="fixed inset-0 bg-black" />;
+    }
+    // Native scanner mode: Apple's UI is open (or pages are loading) — stay black.
+    if (preCapturedFileUris && preCapturedFileUris.length > 0 && pages.length === 0) {
       return <div className="fixed inset-0 bg-black" />;
     }
 
