@@ -47,6 +47,11 @@ interface ScannerPageProps {
    * Defaults to "camera" (existing behavior).
    */
   entryMode?: "camera" | "gallery";
+  /**
+   * Pre-captured native file URIs from the @capgo document scanner.
+   * When provided, skip the camera and load these pages directly into the editor.
+   */
+  preCapturedFileUris?: string[];
 }
 
 /** Serializable form of a ScanPage stored in the DB for later re-editing */
@@ -392,7 +397,7 @@ const PageDots = memo(function PageDots({ count, current, onSelect }: PageDotsPr
 
 export default function ScannerPage({
   folderId, editDocId, clientId, onSaved, onCancel,
-  singleImageCanvas, onEditedImage, entryMode,
+  singleImageCanvas, onEditedImage, entryMode, preCapturedFileUris,
 }: ScannerPageProps) {
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -967,6 +972,27 @@ export default function ScannerPage({
     }, 50);
     return () => clearTimeout(t);
   }, [entryMode, nativeGallery, onCancel]);
+
+  // ── Pre-captured URIs entry — fires once on mount when preCapturedFileUris is set ──
+  // Converts native file:// URIs from @capgo scanner to canvas pages, then opens editor.
+  useEffect(() => {
+    if (!preCapturedFileUris || preCapturedFileUris.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const newPages: ScanPage[] = [];
+      for (const uri of preCapturedFileUris) {
+        if (cancelled) return;
+        const webUrl = Capacitor.convertFileSrc(uri);
+        const canvas = await dataUrlToCanvas(webUrl);
+        newPages.push(makeScanPage(canvas));
+      }
+      if (cancelled) return;
+      if (!newPages.length) { onCancel(); return; }
+      setPages(newPages);
+      setStage("editor");
+    })();
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -1853,6 +1879,10 @@ export default function ScannerPage({
     // Gallery entry mode: photo picker is about to open — show blank rather than
     // flashing the camera UI for ~50ms before the native picker appears.
     if (entryMode === "gallery" && pages.length === 0) {
+      return <div className="fixed inset-0 bg-black" />;
+    }
+    // Pre-captured URIs: loading pages into editor — show blank while processing.
+    if (preCapturedFileUris && preCapturedFileUris.length > 0 && pages.length === 0) {
       return <div className="fixed inset-0 bg-black" />;
     }
 

@@ -20,7 +20,7 @@ export type ActiveView = "inbox" | "chat" | "contacts" | "files" | "camera";
 
 type View =
   | { name: "home" }
-  | { name: "scanner"; folderId?: string; clientId?: string; entryMode?: "camera" | "gallery" }
+  | { name: "scanner"; folderId?: string; clientId?: string; entryMode?: "camera" | "gallery"; preCapturedFileUris?: string[] }
   | { name: "editor"; docId: string }
   | { name: "viewer"; docId: string }
   | { name: "folder"; folderId: string; folderName: string }
@@ -260,6 +260,22 @@ function AppWithAuth() {
     setView({ name: "scanner", entryMode: "gallery" });
   };
 
+  const goScannerNative = async () => {
+    if (!subscription.canUseGatedFeatures) {
+      setView({ name: "paywall", returnTo: { name: "home" }, lockedFeature: "Scanning" });
+      return;
+    }
+    setScanSheetOpen(false);
+    try {
+      const { DocumentScanner } = await import("@capgo/capacitor-document-scanner");
+      const result = await DocumentScanner.scanDocument();
+      if (!result.scannedImages?.length) return;
+      setView({ name: "scanner", preCapturedFileUris: result.scannedImages });
+    } catch {
+      // user cancelled or scanner unavailable — do nothing
+    }
+  };
+
   const goEditor = (docId: string) => {
     if (!subscription.canUseGatedFeatures) {
       setView({ name: "paywall", returnTo: { name: "home" }, lockedFeature: "Editing" });
@@ -329,6 +345,7 @@ function AppWithAuth() {
         folderId={view.folderId}
         clientId={view.clientId}
         entryMode={view.entryMode}
+        preCapturedFileUris={view.preCapturedFileUris}
         onSaved={goHome}
         onCancel={goHome}
       />
@@ -442,7 +459,7 @@ function AppWithAuth() {
 
             {/* Take Photo */}
             <button
-              onClick={() => goScanner()}
+              onClick={() => goScannerNative()}
               className="w-full flex items-center gap-4 rounded-2xl active:opacity-70"
               style={{ padding: "14px 16px", marginBottom: 2, background: "rgba(255,255,255,0.07)" }}
             >
