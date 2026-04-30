@@ -17,7 +17,9 @@
       "Bash(git -C /Users/user/Desktop/app_output diff HEAD client/src/pages/GmailInboxPage.tsx)",
       "Bash(git -C /Users/user/Desktop/app_output status --short)",
       "Bash(git fetch *)",
-      "Bash(git config *)"
+      "Bash(git config *)",
+      "Bash(wait)",
+      "Bash(kill %1)"
     ]
   }
 }
