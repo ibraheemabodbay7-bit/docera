@@ -29,6 +29,7 @@
 		"SharePlugin",
 		"DocumentScannerPlugin",
 		"PurchasesPlugin",
+		"DocumentDetectorPlugin",
 		"QuickLookPlugin"
 	]
 }

@@ -1,3 +1,6 @@
 .build/
 .swiftpm/
 *.resolved
+# Override root .gitignore — dist/ must be committed for Railway to resolve the package
+!dist/
+!dist/**

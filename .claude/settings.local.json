@@ -22,7 +22,10 @@
       "Bash(kill %1)",
       "Bash(wait 3199)",
       "Bash(echo \"done: $?\")",
-      "Bash(jobs -l)"
+      "Bash(jobs -l)",
+      "Bash(git rm *)",
+      "Bash(git -C /Users/user/Desktop/app_output ls-files plugins/document-detector/dist/)",
+      "Bash(git -C /Users/user/Desktop/app_output add plugins/document-detector/dist/ plugins/document-detector/.gitignore)"
     ]
   }
 }
