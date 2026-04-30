@@ -423,6 +423,13 @@ export default function ScannerPage({
   const [cropMode, setCropMode] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [showDeletePageConfirm, setShowDeletePageConfirm] = useState(false);
+
+  // ── Capture mode ─────────────────────────────────────────────────────────────
+  const [captureMode, setCaptureMode] = useState<'single' | 'batch'>('single');
+  const [showReview, setShowReview] = useState(false);
+  const [retakeIndex, setRetakeIndex] = useState<number | null>(null);
+  const [reviewDeleteIndex, setReviewDeleteIndex] = useState<number | null>(null);
+  const [showBatchDiscardConfirm, setShowBatchDiscardConfirm] = useState(false);
   const cropContainerRef = useRef<HTMLDivElement>(null);
   const cropImgRectRef = useRef<ImgRect>({ x: 0, y: 0, w: 1, h: 1 });
 
@@ -665,12 +672,12 @@ export default function ScannerPage({
     return () => { streamRef.current?.getTracks().forEach((t) => t.stop()); };
   }, [startCamera, editDocId, isNative]);
 
-  // ── Native: auto-open iOS camera immediately when entering camera stage ──
+  // ── Native: auto-open iOS camera when entering camera stage in single mode ──
   useEffect(() => {
-    if (stage === "camera" && isNative) {
+    if (stage === "camera" && isNative && captureMode === 'single') {
       nativeCapture();
     }
-  // nativeCapture is a stable useCallback; run only when stage/isNative changes
+  // captureMode intentionally excluded — only fire when stage/isNative changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, isNative]);
 
@@ -877,8 +884,20 @@ export default function ScannerPage({
     const addPage = (raw: HTMLCanvasElement) => {
       const canvas = downscaleCanvas(raw);
       const page = makeScanPage(canvas);
-      setPages((prev) => [...prev, page]);
-      runDetection(page);
+      if (captureMode === 'single') {
+        setPages((prev) => [...prev, page]);
+        stopCamera();
+        setCurrentIndex(0);
+        setStage("editor");
+        runDetection(page);
+      } else if (retakeIndex !== null) {
+        setPages((prev) => prev.map((p, i) => i === retakeIndex ? page : p));
+        setRetakeIndex(null);
+        runDetection(page);
+      } else {
+        setPages((prev) => [...prev, page]);
+        runDetection(page);
+      }
     };
 
     // Main async capture routine.
@@ -944,7 +963,7 @@ export default function ScannerPage({
     };
 
     doCapture().catch(() => { /* capture errors are non-fatal */ });
-  }, [runDetection, capturing]);
+  }, [runDetection, capturing, captureMode, retakeIndex, stopCamera]);
 
   const nativeCapture = useCallback(async () => {
     try {
@@ -957,9 +976,20 @@ export default function ScannerPage({
       if (photo.dataUrl) {
         const canvas = await dataUrlToCanvas(photo.dataUrl);
         const page = makeScanPage(canvas, isScreenshotLike(canvas));
-        setPages((prev) => [...prev, page]);
-        setStage("editor");
-        setTimeout(() => runDetection(page), 80);
+        if (captureMode === 'single') {
+          setPages((prev) => [...prev, page]);
+          setStage("editor");
+          setTimeout(() => runDetection(page), 80);
+        } else if (retakeIndex !== null) {
+          // Batch retake: replace page at retakeIndex
+          setPages((prev) => prev.map((p, i) => i === retakeIndex ? page : p));
+          setRetakeIndex(null);
+          setTimeout(() => runDetection(page), 80);
+        } else {
+          // Batch mode: add to pages, stay on camera stage
+          setPages((prev) => [...prev, page]);
+          setTimeout(() => runDetection(page), 80);
+        }
       }
     } catch (err) {
       console.error("Camera error:", err);
@@ -968,7 +998,7 @@ export default function ScannerPage({
         toast({ title: `Camera error: ${msg}`, variant: "destructive" });
       }
     }
-  }, [runDetection, toast]);
+  }, [captureMode, retakeIndex, runDetection, toast]);
 
   const nativeGallery = useCallback(async () => {
     try {
@@ -1893,65 +1923,213 @@ export default function ScannerPage({
   // ══════════════════════════════════════════════════════════════════════════
 
   if (stage === "camera") {
-    // ── Native iOS: camera opens immediately via useEffect; show minimal backdrop ──
+    // ── Native iOS: backdrop with mode toggle + batch controls ──
     if (isNative) {
+      // ── Review screen overlay ──
+      if (showReview) {
+        return (
+          <div className="fixed inset-0 bg-black flex flex-col z-50">
+            {/* Header */}
+            <div className="flex-shrink-0 flex items-center justify-between px-4"
+              style={{ paddingTop: "max(env(safe-area-inset-top), 1.5rem)", paddingBottom: "0.75rem" }}>
+              <button onClick={() => setShowReview(false)}
+                className="flex items-center gap-1 text-white active:opacity-60">
+                <ChevronLeft className="w-5 h-5" />
+                <span className="text-sm font-medium">Back</span>
+              </button>
+              <span className="text-white text-sm font-bold">Review ({pages.length} page{pages.length !== 1 ? 's' : ''})</span>
+              <button onClick={() => { setShowReview(false); setStage("editor"); }}
+                className="rounded-full px-4 py-1.5 active:opacity-70"
+                style={{ background: '#3b82f6' }}>
+                <span className="text-white text-sm font-semibold">Done</span>
+              </button>
+            </div>
+
+            {/* Page grid */}
+            <div className="flex-1 overflow-y-auto px-4" style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}>
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                {pages.map((page, i) => (
+                  <div key={page.id} className="relative rounded-2xl overflow-hidden"
+                    style={{ background: 'rgba(255,255,255,0.08)' }}>
+                    <img src={page.thumbUrl} alt="" className="w-full object-cover" style={{ height: 160 }} />
+                    <div className="absolute bottom-0 inset-x-0 px-2 py-2"
+                      style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%)' }}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-white text-xs font-semibold">Page {i + 1}</span>
+                        <div className="flex gap-1.5">
+                          <button onClick={() => { setRetakeIndex(i); setShowReview(false); }}
+                            className="w-7 h-7 rounded-full flex items-center justify-center active:opacity-60"
+                            style={{ background: 'rgba(255,255,255,0.2)' }}>
+                            <RotateCw className="w-3.5 h-3.5 text-white" />
+                          </button>
+                          <button onClick={() => setReviewDeleteIndex(i)}
+                            className="w-7 h-7 rounded-full flex items-center justify-center active:opacity-60"
+                            style={{ background: 'rgba(239,68,68,0.7)' }}>
+                            <Trash2 className="w-3.5 h-3.5 text-white" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Delete confirmation */}
+            {reviewDeleteIndex !== null && (
+              <div className="absolute inset-0 flex items-end z-10" style={{ background: 'rgba(0,0,0,0.6)' }}>
+                <div className="w-full rounded-t-3xl p-6" style={{ background: '#1c1c1e' }}>
+                  <p className="text-white text-center font-semibold mb-1">Delete Page {reviewDeleteIndex + 1}?</p>
+                  <p className="text-white/50 text-xs text-center mb-5">This page will be removed from your scan.</p>
+                  <button onClick={() => {
+                    const idx = reviewDeleteIndex;
+                    setReviewDeleteIndex(null);
+                    setPages((prev) => {
+                      const next = prev.filter((_, i) => i !== idx);
+                      if (next.length === 0) setShowReview(false);
+                      return next;
+                    });
+                  }} className="w-full py-3.5 rounded-2xl bg-red-500 text-white font-semibold text-sm mb-2 active:opacity-80">
+                    Delete
+                  </button>
+                  <button onClick={() => setReviewDeleteIndex(null)}
+                    className="w-full py-3.5 rounded-2xl text-white font-semibold text-sm active:opacity-80"
+                    style={{ background: 'rgba(255,255,255,0.1)' }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
       return (
         <div className="fixed inset-0 bg-black flex flex-col z-50">
+          {/* Discard confirm overlay */}
+          {showBatchDiscardConfirm && (
+            <div className="absolute inset-0 flex items-end z-10" style={{ background: 'rgba(0,0,0,0.6)' }}>
+              <div className="w-full rounded-t-3xl p-6" style={{ background: '#1c1c1e' }}>
+                <p className="text-white text-center font-semibold mb-1">
+                  Discard {pages.length} captured page{pages.length !== 1 ? 's' : ''}?
+                </p>
+                <p className="text-white/50 text-xs text-center mb-5">All captured pages will be lost.</p>
+                <button onClick={() => { setShowBatchDiscardConfirm(false); setPages([]); onCancel(); }}
+                  className="w-full py-3.5 rounded-2xl bg-red-500 text-white font-semibold text-sm mb-2 active:opacity-80">
+                  Discard
+                </button>
+                <button onClick={() => setShowBatchDiscardConfirm(false)}
+                  className="w-full py-3.5 rounded-2xl text-white font-semibold text-sm active:opacity-80"
+                  style={{ background: 'rgba(255,255,255,0.1)' }}>
+                  Keep Scanning
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Top bar */}
           <div className="flex-shrink-0 flex items-center justify-between px-5 pb-2"
             style={{ paddingTop: "max(env(safe-area-inset-top), 1.5rem)" }}>
-            <button data-testid="button-cancel" onClick={onCancel}
+            <button data-testid="button-cancel"
+              onClick={() => {
+                if (captureMode === 'batch' && pages.length > 0) {
+                  setShowBatchDiscardConfirm(true);
+                } else {
+                  onCancel();
+                }
+              }}
               className="text-white text-sm font-medium opacity-80 active:opacity-50 py-1 pr-3">Cancel</button>
             <p className="text-white text-sm font-semibold opacity-75">Scan Document</p>
-            {pages.length > 0
-              ? <button onClick={() => openEditor(pages.length - 1)}
-                  className="flex items-center gap-1 bg-white/20 rounded-xl px-3 py-1.5 active:bg-white/30">
-                  <span className="text-white text-xs font-bold">{pages.length} pg</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-white" />
-                </button>
-              : <div className="w-16" />}
+            <div className="w-16" />
           </div>
 
-          {/* Camera opening indicator */}
+          {/* Center content */}
           <div className="flex-1 flex flex-col items-center justify-center gap-4">
-            <div className="w-10 h-10 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-            <p className="text-white/50 text-sm">Opening camera…</p>
+            {captureMode === 'single' ? (
+              <>
+                <div className="w-10 h-10 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                <p className="text-white/50 text-sm">Opening camera…</p>
+              </>
+            ) : retakeIndex !== null ? (
+              <>
+                <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center">
+                  <RotateCw className="w-10 h-10 text-white/60" />
+                </div>
+                <p className="text-white/70 text-sm">Tap capture to retake page {retakeIndex + 1}</p>
+              </>
+            ) : pages.length > 0 ? (
+              <>
+                <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center">
+                  <Check className="w-10 h-10 text-white/60" />
+                </div>
+                <p className="text-white/50 text-sm">{pages.length} page{pages.length !== 1 ? 's' : ''} captured</p>
+              </>
+            ) : (
+              <>
+                <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center">
+                  <ImageIcon className="w-10 h-10 text-white/60" />
+                </div>
+                <p className="text-white/60 text-sm text-center">Tap the button below to scan</p>
+              </>
+            )}
           </div>
 
-          {/* Bottom bar: gallery corner button + captured thumbnails */}
-          <div className="flex-shrink-0 px-4 pb-8 flex items-end justify-between"
-            style={{ paddingBottom: "max(2rem, calc(env(safe-area-inset-bottom) + 1.25rem))" }}>
-            {/* Gallery button */}
-            <button
-              data-testid="button-native-gallery"
-              onClick={nativeGallery}
-              className="w-16 h-16 rounded-2xl bg-white/15 flex flex-col items-center justify-center gap-1 active:opacity-60">
-              <ImageIcon className="w-6 h-6 text-white" />
-              <span className="text-white text-[10px] font-semibold">Gallery</span>
-            </button>
-
-            {/* Captured thumbnails scroll */}
-            {pages.length > 0 && (
-              <div className="flex gap-2 overflow-x-auto scrollbar-none max-w-[60vw]">
-                {pages.map((p, i) => (
-                  <button key={p.id} onClick={() => openEditor(i)} className="relative flex-shrink-0 active:opacity-70">
-                    <img src={p.thumbUrl} alt="" className="w-12 rounded-xl object-cover bg-white/10" style={{ height: 64 }} />
-                    <div className="absolute bottom-1 left-1 bg-black/60 rounded px-1">
-                      <span className="text-white font-bold" style={{ fontSize: 9 }}>{i + 1}</span>
-                    </div>
+          {/* Bottom bar */}
+          <div className="flex-shrink-0 flex flex-col"
+            style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}>
+            {/* Mode toggle pill */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="flex" style={{ background: 'rgba(255,255,255,0.12)', borderRadius: 20, padding: 2 }}>
+                {(['single', 'batch'] as const).map((mode) => (
+                  <button key={mode} onClick={() => setCaptureMode(mode)}
+                    className={`px-4 py-1 rounded-full text-xs font-semibold transition-all ${captureMode === mode ? 'bg-white text-black' : 'text-white/60'}`}>
+                    {mode === 'single' ? 'Single' : 'Batch'}
                   </button>
                 ))}
               </div>
-            )}
+            </div>
 
-            {/* Edit all / placeholder right side */}
-            {pages.length > 0
-              ? <button onClick={() => openEditor(0)}
-                  className="flex-shrink-0 flex items-center gap-1.5 bg-white rounded-2xl px-4 py-2.5 active:opacity-80">
-                  <span className="text-black text-sm font-bold">Edit</span>
-                  <ChevronRight className="w-4 h-4 text-black" />
-                </button>
-              : <div className="w-16" />}
+            {/* Action row */}
+            <div className="flex items-center justify-between px-8"
+              style={{ paddingTop: "0.75rem", paddingBottom: "max(2.5rem, calc(env(safe-area-inset-bottom) + 1.25rem))" }}>
+              {/* LEFT: Gallery */}
+              <button data-testid="button-native-gallery" onClick={nativeGallery}
+                className="flex items-center justify-center active:opacity-60"
+                style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)' }}>
+                <ImageIcon className="w-5 h-5 text-white" />
+              </button>
+
+              {/* CENTER: Capture button */}
+              <button data-testid="button-capture" onClick={nativeCapture}
+                className="relative flex items-center justify-center active:scale-95 transition-transform"
+                style={{ width: 84, height: 84 }}>
+                <div className="absolute inset-0 rounded-full border-4 border-white opacity-90" />
+                <div style={{ width: 68, height: 68 }} className="rounded-full bg-white shadow-lg" />
+              </button>
+
+              {/* RIGHT: Done + Thumbnail (batch) or spacer */}
+              {captureMode === 'batch' && pages.length > 0 ? (
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setStage("editor")}
+                    className="flex items-center gap-1 rounded-full px-3 py-1.5 active:opacity-70"
+                    style={{ background: '#3b82f6' }}>
+                    <span className="text-white text-xs font-bold">Done</span>
+                    <ChevronRight className="w-3.5 h-3.5 text-white" />
+                  </button>
+                  <button onClick={() => setShowReview(true)} className="relative active:opacity-70">
+                    <img src={pages[pages.length - 1].thumbUrl} alt=""
+                      className="rounded-xl object-cover"
+                      style={{ width: 44, height: 56, border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.4)' }} />
+                    <div className="absolute flex items-center justify-center rounded-full bg-red-500"
+                      style={{ width: 18, height: 18, top: -4, right: -4 }}>
+                      <span className="text-white font-bold" style={{ fontSize: 9 }}>{pages.length}</span>
+                    </div>
+                  </button>
+                </div>
+              ) : (
+                <div style={{ width: 40 }} />
+              )}
+            </div>
           </div>
         </div>
       );
@@ -1962,17 +2140,113 @@ export default function ScannerPage({
       <div className="fixed inset-0 bg-black flex flex-col z-50">
         <input ref={fileInputRef} type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={handleFileChange} />
 
+        {/* ── Discard confirm overlay (batch mode) ── */}
+        {showBatchDiscardConfirm && (
+          <div className="absolute inset-0 flex items-end z-10" style={{ background: 'rgba(0,0,0,0.6)' }}>
+            <div className="w-full rounded-t-3xl p-6" style={{ background: '#1c1c1e' }}>
+              <p className="text-white text-center font-semibold mb-1">
+                Discard {pages.length} captured page{pages.length !== 1 ? 's' : ''}?
+              </p>
+              <p className="text-white/50 text-xs text-center mb-5">All captured pages will be lost.</p>
+              <button onClick={() => { setShowBatchDiscardConfirm(false); setPages([]); stopCamera(); onCancel(); }}
+                className="w-full py-3.5 rounded-2xl bg-red-500 text-white font-semibold text-sm mb-2 active:opacity-80">
+                Discard
+              </button>
+              <button onClick={() => setShowBatchDiscardConfirm(false)}
+                className="w-full py-3.5 rounded-2xl text-white font-semibold text-sm active:opacity-80"
+                style={{ background: 'rgba(255,255,255,0.1)' }}>
+                Keep Scanning
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Review screen overlay (batch mode) ── */}
+        {showReview && (
+          <div className="absolute inset-0 bg-black flex flex-col z-10">
+            <div className="flex-shrink-0 flex items-center justify-between px-4"
+              style={{ paddingTop: "max(env(safe-area-inset-top), 1.5rem)", paddingBottom: "0.75rem" }}>
+              <button onClick={() => setShowReview(false)}
+                className="flex items-center gap-1 text-white active:opacity-60">
+                <ChevronLeft className="w-5 h-5" />
+                <span className="text-sm font-medium">Back</span>
+              </button>
+              <span className="text-white text-sm font-bold">Review ({pages.length} page{pages.length !== 1 ? 's' : ''})</span>
+              <button onClick={() => { setShowReview(false); stopCamera(); setStage("editor"); }}
+                className="rounded-full px-4 py-1.5 active:opacity-70"
+                style={{ background: '#3b82f6' }}>
+                <span className="text-white text-sm font-semibold">Done</span>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 pb-6">
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                {pages.map((page, i) => (
+                  <div key={page.id} className="relative rounded-2xl overflow-hidden"
+                    style={{ background: 'rgba(255,255,255,0.08)' }}>
+                    <img src={page.thumbUrl} alt="" className="w-full object-cover" style={{ height: 160 }} />
+                    <div className="absolute bottom-0 inset-x-0 px-2 py-2"
+                      style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%)' }}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-white text-xs font-semibold">Page {i + 1}</span>
+                        <div className="flex gap-1.5">
+                          <button onClick={() => { setRetakeIndex(i); setShowReview(false); }}
+                            className="w-7 h-7 rounded-full flex items-center justify-center active:opacity-60"
+                            style={{ background: 'rgba(255,255,255,0.2)' }}>
+                            <RotateCw className="w-3.5 h-3.5 text-white" />
+                          </button>
+                          <button onClick={() => setReviewDeleteIndex(i)}
+                            className="w-7 h-7 rounded-full flex items-center justify-center active:opacity-60"
+                            style={{ background: 'rgba(239,68,68,0.7)' }}>
+                            <Trash2 className="w-3.5 h-3.5 text-white" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {reviewDeleteIndex !== null && (
+              <div className="absolute inset-0 flex items-end z-10" style={{ background: 'rgba(0,0,0,0.6)' }}>
+                <div className="w-full rounded-t-3xl p-6" style={{ background: '#1c1c1e' }}>
+                  <p className="text-white text-center font-semibold mb-1">Delete Page {reviewDeleteIndex + 1}?</p>
+                  <p className="text-white/50 text-xs text-center mb-5">This page will be removed from your scan.</p>
+                  <button onClick={() => {
+                    const idx = reviewDeleteIndex;
+                    setReviewDeleteIndex(null);
+                    setPages((prev) => {
+                      const next = prev.filter((_, i) => i !== idx);
+                      if (next.length === 0) setShowReview(false);
+                      return next;
+                    });
+                  }} className="w-full py-3.5 rounded-2xl bg-red-500 text-white font-semibold text-sm mb-2 active:opacity-80">
+                    Delete
+                  </button>
+                  <button onClick={() => setReviewDeleteIndex(null)}
+                    className="w-full py-3.5 rounded-2xl text-white font-semibold text-sm active:opacity-80"
+                    style={{ background: 'rgba(255,255,255,0.1)' }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── Top bar ── */}
         <div className="flex-shrink-0 flex items-center justify-between px-5 pb-2" style={{ paddingTop: "max(env(safe-area-inset-top), 1.5rem)" }}>
-          <button data-testid="button-cancel" onClick={onCancel} className="text-white text-sm font-medium opacity-80 active:opacity-50 py-1 pr-3">Cancel</button>
+          <button data-testid="button-cancel"
+            onClick={() => {
+              if (captureMode === 'batch' && pages.length > 0) {
+                setShowBatchDiscardConfirm(true);
+              } else {
+                stopCamera();
+                onCancel();
+              }
+            }}
+            className="text-white text-sm font-medium opacity-80 active:opacity-50 py-1 pr-3">Cancel</button>
           <p className="text-white text-sm font-semibold opacity-75">Scan Document</p>
-          {pages.length > 0
-            ? <button data-testid="button-open-editor" onClick={() => openEditor(pages.length - 1)}
-                className="flex items-center gap-1 bg-white/20 rounded-xl px-3 py-1.5 active:bg-white/30">
-                <span className="text-white text-xs font-bold">{pages.length} pg</span>
-                <ChevronRight className="w-3.5 h-3.5 text-white" />
-              </button>
-            : <div className="w-16" />}
+          <div className="w-16" />
         </div>
 
         {/* ── Camera preview ── */}
@@ -2133,55 +2407,67 @@ export default function ScannerPage({
           )}
         </div>
 
-        {/* ── Captured page thumbnails (above capture bar) ── */}
-        {pages.length > 0 && (
-          <div className="flex-shrink-0 bg-black/70 px-4 pt-2.5 pb-2.5 flex items-center gap-3">
-            <div className="flex-1 flex gap-2 overflow-x-auto scrollbar-none">
-              {pages.map((p, i) => (
-                <button key={p.id} data-testid={`thumb-${i}`} onClick={() => openEditor(i)} className="relative flex-shrink-0 active:opacity-70">
-                  <img src={p.thumbUrl} alt="" className="w-12 rounded-xl object-cover bg-white/10" style={{ height: 64 }} />
-                  <div className="absolute bottom-1 left-1 bg-black/60 rounded px-1">
-                    <span className="text-white font-bold" style={{ fontSize: 9 }}>{i + 1}</span>
-                  </div>
+        {/* ── Bottom capture bar ── */}
+        <div className="flex-shrink-0 flex flex-col"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}>
+          {/* Mode toggle pill */}
+          <div className="flex justify-center pt-3 pb-1">
+            <div className="flex" style={{ background: 'rgba(255,255,255,0.12)', borderRadius: 20, padding: 2 }}>
+              {(['single', 'batch'] as const).map((mode) => (
+                <button key={mode} onClick={() => setCaptureMode(mode)}
+                  className={`px-4 py-1 rounded-full text-xs font-semibold transition-all ${captureMode === mode ? 'bg-white text-black' : 'text-white/60'}`}>
+                  {mode === 'single' ? 'Single' : 'Batch'}
                 </button>
               ))}
             </div>
-            <button data-testid="button-edit-all" onClick={() => openEditor(0)}
-              className="flex-shrink-0 flex items-center gap-1.5 bg-white rounded-2xl px-4 py-2.5 active:opacity-80">
-              <span className="text-black text-sm font-bold">Edit All</span>
-              <ChevronRight className="w-4 h-4 text-black" />
-            </button>
           </div>
-        )}
 
-        {/* ── Bottom capture bar — fixed above safe-area ── */}
-        {/*  Extra 2.5rem ensures the bar clears the Replit mobile UI / browser controls */}
-        <div className="flex-shrink-0 flex items-center justify-between px-8"
-          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", paddingTop: "1rem", paddingBottom: "max(2.5rem, calc(env(safe-area-inset-bottom) + 1.25rem))" }}>
-          <button data-testid="button-library"
-            onClick={() => isNative ? nativeGallery() : fileInputRef.current?.click()}
-            className="w-16 h-16 rounded-2xl bg-white/20 flex flex-col items-center justify-center gap-1 active:opacity-60">
-            <ImageIcon className="w-6 h-6 text-white" />
-            <span className="text-white text-[10px] font-semibold">Gallery</span>
-          </button>
+          {/* Action row */}
+          <div className="flex items-center justify-between px-8"
+            style={{ paddingTop: "0.75rem", paddingBottom: "max(2.5rem, calc(env(safe-area-inset-bottom) + 1.25rem))" }}>
+            {/* LEFT: Gallery */}
+            <button data-testid="button-library"
+              onClick={() => isNative ? nativeGallery() : fileInputRef.current?.click()}
+              className="flex items-center justify-center active:opacity-60"
+              style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)' }}>
+              <ImageIcon className="w-5 h-5 text-white" />
+            </button>
 
-          <button data-testid="button-capture"
-            onClick={isNative ? nativeCapture : capture}
-            disabled={(!!cameraError && !isNative) || capturing}
-            className="relative flex items-center justify-center disabled:opacity-30 active:scale-95 transition-transform" style={{ width: 84, height: 84 }}>
-            <div className="absolute inset-0 rounded-full border-4 border-white opacity-90" />
-            {capturing
-              ? <div className="w-[68px] h-[68px] rounded-full bg-white/60 shadow-lg flex items-center justify-center">
-                  <div className="w-7 h-7 rounded-full border-[3px] border-black/30 border-t-black animate-spin" />
-                </div>
-              : <div className="w-[68px] h-[68px] rounded-full bg-white shadow-lg" />}
-          </button>
+            {/* CENTER: Capture button */}
+            <button data-testid="button-capture"
+              onClick={isNative ? nativeCapture : capture}
+              disabled={(!!cameraError && !isNative) || capturing}
+              className="relative flex items-center justify-center disabled:opacity-30 active:scale-95 transition-transform" style={{ width: 84, height: 84 }}>
+              <div className="absolute inset-0 rounded-full border-4 border-white opacity-90" />
+              {capturing
+                ? <div className="w-[68px] h-[68px] rounded-full bg-white/60 shadow-lg flex items-center justify-center">
+                    <div className="w-7 h-7 rounded-full border-[3px] border-black/30 border-t-black animate-spin" />
+                  </div>
+                : <div className="w-[68px] h-[68px] rounded-full bg-white shadow-lg" />}
+            </button>
 
-          <div className="w-16 h-16 flex flex-col items-center justify-center gap-1">
-            {pages.length > 0 && <>
-              <span className="text-white text-2xl font-bold leading-none">{pages.length}</span>
-              <span className="text-white/60 text-[10px] font-semibold">captured</span>
-            </>}
+            {/* RIGHT: Done + Thumbnail (batch) or spacer */}
+            {captureMode === 'batch' && pages.length > 0 ? (
+              <div className="flex items-center gap-2">
+                <button onClick={() => { stopCamera(); setStage("editor"); }}
+                  className="flex items-center gap-1 rounded-full px-3 py-1.5 active:opacity-70"
+                  style={{ background: '#3b82f6' }}>
+                  <span className="text-white text-xs font-bold">Done</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-white" />
+                </button>
+                <button onClick={() => setShowReview(true)} className="relative active:opacity-70">
+                  <img src={pages[pages.length - 1].thumbUrl} alt=""
+                    className="rounded-xl object-cover"
+                    style={{ width: 44, height: 56, border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.4)' }} />
+                  <div className="absolute flex items-center justify-center rounded-full bg-red-500"
+                    style={{ width: 18, height: 18, top: -4, right: -4 }}>
+                    <span className="text-white font-bold" style={{ fontSize: 9 }}>{pages.length}</span>
+                  </div>
+                </button>
+              </div>
+            ) : (
+              <div style={{ width: 40 }} />
+            )}
           </div>
         </div>
       </div>
