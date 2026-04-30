@@ -14,15 +14,13 @@ import ClientsPage from "./pages/ClientsPage";
 import GmailInboxPage from "./pages/GmailInboxPage";
 import AllDocumentsPage from "./pages/AllDocumentsPage";
 import { useSubscription } from "./hooks/use-subscription";
-import { useToast } from "@/hooks/use-toast";
 import { Loader2, Sparkles, X, Camera as CameraIcon, Image as ImageIcon } from "lucide-react";
-import { DocumentScanner } from "@/lib/documentScanner";
 
 export type ActiveView = "inbox" | "chat" | "contacts" | "files" | "camera";
 
 type View =
   | { name: "home" }
-  | { name: "scanner"; folderId?: string; clientId?: string; entryMode?: "camera" | "gallery"; preCapturedFileUris?: string[] }
+  | { name: "scanner"; folderId?: string; clientId?: string; entryMode?: "camera" | "gallery" }
   | { name: "editor"; docId: string }
   | { name: "viewer"; docId: string }
   | { name: "folder"; folderId: string; folderName: string }
@@ -120,7 +118,6 @@ function AppWithAuth() {
   const [inboxUnreadCount, setInboxUnreadCount] = useState(0);
   const [scanSheetOpen, setScanSheetOpen] = useState(false);
   const subscription = useSubscription();
-  const { toast } = useToast();
 
   useEffect(() => {
     initPurchases().catch(() => {});
@@ -263,29 +260,6 @@ function AppWithAuth() {
     setView({ name: "scanner", entryMode: "gallery" });
   };
 
-  const goScannerNative = async () => {
-    if (!subscription.canUseGatedFeatures) {
-      setView({ name: "paywall", returnTo: { name: "home" }, lockedFeature: "Scanning" });
-      return;
-    }
-    setScanSheetOpen(false);
-
-    // On web (dev/testing): fall back to the built-in camera view.
-    if (!Capacitor.isNativePlatform()) {
-      setView({ name: "scanner" });
-      return;
-    }
-
-    try {
-      const result = await DocumentScanner.scanDocument();
-      if (result.cancelled || !result.pages.length) return;
-      setView({ name: "scanner", preCapturedFileUris: result.pages.map((p) => p.fileUri) });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      toast({ title: `Scanner error: ${msg}`, variant: "destructive" });
-    }
-  };
-
   const goEditor = (docId: string) => {
     if (!subscription.canUseGatedFeatures) {
       setView({ name: "paywall", returnTo: { name: "home" }, lockedFeature: "Editing" });
@@ -355,7 +329,6 @@ function AppWithAuth() {
         folderId={view.folderId}
         clientId={view.clientId}
         entryMode={view.entryMode}
-        preCapturedFileUris={view.preCapturedFileUris}
         onSaved={goHome}
         onCancel={goHome}
       />
@@ -469,7 +442,7 @@ function AppWithAuth() {
 
             {/* Take Photo */}
             <button
-              onClick={() => goScannerNative()}
+              onClick={() => goScanner()}
               className="w-full flex items-center gap-4 rounded-2xl active:opacity-70"
               style={{ padding: "14px 16px", marginBottom: 2, background: "rgba(255,255,255,0.07)" }}
             >
