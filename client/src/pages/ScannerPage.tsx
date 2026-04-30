@@ -949,8 +949,15 @@ export default function ScannerPage({
             const nativePath = photo.path ?? photo.webPath;
             const detected = await DocumentDetector.detectFromImage({ path: nativePath });
             if (detected.quad) {
-              page.quad = detected.quad;
-              page.manualCrop = true; // protect native quad from JS detection overwrite
+              // Bake the warp into original/previewUrl so the editor preview matches
+              // the export output — same pattern as @capgo's already-corrected images.
+              // Reset quad to DEFAULT_QUAD so export-time perspectiveWarp is identity.
+              const warped = perspectiveWarp(page.original, detected.quad);
+              page.original = warped;
+              page.previewUrl = warped.toDataURL("image/jpeg", 0.88);
+              page.thumbUrl = makeThumbnail(warped, 240, 0.45);
+              page.quad = DEFAULT_QUAD;
+              page.manualCrop = true;
             }
           } catch {
             // detector unavailable or failed — JS detection runs below
