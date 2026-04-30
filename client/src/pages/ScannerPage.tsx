@@ -41,6 +41,12 @@ interface ScannerPageProps {
    * Receives the processed (warped + filtered + rotated) canvas and its JPEG data URL.
    */
   onEditedImage?: (canvas: HTMLCanvasElement, dataUrl: string) => void;
+  /**
+   * Entry mode: "gallery" skips the camera and immediately opens the photo picker.
+   * If the picker is cancelled or returns no photos, onCancel() is called.
+   * Defaults to "camera" (existing behavior).
+   */
+  entryMode?: "camera" | "gallery";
 }
 
 /** Serializable form of a ScanPage stored in the DB for later re-editing */
@@ -386,7 +392,7 @@ const PageDots = memo(function PageDots({ count, current, onSelect }: PageDotsPr
 
 export default function ScannerPage({
   folderId, editDocId, clientId, onSaved, onCancel,
-  singleImageCanvas, onEditedImage,
+  singleImageCanvas, onEditedImage, entryMode,
 }: ScannerPageProps) {
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -900,14 +906,17 @@ export default function ScannerPage({
     doCapture().catch(() => { /* capture errors are non-fatal */ });
   }, [runDetection, capturing, retakeIndex]);
 
-  const nativeGallery = useCallback(async () => {
+  const nativeGallery = useCallback(async (opts?: { onNoPhotos?: () => void }) => {
     try {
       const result = await Camera.pickImages({
         quality: 90,
         limit: 0,
       } as GalleryImageOptions);
       const photos = result.photos ?? [];
-      if (!photos.length) return;
+      if (!photos.length) {
+        opts?.onNoPhotos?.();
+        return;
+      }
       const newPages: ScanPage[] = [];
       for (const photo of photos) {
         const url = photo.webPath
@@ -935,11 +944,28 @@ export default function ScannerPage({
     } catch (err) {
       console.error("Gallery error:", err);
       const msg = err instanceof Error ? err.message : String(err);
-      if (!msg.toLowerCase().includes("cancel")) {
+      if (msg.toLowerCase().includes("cancel")) {
+        opts?.onNoPhotos?.();
+      } else {
         toast({ title: `Gallery error: ${msg}`, variant: "destructive" });
       }
     }
   }, [runDetection, toast]);
+
+  // ── Gallery entry mode — fires once on mount when entryMode === "gallery" ───────
+  // Opens the photo picker immediately instead of showing the camera. On cancel or
+  // zero selection, calls onCancel() to return to the previous screen.
+  useEffect(() => {
+    if (entryMode !== "gallery") return;
+    const t = setTimeout(() => {
+      if (Capacitor.isNativePlatform()) {
+        nativeGallery({ onNoPhotos: onCancel });
+      } else {
+        fileInputRef.current?.click();
+      }
+    }, 50);
+    return () => clearTimeout(t);
+  }, [entryMode, nativeGallery, onCancel]);
 
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -1823,6 +1849,12 @@ export default function ScannerPage({
   // ══════════════════════════════════════════════════════════════════════════
 
   if (stage === "camera") {
+    // Gallery entry mode: photo picker is about to open — show a blank screen
+    // rather than flashing the camera UI for ~50ms before the picker appears.
+    if (entryMode === "gallery" && pages.length === 0) {
+      return <div className="fixed inset-0 bg-black" />;
+    }
+
     // ── Unified camera: live viewfinder via getUserMedia (works on both web and native iOS/Android) ──
     return (
       <div className="fixed inset-0 bg-black flex flex-col z-50">

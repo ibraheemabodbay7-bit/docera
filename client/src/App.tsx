@@ -14,13 +14,13 @@ import ClientsPage from "./pages/ClientsPage";
 import GmailInboxPage from "./pages/GmailInboxPage";
 import AllDocumentsPage from "./pages/AllDocumentsPage";
 import { useSubscription } from "./hooks/use-subscription";
-import { Loader2, Sparkles, X } from "lucide-react";
+import { Loader2, Sparkles, X, Camera as CameraIcon, Image as ImageIcon } from "lucide-react";
 
 export type ActiveView = "inbox" | "chat" | "contacts" | "files" | "camera";
 
 type View =
   | { name: "home" }
-  | { name: "scanner"; folderId?: string; clientId?: string }
+  | { name: "scanner"; folderId?: string; clientId?: string; entryMode?: "camera" | "gallery" }
   | { name: "editor"; docId: string }
   | { name: "viewer"; docId: string }
   | { name: "folder"; folderId: string; folderName: string }
@@ -241,12 +241,24 @@ function AppWithAuth() {
 
   const goHome = () => setView({ name: "home" });
 
+  const [scanSheetOpen, setScanSheetOpen] = useState(false);
+
   const goScanner = (folderId?: string, clientId?: string) => {
     if (!subscription.canUseGatedFeatures) {
       setView({ name: "paywall", returnTo: { name: "home" }, lockedFeature: "Scanning" });
       return;
     }
+    setScanSheetOpen(false);
     setView({ name: "scanner", folderId, clientId });
+  };
+
+  const goScannerGallery = () => {
+    if (!subscription.canUseGatedFeatures) {
+      setView({ name: "paywall", returnTo: { name: "home" }, lockedFeature: "Scanning" });
+      return;
+    }
+    setScanSheetOpen(false);
+    setView({ name: "scanner", entryMode: "gallery" });
   };
 
   const goEditor = (docId: string) => {
@@ -317,6 +329,7 @@ function AppWithAuth() {
       <ScannerPage
         folderId={view.folderId}
         clientId={view.clientId}
+        entryMode={view.entryMode}
         onSaved={goHome}
         onCancel={goHome}
       />
@@ -396,7 +409,7 @@ function AppWithAuth() {
       {trialBannerEl}
       <HomePage
         user={user}
-        onScan={goScanner}
+        onScan={() => setScanSheetOpen(true)}
         onOpenDoc={goViewer}
         onEditDoc={goEditor}
         onOpenFolder={goFolder}
@@ -407,6 +420,70 @@ function AppWithAuth() {
         onLogout={handleLogout}
         onOpenAllDocs={goAllDocs}
       />
+      {/* Scan action sheet — appears when user taps the Scan button */}
+      {scanSheetOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end"
+          style={{ background: "rgba(0,0,0,0.6)" }}
+          onClick={() => setScanSheetOpen(false)}
+        >
+          <div
+            className="w-full rounded-t-3xl"
+            style={{
+              background: "#1c1c1e",
+              padding: "8px 16px",
+              paddingBottom: "max(1.5rem, calc(env(safe-area-inset-bottom) + 1rem))",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Drag handle */}
+            <div className="flex justify-center pt-2 pb-4">
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.2)" }} />
+            </div>
+
+            {/* Take Photo */}
+            <button
+              onClick={() => goScanner()}
+              className="w-full flex items-center gap-4 rounded-2xl active:opacity-70"
+              style={{ padding: "14px 16px", marginBottom: 2, background: "rgba(255,255,255,0.07)" }}
+            >
+              <div className="flex items-center justify-center rounded-full"
+                style={{ width: 44, height: 44, background: "rgba(59,130,246,0.18)", flexShrink: 0 }}>
+                <CameraIcon style={{ width: 22, height: 22, color: "#3b82f6" }} />
+              </div>
+              <div className="text-left">
+                <p style={{ color: "#ececef", fontSize: 16, fontWeight: 600, margin: 0 }}>Take Photo</p>
+                <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, margin: 0, marginTop: 1 }}>Use camera to scan a document</p>
+              </div>
+            </button>
+
+            {/* Choose from Gallery */}
+            <button
+              onClick={() => goScannerGallery()}
+              className="w-full flex items-center gap-4 rounded-2xl active:opacity-70"
+              style={{ padding: "14px 16px", marginBottom: 12, background: "rgba(255,255,255,0.07)" }}
+            >
+              <div className="flex items-center justify-center rounded-full"
+                style={{ width: 44, height: 44, background: "rgba(59,130,246,0.18)", flexShrink: 0 }}>
+                <ImageIcon style={{ width: 22, height: 22, color: "#3b82f6" }} />
+              </div>
+              <div className="text-left">
+                <p style={{ color: "#ececef", fontSize: 16, fontWeight: 600, margin: 0 }}>Choose from Gallery</p>
+                <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, margin: 0, marginTop: 1 }}>Import existing photos</p>
+              </div>
+            </button>
+
+            {/* Cancel */}
+            <button
+              onClick={() => setScanSheetOpen(false)}
+              className="w-full py-3.5 rounded-2xl active:opacity-70"
+              style={{ background: "rgba(255,255,255,0.1)", color: "#ececef", fontSize: 16, fontWeight: 600 }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
