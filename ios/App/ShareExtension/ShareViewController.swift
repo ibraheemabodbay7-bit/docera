@@ -180,14 +180,7 @@ class ShareViewController: UIViewController {
 
     private func openMainApp() {
         guard let url = URL(string: "docera://shared") else { return }
-        var responder = self as UIResponder?
-        while responder != nil {
-            if let application = responder as? UIApplication {
-                application.perform(#selector(UIApplication.open(_:options:completionHandler:)), with: url)
-                return
-            }
-            responder = responder?.next
-        }
+        extensionContext?.open(url, completionHandler: nil)
     }
 
     private func dismiss(after delay: TimeInterval) {
