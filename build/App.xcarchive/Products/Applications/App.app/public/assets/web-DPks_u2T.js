@@ -1,1 +1,0 @@
-import{W as n}from"./index-addwL2dv.js";class s extends n{async scanDocument(t){throw this.unimplemented("Document scanning is not supported on the web.")}async getPluginVersion(){return{version:"web"}}}export{s as DocumentScannerWeb};

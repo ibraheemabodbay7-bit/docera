@@ -901,12 +901,13 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
 
       {/* ── Share sheet ── */}
       {showShareSheet && (
-        <div className="fixed inset-0 z-[60] flex items-end" onClick={() => setShowShareSheet(false)}>
-          <div className="absolute inset-0 bg-black/50" />
-          <div className="relative w-full bg-card rounded-t-3xl px-5 pt-4 shadow-2xl"
-            style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
+        <div className="fixed inset-0 z-[60] flex items-end" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setShowShareSheet(false)}>
+          <div className="dark relative w-full rounded-t-3xl px-5 pt-4"
+            style={{ background: "#1c1c1e", paddingBottom: "max(1.5rem, calc(env(safe-area-inset-bottom) + 1rem))" }}
             onClick={(e) => e.stopPropagation()}>
-            <div className="w-10 h-1 bg-muted-foreground/30 rounded-full mx-auto mb-5" />
+            <div className="flex justify-center pt-2 pb-4">
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.2)" }} />
+            </div>
             <p className="text-sm font-bold text-foreground mb-1">Share document</p>
             <p className="text-xs text-muted-foreground mb-5 truncate">{doc?.name}</p>
             <div className="flex flex-col gap-3">
@@ -933,7 +934,8 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
               </button>
             </div>
             <button data-testid="button-share-cancel" onClick={() => setShowShareSheet(false)}
-              className="w-full mt-4 py-3 rounded-2xl text-sm font-semibold text-muted-foreground bg-muted active:opacity-70">
+              className="w-full mt-4 py-3.5 rounded-2xl active:opacity-70"
+              style={{ background: "rgba(255,255,255,0.1)", color: "#ececef", fontSize: 15, fontWeight: 600 }}>
               Cancel
             </button>
           </div>
@@ -942,16 +944,17 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
 
       {/* ── Email modal ── */}
       {showEmailModal && (
-        <div className="fixed inset-0 z-[60] flex items-end" onClick={() => { if (!sendEmail.isPending && !sendViaGmail.isPending) { setShowEmailModal(false); setEmailError(""); } }}>
-          <div className="absolute inset-0 bg-black/50" />
+        <div className="fixed inset-0 z-[60] flex items-end" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => { if (!sendEmail.isPending && !sendViaGmail.isPending) { setShowEmailModal(false); setEmailError(""); } }}>
           <div
-            className="relative w-full bg-card rounded-t-3xl shadow-2xl"
-            style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
+            className="dark relative w-full rounded-t-3xl"
+            style={{ background: "#1c1c1e", paddingBottom: "max(1.5rem, calc(env(safe-area-inset-bottom) + 1rem))" }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Handle + header */}
             <div className="pt-3 pb-4 px-5 border-b border-border">
-              <div className="w-10 h-1 bg-muted-foreground/30 rounded-full mx-auto mb-4" />
+              <div className="flex justify-center mb-4">
+                <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.2)" }} />
+              </div>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-base font-bold text-foreground">Send by Email</p>
@@ -1085,22 +1088,33 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
                 </button>
               )}
             </div>
+            <div className="px-5 pt-2">
+              <button
+                data-testid="button-email-cancel"
+                onClick={() => { if (!sendEmail.isPending && !sendViaGmail.isPending) { setShowEmailModal(false); setEmailError(""); } }}
+                disabled={sendEmail.isPending || sendViaGmail.isPending}
+                className="w-full py-3.5 rounded-2xl active:opacity-70 disabled:opacity-40"
+                style={{ background: "rgba(255,255,255,0.1)", color: "#ececef", fontSize: 15, fontWeight: 600 }}>
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* ── Info / Details sheet ── */}
       {showInfoSheet && (
-        <div className="fixed inset-0 z-[60] flex items-end" onClick={() => { setShowInfoSheet(false); setRenaming(false); }}>
-          <div className="absolute inset-0 bg-black/50" />
+        <div className="fixed inset-0 z-[60] flex items-end" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => { setShowInfoSheet(false); setRenaming(false); }}>
           <div
-            className="relative w-full bg-card rounded-t-3xl shadow-2xl flex flex-col max-h-[85vh]"
-            style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
+            className="dark relative w-full rounded-t-3xl flex flex-col max-h-[85vh]"
+            style={{ background: "#1c1c1e", paddingBottom: "max(1.5rem, calc(env(safe-area-inset-bottom) + 1rem))" }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Handle */}
             <div className="flex-shrink-0 pt-3 pb-2 px-5">
-              <div className="w-10 h-1 bg-muted-foreground/30 rounded-full mx-auto mb-3" />
+              <div className="flex justify-center mb-3">
+                <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.2)" }} />
+              </div>
               <div className="flex items-center justify-between">
                 <p className="text-base font-bold text-foreground">Document Details</p>
                 <button onClick={() => { setShowInfoSheet(false); setRenaming(false); }}
@@ -1312,21 +1326,31 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
                 )}
               </div>
             </div>
+            <div className="flex-shrink-0 px-5 pt-2">
+              <button
+                data-testid="button-info-done"
+                onClick={() => { setShowInfoSheet(false); setRenaming(false); }}
+                className="w-full py-3.5 rounded-2xl active:opacity-70"
+                style={{ background: "rgba(255,255,255,0.1)", color: "#ececef", fontSize: 15, fontWeight: 600 }}>
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* ── Client picker ── */}
       {showClientPicker && (
-        <div className="fixed inset-0 z-[70] flex items-end" onClick={() => setShowClientPicker(false)}>
-          <div className="absolute inset-0 bg-black/50" />
+        <div className="fixed inset-0 z-[70] flex items-end" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setShowClientPicker(false)}>
           <div
-            className="relative w-full bg-card rounded-t-3xl shadow-2xl max-h-[80vh] flex flex-col"
-            style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+            className="dark relative w-full rounded-t-3xl max-h-[80vh] flex flex-col"
+            style={{ background: "#1c1c1e", paddingBottom: "max(1rem, calc(env(safe-area-inset-bottom) + 1rem))" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex-shrink-0 pt-3 pb-4 px-5 border-b border-border">
-              <div className="w-10 h-1 bg-muted-foreground/30 rounded-full mx-auto mb-4" />
+              <div className="flex justify-center mb-4">
+                <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.2)" }} />
+              </div>
               <div className="flex items-center justify-between mb-3">
                 <p className="text-base font-bold text-foreground">Assign to Client</p>
                 <button onClick={() => setShowClientPicker(false)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
@@ -1375,6 +1399,15 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
                   </button>
                 ))
               )}
+            </div>
+            <div className="flex-shrink-0 px-5 pt-2">
+              <button
+                data-testid="button-client-picker-cancel"
+                onClick={() => setShowClientPicker(false)}
+                className="w-full py-3.5 rounded-2xl active:opacity-70"
+                style={{ background: "rgba(255,255,255,0.1)", color: "#ececef", fontSize: 15, fontWeight: 600 }}>
+                Cancel
+              </button>
             </div>
           </div>
         </div>
