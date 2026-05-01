@@ -1,0 +1,52 @@
+cd ~/Downloads/app_output && grep -A2 "QuickLookPlugin"                       
+  ios/App/App.xcodeproj/project.pbxproj | head -30                              
+
+⏺ Bash(cd ~/Downloads/app_output && grep -A2 "QuickLookPlugin"
+      ios/App/App.xcodeproj/project.pbxproj | head -30)
+  ⎿             CE9082692F9F779E008D8B3E /* QuickLookPlugin.m in Sources */ = {i
+     PBXBuildFile; fileRef = CE9082672F9F779E008D8B3E /* QuickLookPlugin.m
+     */; };
+                CE90826A2F9F779E008D8B3E /* QuickLookPlugin.swift in Sources */
+      = PBXBuildFile; fileRef = CE9082682F9F779E008D8B3E /*
+     QuickLookPlugin.swift */; };
+     /* End PBXBuildFile section */
+
+     --
+                CE9082672F9F779E008D8B3E /* QuickLookPlugin.m */ = {isa =
+     PBXFileReference; lastKnownFileType = sourcecode.c.objc; path =
+     QuickLookPlugin.m; sourceTree = "<group>"; };
+                CE9082682F9F779E008D8B3E /* QuickLookPlugin.swift */ = {isa =
+     PBXFileReference; lastKnownFileType = sourcecode.swift; path =
+     QuickLookPlugin.swift; sourceTree = "<group>"; };
+                CECA81A92F9A166E00B7B8A4 /* App-Bridging-Header.h */ = {isa =
+     PBXFileReference; lastKnownFileType = sourcecode.c.h; path =
+     "App-Bridging-Header.h"; sourceTree = "<group>"; };
+     /* End PBXFileReference section */
+     --
+                                CE9082672F9F779E008D8B3E /* QuickLookPlugin.m */
+                                CE9082682F9F779E008D8B3E /* QuickLookPlugin.swif
+                                504EC30B1FED79650016851F /* Main.storyboard */,
+                                504EC30E1FED79650016851F /* Assets.xcassets */,
+     --
+                                CE9082692F9F779E008D8B3E /* QuickLookPlugin.m in
+                                CE90826A2F9F779E008D8B3E /* QuickLookPlugin.swif
+                                504EC3081FED79650016851F /* AppDelegate.swift in
+                        );
+
+
+
+
+
+
+
+
+                                              02:05 PM claude-sonnet-4-6
+⏺ Everything looks correct:
+
+  - PBXBuildFile: both .m and .swift registered as Sources
+  - PBXFileReference: both files referenced with correct paths
+  - PBXGroup: both listed under the App group
+  - PBXSourcesBuildPhase: both included in the Sources build phase
+
+  No duplicates, no ghost entries. Cmd+B in Xcode should compile cleanly.
+

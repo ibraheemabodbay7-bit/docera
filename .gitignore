@@ -7,4 +7,5 @@ vite.config.ts.*
 .env
 .env.local
 .env.*
-!.env.examplebuild/
+!.env.example
+build/
