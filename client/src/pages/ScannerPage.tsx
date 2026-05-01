@@ -2097,13 +2097,8 @@ export default function ScannerPage({
           {/* Action row */}
           <div className="flex items-center justify-between px-8"
             style={{ paddingTop: "1rem", paddingBottom: "max(2.5rem, calc(env(safe-area-inset-bottom) + 1.25rem))" }}>
-            {/* LEFT: Gallery */}
-            <button data-testid="button-library"
-              onClick={() => isNative ? nativeGallery() : fileInputRef.current?.click()}
-              className="flex items-center justify-center active:opacity-60"
-              style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)' }}>
-              <ImageIcon className="w-5 h-5 text-white" />
-            </button>
+            {/* LEFT: spacer — gallery access is via action sheet */}
+            <div style={{ width: 40 }} />
 
             {/* CENTER: Capture button */}
             <button data-testid="button-capture"
@@ -2394,24 +2389,24 @@ export default function ScannerPage({
         {/* ── Page nav strip — below image ── */}
         {pages.length > 1 && (
           <div className="flex-shrink-0 flex items-center justify-center gap-2.5"
-            style={{ height: 36, background: 'rgba(0,0,0,0.45)' }}>
+            style={{ height: 36, background: dark ? 'rgba(0,0,0,0.45)' : 'rgba(240,243,248,0.88)' }}>
             <button
               data-testid="button-prev-page"
               onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
               disabled={currentIndex === 0}
-              style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: currentIndex === 0 ? 0.3 : 1, cursor: currentIndex === 0 ? 'default' : 'pointer', touchAction: 'manipulation', flexShrink: 0 }}>
-              <ChevronLeft className="w-4 h-4 text-white" />
+              style={{ width: 28, height: 28, borderRadius: 8, background: dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: currentIndex === 0 ? 0.3 : 1, cursor: currentIndex === 0 ? 'default' : 'pointer', touchAction: 'manipulation', flexShrink: 0 }}>
+              <ChevronLeft className="w-4 h-4" style={{ color: dark ? '#ececef' : '#1a1f2a' }} />
             </button>
             {Array.from({ length: Math.min(pages.length, 7) }, (_, i) => (
-              <div key={i} style={{ width: 4, height: 4, borderRadius: 2, background: i === currentIndex ? '#ececef' : 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
+              <div key={i} style={{ width: 4, height: 4, borderRadius: 2, background: i === currentIndex ? (dark ? '#ececef' : '#1a1f2a') : (dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)'), flexShrink: 0 }} />
             ))}
-            <span style={{ fontSize: 10, color: '#8a8a92', fontWeight: 500, flexShrink: 0 }}>{currentIndex + 1} of {pages.length}</span>
+            <span style={{ fontSize: 10, color: dark ? '#8a8a92' : '#4a4f5a', fontWeight: 500, flexShrink: 0 }}>{currentIndex + 1} of {pages.length}</span>
             <button
               data-testid="button-next-page"
               onClick={() => setCurrentIndex((i) => Math.min(pages.length - 1, i + 1))}
               disabled={currentIndex === pages.length - 1}
-              style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: currentIndex === pages.length - 1 ? 0.3 : 1, cursor: currentIndex === pages.length - 1 ? 'default' : 'pointer', touchAction: 'manipulation', flexShrink: 0 }}>
-              <ChevronRight className="w-4 h-4 text-white" />
+              style={{ width: 28, height: 28, borderRadius: 8, background: dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: currentIndex === pages.length - 1 ? 0.3 : 1, cursor: currentIndex === pages.length - 1 ? 'default' : 'pointer', touchAction: 'manipulation', flexShrink: 0 }}>
+              <ChevronRight className="w-4 h-4" style={{ color: dark ? '#ececef' : '#1a1f2a' }} />
             </button>
           </div>
         )}
