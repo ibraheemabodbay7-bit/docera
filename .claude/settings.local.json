@@ -42,7 +42,13 @@
       "Bash(git -C /Users/user/Desktop/app_output/ios/App log --oneline -5)",
       "Bash(git *)",
       "Bash(git -C /Users/user/Desktop/app_output/ios/App log --oneline)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Read(//Users/user/Library/Developer/Xcode/DerivedData/**)",
+      "Bash(plutil -p ~/Library/Developer/Xcode/DerivedData/App-dckdjnrzhukbrjfncttutudabxgb/Build/Products/Debug-iphoneos/App.app/Info.plist)",
+      "WebSearch",
+      "WebFetch(domain:liman.io)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:capawesome.io)"
     ]
   }
 }

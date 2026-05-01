@@ -179,8 +179,21 @@ class ShareViewController: UIViewController {
     }
 
     private func openMainApp() {
-        guard let url = URL(string: "docera://shared") else { return }
-        extensionContext?.open(url, completionHandler: nil)
+        guard let url = URL(string: "docera://shared") else {
+            NSLog("[Docera Share] URL parse failed")
+            return
+        }
+        let selector = NSSelectorFromString("open:options:completionHandler:")
+        var responder: UIResponder? = self
+        while responder != nil {
+            if (responder! as AnyObject).responds(to: selector) && responder !== self {
+                NSLog("[Docera Share] Found responder, calling open")
+                (responder! as AnyObject).perform(selector, with: url, with: nil)
+                return
+            }
+            responder = responder?.next
+        }
+        NSLog("[Docera Share] No responder found in chain")
     }
 
     private func dismiss(after delay: TimeInterval) {
