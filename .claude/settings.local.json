@@ -25,7 +25,17 @@
       "Bash(jobs -l)",
       "Bash(git rm *)",
       "Bash(git -C /Users/user/Desktop/app_output ls-files plugins/document-detector/dist/)",
-      "Bash(git -C /Users/user/Desktop/app_output add plugins/document-detector/dist/ plugins/document-detector/.gitignore)"
+      "Bash(git -C /Users/user/Desktop/app_output add plugins/document-detector/dist/ plugins/document-detector/.gitignore)",
+      "Bash(find /Users/user/Desktop/app_output/client/src -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" \\\\\\) -exec grep -l \"share\\\\|Share\" {} \\\\;)",
+      "Bash(find *)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(curl -s https://registry.npmjs.org/capacitor-receive-sharing-intent)",
+      "Bash(curl -s https://registry.npmjs.org/@candidosales/capacitor-receive-sharing-intent)",
+      "Bash(curl -s \"https://registry.npmjs.org/capacitor-receive-sharing-intent\")",
+      "Bash(curl -s \"https://registry.npmjs.org/@candidosales/capacitor-receive-sharing-intent\")",
+      "Bash(xargs cat *)",
+      "Bash(plutil -lint ios/App/App.xcodeproj/project.pbxproj)",
+      "Bash(open *)"
     ]
   }
 }
