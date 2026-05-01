@@ -8,6 +8,16 @@ export const DEFAULT_QUAD: QuadPoints = {
   br: { x: 0.9, y: 0.9 },
 };
 
+// True identity quad — use for pages that are already perspective-corrected
+// (Apple scanner output, pre-warped gallery imports) so processPage's
+// perspectiveWarp call produces no further crop.
+export const IDENTITY_QUAD: QuadPoints = {
+  tl: { x: 0, y: 0 },
+  tr: { x: 1, y: 0 },
+  br: { x: 1, y: 1 },
+  bl: { x: 0, y: 1 },
+};
+
 /**
  * Detect whether a canvas is likely a screenshot rather than a camera photo.
  * Screenshots have a very high proportion of near-white pixels (clean background)

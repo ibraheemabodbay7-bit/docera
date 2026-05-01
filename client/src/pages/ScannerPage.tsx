@@ -12,7 +12,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import {
-  type QuadPoints, DEFAULT_QUAD, perspectiveWarp, documentFilter, idFilter,
+  type QuadPoints, DEFAULT_QUAD, IDENTITY_QUAD, perspectiveWarp, documentFilter, idFilter,
   flipCanvas, noShadowFilter, isScreenshotLike, sharpenCanvas,
 } from "@/lib/imageProcessing";
 import { detectDocumentCorners } from "@/lib/documentDetection";
@@ -269,12 +269,12 @@ function makeThumbnail(canvas: HTMLCanvasElement, maxW = 480, quality = 0.82): s
   return out.toDataURL("image/jpeg", quality);
 }
 
-function makeScanPage(original: HTMLCanvasElement, isScreenshot = false): ScanPage {
+function makeScanPage(original: HTMLCanvasElement, isScreenshot = false, prewarped = false): ScanPage {
   return {
     id: makeId(), original,
     previewUrl: original.toDataURL("image/jpeg", 0.88),  // editor display — slightly higher than before
     thumbUrl: makeThumbnail(original, 240, 0.45),        // tiny strip thumbnail — cheap
-    quad: DEFAULT_QUAD,
+    quad: prewarped ? IDENTITY_QUAD : DEFAULT_QUAD,
     filterMode: "none", filterStrength: 60,
     rotation: 0, flipH: false, flipV: false,
     processedUrl: "",
@@ -956,7 +956,7 @@ export default function ScannerPage({
               page.original = warped;
               page.previewUrl = warped.toDataURL("image/jpeg", 0.88);
               page.thumbUrl = makeThumbnail(warped, 240, 0.45);
-              page.quad = DEFAULT_QUAD;
+              page.quad = IDENTITY_QUAD;
               page.manualCrop = true;
             }
           } catch {
@@ -1011,7 +1011,7 @@ export default function ScannerPage({
         if (cancelled) return;
         const webUrl = Capacitor.convertFileSrc(uri);
         const canvas = await dataUrlToCanvas(webUrl);
-        newPages.push(makeScanPage(canvas));
+        newPages.push(makeScanPage(canvas, false, true));
       }
       if (cancelled) return;
       if (!newPages.length) { onCancel(); return; }
