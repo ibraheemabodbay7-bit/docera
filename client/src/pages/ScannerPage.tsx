@@ -87,6 +87,8 @@ interface ScanPage {
   manualCrop: boolean;
   /** True when the source image is likely a screenshot (affects sharpness treatment in export) */
   isScreenshot: boolean;
+  /** Perspective-corrected preview URL for gallery pages detected by Apple — shown when not in crop mode */
+  warpedPreviewUrl?: string;
 }
 
 interface ImgRect { x: number; y: number; w: number; h: number }
@@ -456,6 +458,7 @@ export default function ScannerPage({
   currentIndexRef.current = currentIndex;
   const draggingCorner = useRef<string | null>(null);
   const isDraggingHandle = useRef(false);
+  const prevCropModeRef = useRef(false);
   // Quad captured at drag-START so the base is stable for the entire drag gesture.
   // This prevents a race where detection completes mid-drag and changes pages[].quad,
   // which would make the non-dragged corners appear to jump.
@@ -949,14 +952,13 @@ export default function ScannerPage({
             const nativePath = photo.path ?? photo.webPath;
             const detected = await DocumentDetector.detectFromImage({ path: nativePath });
             if (detected.quad) {
-              // Bake the warp into original/previewUrl so the editor preview matches
-              // the export output — same pattern as @capgo's already-corrected images.
-              // Reset quad to DEFAULT_QUAD so export-time perspectiveWarp is identity.
+              // Keep original intact so the user can re-adjust crop handles on the full photo.
+              // Store the warped result as warpedPreviewUrl — shown in the editor when not in
+              // crop mode. The save flow reads page.quad on the original, so processPage
+              // produces the correct output without ever touching warpedPreviewUrl.
               const warped = perspectiveWarp(page.original, detected.quad);
-              page.original = warped;
-              page.previewUrl = warped.toDataURL("image/jpeg", 0.88);
-              page.thumbUrl = makeThumbnail(warped, 240, 0.45);
-              page.quad = IDENTITY_QUAD;
+              page.warpedPreviewUrl = warped.toDataURL("image/jpeg", 0.88);
+              page.quad = detected.quad;
               page.manualCrop = true;
             }
           } catch {
@@ -1103,16 +1105,19 @@ export default function ScannerPage({
     if (currentPage.processedUrl) return; // already cached
     let cancelled = false;
     setProcessing(true);
-    const { original, filterMode, filterStrength } = currentPage;
+    const { original, quad, warpedPreviewUrl, filterMode, filterStrength } = currentPage;
     const idx = currentIndex;
     // Single setTimeout (80 ms) — enough to let the browser paint the processing
     // indicator before the heavy canvas work blocks the main thread.
     const tid = setTimeout(() => {
       if (cancelled) return;
+      // For gallery pages with Apple detection, filter the warped canvas so
+      // processedUrl shows the cropped document rather than the full original.
+      const base = warpedPreviewUrl ? perspectiveWarp(original, quad) : original;
       let processed: HTMLCanvasElement;
-      if (filterMode === "id") processed = idFilter(original);
-      else if (filterMode === "noshadow") processed = noShadowFilter(original, filterStrength);
-      else processed = documentFilter(original);
+      if (filterMode === "id") processed = idFilter(base);
+      else if (filterMode === "noshadow") processed = noShadowFilter(base, filterStrength);
+      else processed = documentFilter(base);
       const url = processed.toDataURL("image/jpeg", 0.85);
       if (!cancelled) {
         updatePageAt(idx, { processedUrl: url });
@@ -1184,9 +1189,12 @@ export default function ScannerPage({
 
   useEffect(() => {
     if (stage !== "editor" || !currentPage) return;
-    const { rotation, previewUrl, processedUrl, filterMode } = currentPage;
+    const { rotation, previewUrl, processedUrl, filterMode, warpedPreviewUrl } = currentPage;
     const needsCanvas = filterMode === "document" || filterMode === "id" || filterMode === "noshadow";
-    const src = (needsCanvas && processedUrl) ? processedUrl : previewUrl;
+    const inCropInteraction = cropMode || cropFullscreen;
+    const src = (needsCanvas && processedUrl && !inCropInteraction) ? processedUrl
+              : (!inCropInteraction && warpedPreviewUrl) ? warpedPreviewUrl
+              : previewUrl;
     if (!src) { setDisplayUrl(""); return; }
     if (rotation === 0) { setDisplayUrl(src); return; }
 
@@ -1221,7 +1229,8 @@ export default function ScannerPage({
     img.src = src;
     return () => { cancelled = true; };
   }, [stage, currentPage?.id, currentPage?.rotation, currentPage?.previewUrl,
-      currentPage?.processedUrl, currentPage?.filterMode]);
+      currentPage?.processedUrl, currentPage?.filterMode, currentPage?.warpedPreviewUrl,
+      cropMode, cropFullscreen]);
 
   // ── Keyboard navigation ────────────────────────────────────────────────────────
 
@@ -1592,6 +1601,21 @@ export default function ScannerPage({
     // so by the time it calls setPages the lock will already be cleared.
     runDetection(currentPage);
   }, [currentPage, currentIndex, updatePageAt, runDetection]);
+
+  // ── Regenerate warpedPreviewUrl when the user exits crop mode ─────────────────
+  // Reads current page via refs to avoid stale closure issues.
+
+  useEffect(() => {
+    if (prevCropModeRef.current && !cropMode) {
+      const idx = currentIndexRef.current;
+      const page = pagesRef.current[idx];
+      if (page && page.warpedPreviewUrl !== undefined) {
+        const warped = perspectiveWarp(page.original, page.quad);
+        updatePageAt(idx, { warpedPreviewUrl: warped.toDataURL("image/jpeg", 0.88), processedUrl: "" });
+      }
+    }
+    prevCropModeRef.current = cropMode;
+  }, [cropMode, updatePageAt]);
 
   // ── Filter / scope handlers (stable callbacks for FilterStrip memo) ────────────
 
@@ -2169,13 +2193,17 @@ export default function ScannerPage({
     const showCropOverlay = cropMode; // handles only visible when crop mode is active
 
     // Image display: use cached processedUrl for canvas-processed filters (document/id/noshadow),
+    // else use warpedPreviewUrl when not in a crop interaction (shows corrected result),
     // else fall back to previewUrl + CSS filter for auto/color, or raw for none.
+    const inCropInteraction = cropMode || cropFullscreen;
     const useProcUrl = (
       currentPage.filterMode === "document" ||
       currentPage.filterMode === "id" ||
       currentPage.filterMode === "noshadow"
-    ) && !!currentPage.processedUrl;
-    const imgSrc = useProcUrl ? currentPage.processedUrl : currentPage.previewUrl;
+    ) && !!currentPage.processedUrl && !inCropInteraction;
+    const imgSrc = useProcUrl ? currentPage.processedUrl
+                 : (!inCropInteraction && currentPage.warpedPreviewUrl) ? currentPage.warpedPreviewUrl
+                 : currentPage.previewUrl;
     const cssFilter = !useProcUrl && currentPage.filterMode !== "none" && currentPage.filterMode !== "noshadow"
       ? getFilterCSS(currentPage.filterMode, currentPage.filterStrength) : "";
 
