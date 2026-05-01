@@ -17,6 +17,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func applicationWillTerminate(_ application: UIApplication) {}
 
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+        if url.scheme == "docera" {
+            UserDefaults.standard.set(true, forKey: "shareIntentReceived")
+            UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "shareIntentTimestamp")
+            return true
+        }
         return ApplicationDelegateProxy.shared.application(app, open: url, options: options)
     }
 

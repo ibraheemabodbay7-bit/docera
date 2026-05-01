@@ -4,6 +4,7 @@ import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { initPurchases } from "@/lib/purchases";
 import { Capacitor } from "@capacitor/core";
+import { App as CapApp } from "@capacitor/app";
 import HomePage from "./pages/HomePage";
 import ScannerPage from "./pages/ScannerPage";
 import ViewerPage from "./pages/ViewerPage";
@@ -121,6 +122,16 @@ function AppWithAuth() {
 
   useEffect(() => {
     initPurchases().catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const listener = CapApp.addListener("appUrlOpen", (event) => {
+      if (event.url.startsWith("docera://")) {
+        alert("Share intent received: " + event.url);
+      }
+    });
+    return () => { listener.then((h) => h.remove()); };
   }, []);
 
   // Safety net: if subscription query hangs for more than 5 seconds, stop blocking the UI

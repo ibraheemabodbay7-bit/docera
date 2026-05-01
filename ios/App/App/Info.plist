@@ -66,6 +66,14 @@
 				<string>com.googleusercontent.apps.787920130380-25us11cn9ekfe14fbkoj4dntqf6i7hlk</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.docera.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>docera</string>
+			</array>
+		</dict>
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Used to scan documents</string>

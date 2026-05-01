@@ -163,6 +163,7 @@ class ShareViewController: UIViewController {
                 defaults?.set(existing, forKey: "pendingSharedFiles")
                 defaults?.synchronize()
             }
+            self.openMainApp()
             self.dismiss(after: 0.6)
         }
     }
@@ -175,6 +176,18 @@ class ShareViewController: UIViewController {
         if bytes[0] == 0x47 && bytes[1] == 0x49 { return ".gif" }
         if bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46 { return ".webp" }
         return ".jpg"
+    }
+
+    private func openMainApp() {
+        guard let url = URL(string: "docera://shared") else { return }
+        var responder = self as UIResponder?
+        while responder != nil {
+            if let application = responder as? UIApplication {
+                application.perform(#selector(UIApplication.open(_:options:completionHandler:)), with: url)
+                return
+            }
+            responder = responder?.next
+        }
     }
 
     private func dismiss(after delay: TimeInterval) {

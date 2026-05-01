@@ -35,7 +35,14 @@
       "Bash(curl -s \"https://registry.npmjs.org/@candidosales/capacitor-receive-sharing-intent\")",
       "Bash(xargs cat *)",
       "Bash(plutil -lint ios/App/App.xcodeproj/project.pbxproj)",
-      "Bash(open *)"
+      "Bash(open *)",
+      "Bash(git submodule *)",
+      "Bash(git ls-tree *)",
+      "Bash(git -C /Users/user/Desktop/app_output/ios/App ls-files ShareExtension/)",
+      "Bash(git -C /Users/user/Desktop/app_output/ios/App log --oneline -5)",
+      "Bash(git *)",
+      "Bash(git -C /Users/user/Desktop/app_output/ios/App log --oneline)",
+      "Read(//tmp/**)"
     ]
   }
 }
