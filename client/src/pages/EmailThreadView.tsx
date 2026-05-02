@@ -95,7 +95,7 @@ function EmailCard({
   const initials = (msg.fromName || msg.from)
     .split(/\s+/).map((w: string) => w[0]).slice(0, 2).join("").toUpperCase() || "?";
   const dateShort = msg.date
-    ? (() => { try { const d = new Date(msg.date); return isValid(d) ? format(d, "MMM d · h:mm a") : ""; } catch { return ""; } })()
+    ? (() => { try { const d = new Date(msg.date); if (!isValid(d)) return ""; const isCurrentYear = d.getFullYear() === new Date().getFullYear(); return format(d, isCurrentYear ? "MMM d · h:mm a" : "MMM d, yyyy · h:mm a"); } catch { return ""; } })()
     : "";
   const snippet = (msg.textBody || stripHtml(msg.htmlBody)).replace(/\s+/g, " ").trim().slice(0, 180);
 
@@ -422,7 +422,7 @@ export default function EmailThreadView({
               }
             }}
             rows={1}
-            className="flex-1 resize-none rounded-2xl bg-muted px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border-0 outline-none focus:ring-2 focus:ring-primary/30 max-h-32 overflow-y-auto"
+            className="flex-1 min-w-0 resize-none rounded-2xl bg-muted px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground border-0 outline-none focus:ring-2 focus:ring-primary/30 max-h-32 overflow-y-auto"
             style={{ minHeight: "44px" }}
           />
           <button
