@@ -164,7 +164,7 @@ class ShareViewController: UIViewController {
                 defaults?.synchronize()
             }
             self.openMainApp()
-            self.dismiss(after: 0.6)
+            // dismiss(after:) removed — alert OK button calls completeRequest
         }
     }
 
@@ -180,20 +180,38 @@ class ShareViewController: UIViewController {
 
     private func openMainApp() {
         guard let url = URL(string: "docera://shared") else {
-            NSLog("[Docera Share] URL parse failed")
+            showDiagnosticAlert(title: "URL parse failed", message: "Could not create docera://shared URL")
             return
         }
-        let selector = NSSelectorFromString("open:options:completionHandler:")
+
         var responder: UIResponder? = self
+        let selector = NSSelectorFromString("openURL:options:completionHandler:")
+
         while responder != nil {
             if (responder! as AnyObject).responds(to: selector) && responder !== self {
-                NSLog("[Docera Share] Found responder, calling open")
-                (responder! as AnyObject).perform(selector, with: url, with: nil)
+                showDiagnosticAlert(title: "Found responder", message: "Class: \(type(of: responder!)), calling open now")
+                (responder! as AnyObject).perform(selector, with: url, with: [:] as NSDictionary)
                 return
             }
             responder = responder?.next
         }
-        NSLog("[Docera Share] No responder found in chain")
+
+        showDiagnosticAlert(title: "No responder found", message: "Walked entire chain, nothing responded to selector")
+    }
+
+    private func showDiagnosticAlert(title: String, message: String) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
+            self.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
+        })
+
+        DispatchQueue.main.async {
+            if let rootVC = self.view.window?.rootViewController {
+                rootVC.present(alert, animated: true)
+            } else {
+                self.present(alert, animated: true)
+            }
+        }
     }
 
     private func dismiss(after delay: TimeInterval) {
