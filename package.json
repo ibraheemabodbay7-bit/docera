@@ -96,6 +96,7 @@
     "react-resizable-panels": "^2.1.7",
     "recharts": "^2.15.2",
     "resend": "^6.9.4",
+    "shared-files": "file:plugins/shared-files",
     "stripe": "^20.0.0",
     "stripe-replit-sync": "^1.0.0",
     "tailwind-merge": "^2.6.0",

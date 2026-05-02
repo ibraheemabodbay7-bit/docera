@@ -20,7 +20,8 @@ let package = Package(
         .package(name: "CapacitorShare", path: "../../../node_modules/@capacitor/share"),
         .package(name: "CapgoCapacitorDocumentScanner", path: "../../../node_modules/@capgo/capacitor-document-scanner"),
         .package(name: "RevenuecatPurchasesCapacitor", path: "../../../node_modules/@revenuecat/purchases-capacitor"),
-        .package(name: "DocumentDetector", path: "../../../plugins/document-detector")
+        .package(name: "DocumentDetector", path: "../../../plugins/document-detector"),
+        .package(name: "SharedFiles", path: "../../../plugins/shared-files")
     ],
     targets: [
         .target(
@@ -36,7 +37,8 @@ let package = Package(
                 .product(name: "CapacitorShare", package: "CapacitorShare"),
                 .product(name: "CapgoCapacitorDocumentScanner", package: "CapgoCapacitorDocumentScanner"),
                 .product(name: "RevenuecatPurchasesCapacitor", package: "RevenuecatPurchasesCapacitor"),
-                .product(name: "DocumentDetector", package: "DocumentDetector")
+                .product(name: "DocumentDetector", package: "DocumentDetector"),
+                .product(name: "SharedFiles", package: "SharedFiles")
             ]
         )
     ]

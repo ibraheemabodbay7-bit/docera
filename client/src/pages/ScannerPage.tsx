@@ -1033,76 +1033,71 @@ export default function ScannerPage({
   // Images: gallery-style load with auto-detection. PDFs: PDF.js page rendering.
   useEffect(() => {
     if (!sharedFileUris || sharedFileUris.length === 0) return;
-    alert("[Scanner-1] sharedFileUris useEffect fired with " + sharedFileUris.length + " uris");
     let cancelled = false;
     (async () => {
-      try {
-        alert("[Scanner-2] Starting to process files");
-        const newPages: ScanPage[] = [];
-        const imageExts = [".jpg", ".jpeg", ".png", ".heic", ".gif", ".webp"];
+      const newPages: ScanPage[] = [];
+      const imageExts = [".jpg", ".jpeg", ".png", ".heic", ".gif", ".webp"];
 
-        for (const uri of sharedFileUris) {
-          if (cancelled) return;
-          const lower = uri.toLowerCase();
+      for (const uri of sharedFileUris) {
+        if (cancelled) return;
+        const lower = uri.toLowerCase();
 
-          if (imageExts.some((e) => lower.endsWith(e))) {
-            // ── Image: same path as nativeGallery — load canvas, run detection ──
+        if (imageExts.some((e) => lower.endsWith(e))) {
+          // ── Image: same path as nativeGallery — load canvas, run detection ──
+          const webUrl = Capacitor.convertFileSrc(uri);
+          const canvas = await dataUrlToCanvas(webUrl);
+          const page = makeScanPage(canvas, false, false); // prewarped=false, allow detection
+
+          // Try Apple native document edge detection first
+          try {
+            const { DocumentDetector } = await import("document-detector");
+            const nativePath = uri.replace(/^file:\/\//, "");
+            const detected = await DocumentDetector.detectFromImage({ path: nativePath });
+            if (detected.quad) {
+              const warped = perspectiveWarp(canvas, detected.quad);
+              page.warpedPreviewUrl = warped.toDataURL("image/jpeg", 0.88);
+              page.quad = detected.quad;
+              page.manualCrop = true;
+            }
+          } catch {
+            // Native detection unavailable — JS fallback runs via runDetection below
+          }
+
+          newPages.push(page);
+
+        } else if (lower.endsWith(".pdf")) {
+          // ── PDF: render each page via PDF.js as a pre-cropped canvas ──
+          try {
+            const pdfjsLib = await import("pdfjs-dist");
+            pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+              "pdfjs-dist/build/pdf.worker.min.mjs",
+              import.meta.url,
+            ).href;
+
             const webUrl = Capacitor.convertFileSrc(uri);
-            const canvas = await dataUrlToCanvas(webUrl);
-            const page = makeScanPage(canvas, false, false); // prewarped=false, allow detection
+            const response = await fetch(webUrl);
+            const bytes = await response.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
 
-            // Try Apple native document edge detection first
-            try {
-              const { DocumentDetector } = await import("document-detector");
-              const nativePath = uri.replace(/^file:\/\//, "");
-              const detected = await DocumentDetector.detectFromImage({ path: nativePath });
-              if (detected.quad) {
-                const warped = perspectiveWarp(canvas, detected.quad);
-                page.warpedPreviewUrl = warped.toDataURL("image/jpeg", 0.88);
-                page.quad = detected.quad;
-                page.manualCrop = true;
-              }
-            } catch {
-              // Native detection unavailable — JS fallback runs via runDetection below
+            for (let i = 1; i <= pdf.numPages; i++) {
+              if (cancelled) return;
+              const pdfPage = await pdf.getPage(i);
+              const viewport = pdfPage.getViewport({ scale: 2.0 });
+              const canvas = document.createElement("canvas");
+              canvas.width = viewport.width;
+              canvas.height = viewport.height;
+              const ctx = canvas.getContext("2d")!;
+              await pdfPage.render({ canvasContext: ctx, viewport }).promise;
+              newPages.push(makeScanPage(canvas, false, true)); // prewarped=true, no detection
             }
-
-            newPages.push(page);
-
-          } else if (lower.endsWith(".pdf")) {
-            // ── PDF: render each page via PDF.js as a pre-cropped canvas ──
-            try {
-              const pdfjsLib = await import("pdfjs-dist");
-              pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-                "pdfjs-dist/build/pdf.worker.min.mjs",
-                import.meta.url,
-              ).href;
-
-              const webUrl = Capacitor.convertFileSrc(uri);
-              const response = await fetch(webUrl);
-              const bytes = await response.arrayBuffer();
-              const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
-
-              for (let i = 1; i <= pdf.numPages; i++) {
-                if (cancelled) return;
-                const pdfPage = await pdf.getPage(i);
-                const viewport = pdfPage.getViewport({ scale: 2.0 });
-                const canvas = document.createElement("canvas");
-                canvas.width = viewport.width;
-                canvas.height = viewport.height;
-                const ctx = canvas.getContext("2d")!;
-                await pdfPage.render({ canvasContext: ctx, viewport }).promise;
-                newPages.push(makeScanPage(canvas, false, true)); // prewarped=true, no detection
-              }
-            } catch {
-              // PDF failed to load — skip this file
-            }
+          } catch {
+            // PDF failed to load — skip this file
           }
         }
+      }
 
-        alert("[Scanner-3] Processed all files, " + newPages.length + " pages created");
-
-        if (cancelled) return;
-        if (!newPages.length) { onCancel(); return; }
+      if (cancelled) return;
+      if (!newPages.length) { onCancel(); return; }
 
       setPages(newPages);
       setStage("editor");
@@ -1111,9 +1106,6 @@ export default function ScannerPage({
       newPages.forEach((p, i) => {
         if (!p.manualCrop) setTimeout(() => runDetection(p), 80 + i * 60);
       });
-      } catch (e: any) {
-        alert("[Scanner-ERROR] " + (e?.message || String(e)));
-      }
     })();
     return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

@@ -1,0 +1,22 @@
+{
+  "name": "shared-files",
+  "version": "1.0.0",
+  "description": "Capacitor plugin for reading pending shared files from the iOS App Group container",
+  "main": "dist/plugin.cjs.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/esm/index.d.ts",
+  "files": [
+    "ios/Sources",
+    "dist/",
+    "Package.swift"
+  ],
+  "keywords": ["capacitor", "plugin", "native"],
+  "peerDependencies": {
+    "@capacitor/core": ">=8.0.0"
+  },
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    }
+  }
+}

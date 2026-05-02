@@ -17,7 +17,6 @@
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		CE9082692F9F779E008D8B3E /* QuickLookPlugin.m in Sources */ = {isa = PBXBuildFile; fileRef = CE9082672F9F779E008D8B3E /* QuickLookPlugin.m */; };
 		CE90826A2F9F779E008D8B3E /* QuickLookPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE9082682F9F779E008D8B3E /* QuickLookPlugin.swift */; };
-		862A170CA5104A19B5D08542 /* SharedFilesPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99D003AB03A34B27A368A025 /* SharedFilesPlugin.swift */; };
 		CE90826D2F9F7A96008D8B3E /* File.txt in Resources */ = {isa = PBXBuildFile; fileRef = CE90826C2F9F7A96008D8B3E /* File.txt */; };
 		D0CE3A00001100000000005A /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CE3A00001100000000001A /* ShareViewController.swift */; };
 		D0CE3A00001100000000006A /* ShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = D0CE3A00001100000000004A /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -36,7 +35,6 @@
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		CE9082672F9F779E008D8B3E /* QuickLookPlugin.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = QuickLookPlugin.m; sourceTree = "<group>"; };
 		CE9082682F9F779E008D8B3E /* QuickLookPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookPlugin.swift; sourceTree = "<group>"; };
-		99D003AB03A34B27A368A025 /* SharedFilesPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedFilesPlugin.swift; sourceTree = "<group>"; };
 		CE90826C2F9F7A96008D8B3E /* File.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = File.txt; sourceTree = "<group>"; };
 		CECA81A92F9A166E00B7B8A4 /* App-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "App-Bridging-Header.h"; sourceTree = "<group>"; };
 		D0CE3A00001100000000001A /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
@@ -117,7 +115,6 @@
 				CE9082672F9F779E008D8B3E /* QuickLookPlugin.m */,
 				CE90826C2F9F7A96008D8B3E /* File.txt */,
 				CE9082682F9F779E008D8B3E /* QuickLookPlugin.swift */,
-				99D003AB03A34B27A368A025 /* SharedFilesPlugin.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
@@ -244,7 +241,6 @@
 			files = (
 				CE9082692F9F779E008D8B3E /* QuickLookPlugin.m in Sources */,
 				CE90826A2F9F779E008D8B3E /* QuickLookPlugin.swift in Sources */,
-				862A170CA5104A19B5D08542 /* SharedFilesPlugin.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

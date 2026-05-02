@@ -126,32 +126,14 @@ function AppWithAuth() {
 
   const handleSharedFiles = async () => {
     try {
-      alert("[1] handleSharedFiles called");
-
-      const { SharedFiles } = await import("./plugins/SharedFilesPlugin");
-      alert("[2] Plugin imported");
-
-      const result = await SharedFiles.getPendingFiles();
-      alert("[3] getPendingFiles returned: " + JSON.stringify(result));
-
-      const { paths } = result;
-      if (!paths.length) {
-        alert("[4] No paths, exiting");
-        return;
-      }
-
-      alert("[5] Got " + paths.length + " paths: " + paths.join(", ").substring(0, 100));
-
+      const { SharedFiles } = await import("shared-files");
+      const { paths } = await SharedFiles.getPendingFiles();
+      if (!paths.length) return;
       await SharedFiles.clearPendingFiles();
-      alert("[6] Cleared pending files");
-
       const fileUris = paths.map((p) => (p.startsWith("file://") ? p : "file://" + p));
-      alert("[7] Converted to file URIs, calling setView");
-
       setView({ name: "scanner", sharedFileUris: fileUris });
-      alert("[8] setView called, should navigate to scanner now");
-    } catch (e: any) {
-      alert("[ERROR] " + (e?.message || String(e)));
+    } catch (e) {
+      console.error("[Docera] Failed to handle shared files:", e);
     }
   };
 
