@@ -11,6 +11,10 @@ class ShareViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
         processItems()
     }
 
@@ -164,7 +168,7 @@ class ShareViewController: UIViewController {
                 defaults?.synchronize()
             }
             self.openMainApp()
-            // dismiss(after:) removed — alert OK button calls completeRequest
+            self.dismiss(after: 0.6)
         }
     }
 
@@ -178,39 +182,15 @@ class ShareViewController: UIViewController {
         return ".jpg"
     }
 
-    private func openMainApp() {
-        guard let url = URL(string: "docera://shared") else {
-            showDiagnosticAlert(title: "URL parse failed", message: "Could not create docera://shared URL")
-            return
-        }
-
+    @objc private func openMainApp() {
+        guard let url = URL(string: "docera://shared") else { return }
         var responder: UIResponder? = self
-        let selector = NSSelectorFromString("openURL:options:completionHandler:")
-
         while responder != nil {
-            if (responder! as AnyObject).responds(to: selector) && responder !== self {
-                showDiagnosticAlert(title: "Found responder", message: "Class: \(type(of: responder!)), calling open now")
-                (responder! as AnyObject).perform(selector, with: url, with: [:] as NSDictionary)
+            if let application = responder as? UIApplication {
+                application.open(url)
                 return
             }
             responder = responder?.next
-        }
-
-        showDiagnosticAlert(title: "No responder found", message: "Walked entire chain, nothing responded to selector")
-    }
-
-    private func showDiagnosticAlert(title: String, message: String) {
-        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
-            self.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
-        })
-
-        DispatchQueue.main.async {
-            if let rootVC = self.view.window?.rootViewController {
-                rootVC.present(alert, animated: true)
-            } else {
-                self.present(alert, animated: true)
-            }
         }
     }
 
