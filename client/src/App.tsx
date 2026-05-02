@@ -21,7 +21,7 @@ export type ActiveView = "inbox" | "chat" | "contacts" | "files" | "camera";
 
 type View =
   | { name: "home" }
-  | { name: "scanner"; folderId?: string; clientId?: string; entryMode?: "camera" | "gallery"; preCapturedFileUris?: string[] }
+  | { name: "scanner"; folderId?: string; clientId?: string; entryMode?: "camera" | "gallery"; preCapturedFileUris?: string[]; sharedFileUris?: string[] }
   | { name: "editor"; docId: string }
   | { name: "viewer"; docId: string }
   | { name: "folder"; folderId: string; folderName: string }
@@ -124,15 +124,35 @@ function AppWithAuth() {
     initPurchases().catch(() => {});
   }, []);
 
+  const handleSharedFiles = async () => {
+    try {
+      const { SharedFiles } = await import("./plugins/SharedFilesPlugin");
+      const { paths } = await SharedFiles.getPendingFiles();
+      if (!paths.length) return;
+      await SharedFiles.clearPendingFiles();
+      const fileUris = paths.map((p) => (p.startsWith("file://") ? p : "file://" + p));
+      setView({ name: "scanner", sharedFileUris: fileUris });
+    } catch (e) {
+      console.error("[Docera] Failed to handle shared files:", e);
+    }
+  };
+
+  // Warm-launch: app was backgrounded, user shares → appUrlOpen fires
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
     const listener = CapApp.addListener("appUrlOpen", (event) => {
-      if (event.url.startsWith("docera://")) {
-        alert("Share intent received: " + event.url);
+      if (event.url.startsWith("docera://shared")) {
+        handleSharedFiles();
       }
     });
     return () => { listener.then((h) => h.remove()); };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cold-launch: app was killed, Capacitor may not fire appUrlOpen in time
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    handleSharedFiles();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Safety net: if subscription query hangs for more than 5 seconds, stop blocking the UI
   useEffect(() => {
@@ -357,6 +377,7 @@ function AppWithAuth() {
         clientId={view.clientId}
         entryMode={view.entryMode}
         preCapturedFileUris={view.preCapturedFileUris}
+        sharedFileUris={view.sharedFileUris}
         onSaved={goHome}
         onCancel={goHome}
       />

@@ -52,6 +52,12 @@ interface ScannerPageProps {
    * When provided, skip the camera and load these pages directly into the editor.
    */
   preCapturedFileUris?: string[];
+  /**
+   * Native file URIs from the iOS share extension (App Group ShareInbox).
+   * Images: loaded into editor with auto-detection (same as gallery flow).
+   * PDFs: each page rendered via PDF.js, loaded as pre-cropped pages.
+   */
+  sharedFileUris?: string[];
 }
 
 /** Serializable form of a ScanPage stored in the DB for later re-editing */
@@ -399,7 +405,7 @@ const PageDots = memo(function PageDots({ count, current, onSelect }: PageDotsPr
 
 export default function ScannerPage({
   folderId, editDocId, clientId, onSaved, onCancel,
-  singleImageCanvas, onEditedImage, entryMode, preCapturedFileUris,
+  singleImageCanvas, onEditedImage, entryMode, preCapturedFileUris, sharedFileUris,
 }: ScannerPageProps) {
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -1019,6 +1025,87 @@ export default function ScannerPage({
       if (!newPages.length) { onCancel(); return; }
       setPages(newPages);
       setStage("editor");
+    })();
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Shared-file URIs entry — fires once on mount when sharedFileUris is set ──
+  // Images: gallery-style load with auto-detection. PDFs: PDF.js page rendering.
+  useEffect(() => {
+    if (!sharedFileUris || sharedFileUris.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const newPages: ScanPage[] = [];
+      const imageExts = [".jpg", ".jpeg", ".png", ".heic", ".gif", ".webp"];
+
+      for (const uri of sharedFileUris) {
+        if (cancelled) return;
+        const lower = uri.toLowerCase();
+
+        if (imageExts.some((e) => lower.endsWith(e))) {
+          // ── Image: same path as nativeGallery — load canvas, run detection ──
+          const webUrl = Capacitor.convertFileSrc(uri);
+          const canvas = await dataUrlToCanvas(webUrl);
+          const page = makeScanPage(canvas, false, false); // prewarped=false, allow detection
+
+          // Try Apple native document edge detection first
+          try {
+            const { DocumentDetector } = await import("document-detector");
+            const nativePath = uri.replace(/^file:\/\//, "");
+            const detected = await DocumentDetector.detectFromImage({ path: nativePath });
+            if (detected.quad) {
+              const warped = perspectiveWarp(canvas, detected.quad);
+              page.warpedPreviewUrl = warped.toDataURL("image/jpeg", 0.88);
+              page.quad = detected.quad;
+              page.manualCrop = true;
+            }
+          } catch {
+            // Native detection unavailable — JS fallback runs via runDetection below
+          }
+
+          newPages.push(page);
+
+        } else if (lower.endsWith(".pdf")) {
+          // ── PDF: render each page via PDF.js as a pre-cropped canvas ──
+          try {
+            const pdfjsLib = await import("pdfjs-dist");
+            pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+              "pdfjs-dist/build/pdf.worker.min.mjs",
+              import.meta.url,
+            ).href;
+
+            const webUrl = Capacitor.convertFileSrc(uri);
+            const response = await fetch(webUrl);
+            const bytes = await response.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+
+            for (let i = 1; i <= pdf.numPages; i++) {
+              if (cancelled) return;
+              const pdfPage = await pdf.getPage(i);
+              const viewport = pdfPage.getViewport({ scale: 2.0 });
+              const canvas = document.createElement("canvas");
+              canvas.width = viewport.width;
+              canvas.height = viewport.height;
+              const ctx = canvas.getContext("2d")!;
+              await pdfPage.render({ canvasContext: ctx, viewport }).promise;
+              newPages.push(makeScanPage(canvas, false, true)); // prewarped=true, no detection
+            }
+          } catch {
+            // PDF failed to load — skip this file
+          }
+        }
+      }
+
+      if (cancelled) return;
+      if (!newPages.length) { onCancel(); return; }
+
+      setPages(newPages);
+      setStage("editor");
+
+      // Run JS detection fallback on image pages where native detection didn't fire
+      newPages.forEach((p, i) => {
+        if (!p.manualCrop) setTimeout(() => runDetection(p), 80 + i * 60);
+      });
     })();
     return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1934,6 +2021,10 @@ export default function ScannerPage({
     }
     // Pre-captured URIs: loading pages into editor — show blank while processing.
     if (preCapturedFileUris && preCapturedFileUris.length > 0 && pages.length === 0) {
+      return <div className="fixed inset-0 bg-black" />;
+    }
+    // Shared-file URIs: loading shared photos/PDFs into editor — show blank while processing.
+    if (sharedFileUris && sharedFileUris.length > 0 && pages.length === 0) {
       return <div className="fixed inset-0 bg-black" />;
     }
 
