@@ -409,7 +409,7 @@ export default function EmailThreadView({
       </div>
 
       <div className="flex-shrink-0 px-4 pb-6 pt-2 bg-background border-t border-border">
-        <div className="flex items-end gap-2">
+        <div className="flex items-end gap-2 min-w-0">
           <textarea
             data-testid="input-reply"
             placeholder={`Reply to ${fromName || from}…`}

@@ -315,7 +315,8 @@ function fmtMsgTime(dateStr: string) {
     if (!isValid(d)) return "";
     if (isToday(d)) return format(d, "h:mm a");
     if (isYesterday(d)) return "Yesterday";
-    return format(d, "MMM d");
+    const isCurrentYear = d.getFullYear() === new Date().getFullYear();
+    return format(d, isCurrentYear ? "MMM d" : "MMM d, yyyy");
   } catch { return ""; }
 }
 
@@ -2067,13 +2068,13 @@ function ContactList({
                       Today · Recent
                     </div>
                   )}
-                  {todayRows.map(c => <div key={c.email} style={{ WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>{renderRow(c)}</div>)}
+                  {todayRows.map(c => <div key={c.email} style={{ WebkitTapHighlightColor: 'transparent', isolation: 'isolate' } as React.CSSProperties}>{renderRow(c)}</div>)}
                   {earlierRows.length > 0 && todayRows.length > 0 && (
                     <div style={{ padding: "12px 16px 4px", fontSize: 11, fontWeight: 600, letterSpacing: 0.8, textTransform: "uppercase", ...orbTextStyle(theme.dark) }}>
                       Earlier
                     </div>
                   )}
-                  {earlierRows.map(c => <div key={c.email} style={{ WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}>{renderRow(c)}</div>)}
+                  {earlierRows.map(c => <div key={c.email} style={{ WebkitTapHighlightColor: 'transparent', isolation: 'isolate' } as React.CSSProperties}>{renderRow(c)}</div>)}
                 </>
               );
             })()}
