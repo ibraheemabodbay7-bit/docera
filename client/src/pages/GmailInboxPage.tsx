@@ -333,7 +333,8 @@ function fmtDateSep(dateStr: string): string {
     if (!isValid(d)) return "";
     if (isToday(d)) return "Today";
     if (isYesterday(d)) return "Yesterday";
-    return format(d, "MMMM d");
+    const isCurrentYear = d.getFullYear() === new Date().getFullYear();
+    return format(d, isCurrentYear ? "MMMM d" : "MMMM d, yyyy");
   } catch { return ""; }
 }
 
@@ -1016,7 +1017,7 @@ function ChatInput({
 
       {/* Input bar */}
       <div
-        className="flex-shrink-0 flex items-end gap-2 px-3 pt-2"
+        className="flex-shrink-0 flex items-end gap-2 px-3 pt-2 min-w-0"
         style={{
           paddingBottom: `max(${keyboardOffset + 8}px, calc(env(safe-area-inset-bottom) + 8px))`,
           background: theme.header,
@@ -1040,7 +1041,7 @@ function ChatInput({
           onKeyDown={handleKeyDown}
           placeholder="Type a message…"
           rows={1}
-          className="flex-1 resize-none rounded-2xl px-3 py-2 text-sm outline-none"
+          className="flex-1 min-w-0 resize-none rounded-2xl px-3 py-2 text-sm outline-none"
           style={{
             background: theme.inputBg,
             color: theme.receivedText,

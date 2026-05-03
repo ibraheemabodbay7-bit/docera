@@ -46,7 +46,10 @@ function initials(name: string) {
 function fmtDate(dateStr: string) {
   try {
     const d = new Date(dateStr);
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const isCurrentYear = d.getFullYear() === new Date().getFullYear();
+    return d.toLocaleDateString("en-US", isCurrentYear
+      ? { month: "short", day: "numeric" }
+      : { month: "short", day: "numeric", year: "numeric" });
   } catch {
     return "";
   }
