@@ -1093,10 +1093,14 @@ function ThreadView({
   const [selectMode, setSelectMode] = useState(false);
   const [selectedAttachments, setSelectedAttachments] = useState<Set<string>>(new Set());
   const handleBackPress = useCallback(() => {
-    setShowProfile(false);
+    if (showProfile) {
+      setShowProfile(false);
+      setShowSearch(false);
+      return;
+    }
     setShowSearch(false);
     onBack();
-  }, [onBack]);
+  }, [showProfile, onBack]);
   const loadFailCountRef = useRef(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -1327,7 +1331,7 @@ function ThreadView({
         <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 8px 8px" }}>
           <button
             onClick={handleBackPress}
-            style={{ background: "none", border: "none", cursor: "pointer", color: theme.receivedText, padding: "4px 6px", display: "flex", alignItems: "center", flexShrink: 0 }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: theme.receivedText, padding: "4px 6px", display: "flex", alignItems: "center", flexShrink: 0, pointerEvents: showProfile ? "none" : "auto" }}
           >
             <ChevronLeft style={{ width: 22, height: 22 }} />
           </button>
