@@ -1093,7 +1093,6 @@ function ThreadView({
   const [selectMode, setSelectMode] = useState(false);
   const [selectedAttachments, setSelectedAttachments] = useState<Set<string>>(new Set());
   const handleBackPress = useCallback(() => {
-    alert("D3: handleBackPress fired, showProfile=" + showProfile);
     if (showProfile) {
       setShowProfile(false);
       setShowSearch(false);
@@ -1851,7 +1850,7 @@ function ContactList({
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "0 16px 4px" }}>
           <div style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-              <button onClick={() => { alert("D5: contactlist back tapped"); onBack(); }} style={{ background: "none", border: "none", cursor: "pointer", color: theme.subText, padding: "4px 4px 4px 0", display: "flex", alignItems: "center" }}>
+              <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: theme.subText, padding: "4px 4px 4px 0", display: "flex", alignItems: "center" }}>
                 <ArrowLeft style={{ width: 20, height: 20 }} />
               </button>
               <h1 style={{ color: theme.receivedText, fontSize: 34, fontWeight: 700, letterSpacing: -0.5, margin: 0, lineHeight: 1.1 }}>Inbox</h1>
@@ -2291,7 +2290,6 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
   }, []);
 
   const handleBack = useCallback(() => {
-    alert("D4: thread handleBack fired");
     setSelectedContact(null);
     displayContactTimerRef.current = setTimeout(() => {
       setDisplayContact(null);

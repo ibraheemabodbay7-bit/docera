@@ -104,8 +104,7 @@ async function generatePdfThumbnail(base64: string): Promise<{ thumb: string; pa
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     await (page.render as any)({ canvasContext: ctx, viewport }).promise;
     return { thumb: canvas.toDataURL("image/jpeg", 0.9), pageCount };
-  } catch (err) {
-    alert("D11: generatePdfThumbnail error: " + String(err));
+  } catch {
     return { thumb: "", pageCount: 0 };
   }
 }
@@ -307,7 +306,6 @@ function PdfThumbnailCard({
   }, [visible, att.id]);
 
   const handleTap = async () => {
-    alert("D10a: handleTap entered");
     if (opening) return;
     setOpening(true);
     try {
@@ -325,9 +323,6 @@ function PdfThumbnailCard({
         }
       }
       if (b64) await openPdfFromProfile(b64, att.name);
-    } catch (err: unknown) {
-      alert("D10b: handleTap CAUGHT: " + String(err));
-      throw err;
     } finally {
       setOpening(false);
     }
@@ -562,7 +557,7 @@ export default function ClientProfilePage({
         {/* Header */}
         <div style={{ background: theme.headerBg, backdropFilter: "blur(30px) saturate(160%)", WebkitBackdropFilter: "blur(30px) saturate(160%)", color: theme.headerInk, paddingTop: "max(3rem, env(safe-area-inset-top))", paddingBottom: 26, paddingLeft: 20, paddingRight: 20, position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", zIndex: 1 }}>
-            <button onClick={() => { alert("D1: profile back tapped, showAllDocs=" + showAllDocs); onBack(); }} style={{ width: 36, height: 36, borderRadius: 10, background: "transparent", border: "none", padding: 0, color: theme.headerInk, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", marginLeft: -6 }}>
+            <button onClick={onBack} style={{ width: 36, height: 36, borderRadius: 10, background: "transparent", border: "none", padding: 0, color: theme.headerInk, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", marginLeft: -6 }}>
               <ChevronLeft style={{ width: 22, height: 22 }} />
             </button>
             <div style={{ fontSize: 10, letterSpacing: "0.26em", textTransform: "uppercase", color: theme.headerFaint, fontWeight: 600 }}>Contact</div>
@@ -686,7 +681,7 @@ export default function ClientProfilePage({
             {/* Header */}
             <div style={{ background: theme.headerBg, backdropFilter: "blur(30px) saturate(160%)", WebkitBackdropFilter: "blur(30px) saturate(160%)", paddingTop: "max(3rem, env(safe-area-inset-top))", paddingBottom: 10, paddingLeft: 20, paddingRight: 20, flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <button onClick={() => { alert("D2: seeAll back tapped"); setShowAllDocs(false); setDocSearch(""); }} style={{ width: 36, height: 36, borderRadius: 10, background: "transparent", border: "none", padding: 0, color: theme.headerInk, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", marginLeft: -6 }}>
+                <button onClick={() => { setShowAllDocs(false); setDocSearch(""); }} style={{ width: 36, height: 36, borderRadius: 10, background: "transparent", border: "none", padding: 0, color: theme.headerInk, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", marginLeft: -6 }}>
                   <ChevronLeft style={{ width: 22, height: 22 }} />
                 </button>
                 <div style={{ fontSize: 15, fontWeight: 600, color: theme.headerInk, letterSpacing: "-0.01em" }}>All Documents</div>

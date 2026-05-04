@@ -801,7 +801,7 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
                 <span style={{ fontWeight: 400, marginLeft: 6, color: textSecondary, fontSize: 12 }}>({docs.length})</span>
               </div>
               {!isFiltering && !showFavoritesOnly && docs.length > 10 && (
-                <button onClick={() => { alert("D8: home seeAll tapped"); onOpenAllDocs(); }} style={{ fontSize: 13, fontWeight: 600, color: textPrimary, background: 'none', border: 'none', cursor: 'pointer' }}>
+                <button onClick={onOpenAllDocs} style={{ fontSize: 13, fontWeight: 600, color: textPrimary, background: 'none', border: 'none', cursor: 'pointer' }}>
                   See All
                 </button>
               )}
