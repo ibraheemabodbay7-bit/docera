@@ -59,10 +59,10 @@ function fmtDate(dateStr: string) {
 
 const profileThumbCache = new Map<string, string>();
 const profilePageCountCache = new Map<string, number>();
-const profileBase64Cache = new Map<string, string>();
+const THUMB_CACHE_LIMIT = 100;
 
 let activeProfileThumbnailLoads = 0;
-const MAX_CONCURRENT = 2;
+const MAX_CONCURRENT = 1;
 const profileThumbnailQueue: Array<() => void> = [];
 
 function acquireSlot(): Promise<void> {
@@ -83,6 +83,8 @@ function releaseSlot() {
 }
 
 async function generatePdfThumbnail(base64: string): Promise<{ thumb: string; pageCount: number }> {
+  let pdf: any = null;
+  let page: any = null;
   try {
     const pdfjsLib = await import("pdfjs-dist");
     pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -92,18 +94,23 @@ async function generatePdfThumbnail(base64: string): Promise<{ thumb: string; pa
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
-    const pageCount = pdf.numPages;
-    const page = await pdf.getPage(1);
-    const viewport = page.getViewport({ scale: 2.0 });
-    const canvas = document.createElement("canvas");
-    canvas.width = viewport.width;
-    canvas.height = Math.floor(viewport.width * 0.45);
-    const ctx = canvas.getContext("2d")!;
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    await (page.render as any)({ canvasContext: ctx, viewport }).promise;
-    return { thumb: canvas.toDataURL("image/jpeg", 0.9), pageCount };
+    try {
+      pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+      const pageCount = pdf.numPages;
+      page = await pdf.getPage(1);
+      const viewport = page.getViewport({ scale: 1.5 });
+      const canvas = document.createElement("canvas");
+      canvas.width = viewport.width;
+      canvas.height = Math.floor(viewport.width * 0.45);
+      const ctx = canvas.getContext("2d")!;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await (page.render as any)({ canvasContext: ctx, viewport }).promise;
+      return { thumb: canvas.toDataURL("image/jpeg", 0.9), pageCount };
+    } finally {
+      try { if (page) page.cleanup(); } catch {}
+      try { if (pdf) await pdf.destroy(); } catch {}
+    }
   } catch {
     return { thumb: "", pageCount: 0 };
   }
@@ -276,24 +283,27 @@ function PdfThumbnailCard({
       await acquireSlot();
       try {
         if (cancelled) return;
-        let b64 = profileBase64Cache.get(att.id);
-        if (!b64) {
-          const res = await fetch(`${API_BASE}/api/gmail/attachment`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ accessToken: token, messageId: msgId, attachmentId: att.id }),
-            credentials: "omit",
-          });
-          if (!res.ok) return;
-          const data = await res.json() as { base64?: string };
-          if (!data.base64 || cancelled) return;
-          b64 = data.base64;
-          profileBase64Cache.set(att.id, b64);
-        }
-        const { thumb: url, pageCount: count } = await generatePdfThumbnail(b64);
+        const res = await fetch(`${API_BASE}/api/gmail/attachment`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accessToken: token, messageId: msgId, attachmentId: att.id }),
+          credentials: "omit",
+        });
+        if (!res.ok) return;
+        const data = await res.json() as { base64?: string };
+        if (!data.base64 || cancelled) return;
+        const { thumb: url, pageCount: count } = await generatePdfThumbnail(data.base64);
         if (!cancelled && url) {
           profileThumbCache.set(att.id, url);
+          if (profileThumbCache.size > THUMB_CACHE_LIMIT) {
+            const oldestKey = profileThumbCache.keys().next().value;
+            if (oldestKey) profileThumbCache.delete(oldestKey);
+          }
           profilePageCountCache.set(att.id, count);
+          if (profilePageCountCache.size > THUMB_CACHE_LIMIT) {
+            const oldestKey = profilePageCountCache.keys().next().value;
+            if (oldestKey) profilePageCountCache.delete(oldestKey);
+          }
           setThumb(url);
           setPageCount(count);
         }
@@ -309,20 +319,16 @@ function PdfThumbnailCard({
     if (opening) return;
     setOpening(true);
     try {
-      let b64 = profileBase64Cache.get(att.id);
-      if (!b64) {
-        const res = await fetch(`${API_BASE}/api/gmail/attachment`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ accessToken: token, messageId: msgId, attachmentId: att.id }),
-          credentials: "omit",
-        });
-        if (res.ok) {
-          const data = await res.json() as { base64?: string };
-          if (data.base64) { b64 = data.base64; profileBase64Cache.set(att.id, b64); }
-        }
+      const res = await fetch(`${API_BASE}/api/gmail/attachment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken: token, messageId: msgId, attachmentId: att.id }),
+        credentials: "omit",
+      });
+      if (res.ok) {
+        const data = await res.json() as { base64?: string };
+        if (data.base64) await openPdfFromProfile(data.base64, att.name);
       }
-      if (b64) await openPdfFromProfile(b64, att.name);
     } finally {
       setOpening(false);
     }

@@ -160,14 +160,12 @@ type DocItem = { id: string; name: string; type: string; dataUrl: string };
 
 const thumbCache = new Map<string, string>();
 const pageCountCache = new Map<string, number>();
+const THUMB_CACHE_LIMIT = 100;
 
-// ─── PDF base64 cache (reused by viewer to avoid re-fetching) ─────────────────
-const base64Cache = new Map<string, string>();
-
-// ─── Thumbnail load semaphore (max 2 concurrent) ──────────────────────────────
+// ─── Thumbnail load semaphore (max 1 concurrent) ──────────────────────────────
 
 let activeThumbnailLoads = 0;
-const MAX_CONCURRENT_THUMBNAILS = 2;
+const MAX_CONCURRENT_THUMBNAILS = 1;
 const thumbnailQueue: Array<() => void> = [];
 let mountedThumbnailCount = 0;
 
@@ -189,6 +187,8 @@ function releaseThumbnailSlot() {
 }
 
 async function generatePdfThumbnail(base64: string): Promise<{ thumb: string; pageCount: number }> {
+  let pdf: any = null;
+  let page: any = null;
   try {
     const pdfjsLib = await import("pdfjs-dist");
     pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -198,18 +198,23 @@ async function generatePdfThumbnail(base64: string): Promise<{ thumb: string; pa
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
-    const pageCount = pdf.numPages;
-    const page = await pdf.getPage(1);
-    const viewport = page.getViewport({ scale: 2.0 });
-    const canvas = document.createElement("canvas");
-    canvas.width = viewport.width;
-    canvas.height = Math.floor(viewport.width * 0.45);
-    const ctx = canvas.getContext("2d")!;
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    await (page.render as any)({ canvasContext: ctx, viewport }).promise;
-    return { thumb: canvas.toDataURL("image/jpeg", 0.9), pageCount };
+    try {
+      pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+      const pageCount = pdf.numPages;
+      page = await pdf.getPage(1);
+      const viewport = page.getViewport({ scale: 1.5 });
+      const canvas = document.createElement("canvas");
+      canvas.width = viewport.width;
+      canvas.height = Math.floor(viewport.width * 0.45);
+      const ctx = canvas.getContext("2d")!;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await (page.render as any)({ canvasContext: ctx, viewport }).promise;
+      return { thumb: canvas.toDataURL("image/jpeg", 0.9), pageCount };
+    } finally {
+      try { if (page) page.cleanup(); } catch {}
+      try { if (pdf) await pdf.destroy(); } catch {}
+    }
   } catch {
     return { thumb: "", pageCount: 0 };
   }
@@ -273,18 +278,13 @@ async function openImageNative(base64: string, name: string, mimeType: string) {
 async function openWithQuickLook(att: GmailAttachment, msgId: string, token: string, refreshToken?: string | null) {
   if (!Capacitor.isNativePlatform()) return;
   try {
-    let b64 = base64Cache.get(att.id);
-    if (!b64) {
-      const data = await gmailPost<{ base64: string }>(
-        "/api/gmail/attachment",
-        { messageId: msgId, attachmentId: att.id },
-        token,
-        refreshToken,
-      );
-      b64 = data.base64;
-      base64Cache.set(att.id, b64);
-    }
-    await openPdfNative(b64, att.name);
+    const data = await gmailPost<{ base64: string }>(
+      "/api/gmail/attachment",
+      { messageId: msgId, attachmentId: att.id },
+      token,
+      refreshToken,
+    );
+    await openPdfNative(data.base64, att.name);
   } catch (err) {
     console.error("QuickLook open error:", err);
   }
@@ -455,11 +455,18 @@ function PdfThumbnail({
           "/api/gmail/attachment", { messageId, attachmentId: attachment.id }, token, refreshToken,
         );
         if (cancelled) return;
-        base64Cache.set(attachment.id, data.base64);
         const { thumb: url, pageCount: count } = await generatePdfThumbnail(data.base64);
         if (!cancelled && url) {
           thumbCache.set(attachment.id, url);
+          if (thumbCache.size > THUMB_CACHE_LIMIT) {
+            const oldestKey = thumbCache.keys().next().value;
+            if (oldestKey) thumbCache.delete(oldestKey);
+          }
           pageCountCache.set(attachment.id, count);
+          if (pageCountCache.size > THUMB_CACHE_LIMIT) {
+            const oldestKey = pageCountCache.keys().next().value;
+            if (oldestKey) pageCountCache.delete(oldestKey);
+          }
           setThumb(url);
           setPageCount(count);
         }
@@ -1220,18 +1227,15 @@ function ThreadView({
         const msg = messages.find(m => m.id === msgId);
         const att = msg?.attachments.find(a => a.id === attId);
         if (!msg || !att) continue;
-        let b64 = base64Cache.get(att.id);
-        if (!b64) {
-          try {
-            const data = await gmailPost<{ base64: string }>(
-              "/api/gmail/attachment", { messageId: msgId, attachmentId: att.id }, token, refreshToken,
-            );
-            b64 = data.base64;
-            base64Cache.set(att.id, b64);
-          } catch (e: any) {
-            console.error("[Share] fetch failed:", e);
-            throw e;
-          }
+        let b64: string;
+        try {
+          const data = await gmailPost<{ base64: string }>(
+            "/api/gmail/attachment", { messageId: msgId, attachmentId: att.id }, token, refreshToken,
+          );
+          b64 = data.base64;
+        } catch (e: any) {
+          console.error("[Share] fetch failed:", e);
+          throw e;
         }
         const idx = fileUris.length;
         const cleanName = (att.name || `file_${idx}.pdf`).replace(/[^a-z0-9._-]/gi, "_");

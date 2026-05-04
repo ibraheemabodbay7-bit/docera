@@ -120,18 +120,7 @@ function AppWithAuth() {
   const [scanSheetOpen, setScanSheetOpen] = useState(false);
   const subscription = useSubscription();
 
-  useEffect(() => {
-    try {
-      const prev = parseInt(localStorage.getItem('__bootCount') || '0', 10);
-      const next = prev + 1;
-      localStorage.setItem('__bootCount', String(next));
-      if (next > 1) {
-        alert('BOOT #' + next + ' — App reloaded mid-session!');
-      }
-    } catch (e) {
-      // localStorage may fail on first run; silently ignore
-    }
-  }, []);
+  try { localStorage.removeItem('__bootCount'); } catch {}
 
   useEffect(() => {
     initPurchases().catch(() => {});
