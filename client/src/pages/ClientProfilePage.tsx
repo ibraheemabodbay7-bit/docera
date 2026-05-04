@@ -571,11 +571,11 @@ export default function ClientProfilePage({
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 20, gap: 14, position: "relative", zIndex: 1 }}>
-            <div style={{ width: 88, height: 88, borderRadius: "50%", background: theme.avatarBg, display: "flex", alignItems: "center", justifyContent: "center", color: theme.headerInk, fontSize: 37, fontWeight: 500, fontFamily: '"Cormorant Garamond", Georgia, serif', letterSpacing: "0.01em", boxShadow: "inset 0 -1px 0 rgba(0,0,0,0.15), 0 8px 24px -8px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.4)", border: `1px solid ${theme.hair}`, flexShrink: 0 }}>
+            <div style={{ width: 88, height: 88, borderRadius: "50%", background: theme.avatarBg, display: "flex", alignItems: "center", justifyContent: "center", color: theme.headerInk, fontSize: 37, fontWeight: 500, letterSpacing: "0.01em", boxShadow: "inset 0 -1px 0 rgba(0,0,0,0.15), 0 8px 24px -8px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.4)", border: `1px solid ${theme.hair}`, flexShrink: 0 }}>
               {initials(contact.name)}
             </div>
             <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 8, alignItems: "center", maxWidth: 320 }}>
-              <div style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontSize: 24, fontWeight: 500, color: theme.headerInk, letterSpacing: "-0.005em", lineHeight: 1.2, margin: 0 }}>
+              <div style={{ fontSize: 24, fontWeight: 500, color: theme.headerInk, letterSpacing: "-0.005em", lineHeight: 1.2, margin: 0 }}>
                 {contact.name}
               </div>
               <div style={{ fontSize: 13.5, color: theme.headerSubtle, letterSpacing: "-0.01em", fontWeight: 400 }}>
@@ -590,7 +590,7 @@ export default function ClientProfilePage({
           <div style={{ background: theme.statsCard, borderRadius: 16, padding: "18px 12px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", boxShadow: theme.statsCardShadow, border: theme.statsCardBorder }}>
             {stats.map((s, i) => (
               <div key={s.label} style={{ padding: "4px 0", borderLeft: i === 0 ? "none" : `0.5px solid ${theme.hair}`, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                <div style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontSize: 30, fontWeight: 500, color: (typeof s.value === "number" ? s.value > 0 : true) ? theme.ink : theme.muted, lineHeight: 1, letterSpacing: "-0.02em" }}>
+                <div style={{ fontSize: 30, fontWeight: 500, color: (typeof s.value === "number" ? s.value > 0 : true) ? theme.ink : theme.muted, lineHeight: 1, letterSpacing: "-0.02em" }}>
                   {s.value}
                 </div>
                 <div style={{ fontSize: 11, fontWeight: 500, color: theme.subtle, letterSpacing: "0.02em" }}>{s.label}</div>
