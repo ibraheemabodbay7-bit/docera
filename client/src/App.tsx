@@ -114,7 +114,8 @@ function AppWithAuth() {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [subscriptionTimedOut, setSubscriptionTimedOut] = useState(false);
-  const [view, setView] = useState<View>({ name: "home" });
+  const [view, setViewRaw] = useState<View>({ name: "home" });
+  const setView = (newView: View) => { alert("D9: setView → " + newView.name); setViewRaw(newView); };
   const [trialBannerDismissed, setTrialBannerDismissed] = useState(false);
   const [inboxUnreadCount, setInboxUnreadCount] = useState(0);
   const [scanSheetOpen, setScanSheetOpen] = useState(false);
@@ -271,7 +272,7 @@ function AppWithAuth() {
 
   const isGuest = isGuestUser(user);
 
-  const goHome = () => setView({ name: "home" });
+  const goHome = () => { alert("D6: goHome called"); setView({ name: "home" }); };
 
   const goScanner = (folderId?: string, clientId?: string) => {
     if (!subscription.canUseGatedFeatures) {
@@ -327,7 +328,7 @@ function AppWithAuth() {
 
   const goClients = () => setView({ name: "clients" });
   const goInbox = () => setView({ name: "inbox" });
-  const goAllDocs = () => setView({ name: "allDocs" });
+  const goAllDocs = () => { alert("D7: goAllDocs called"); setView({ name: "allDocs" }); };
 
   // Logout clears the server session then immediately restores the same
   // device-scoped guest account — so documents stay accessible.

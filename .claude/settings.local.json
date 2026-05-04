@@ -52,7 +52,8 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(echo \"EXIT:$?\")",
       "Bash(uuidgen)",
-      "Bash(grep -E \"^[0-9]+:\\\\s*<\\\\/.*>$\")"
+      "Bash(grep -E \"^[0-9]+:\\\\s*<\\\\/.*>$\")",
+      "Bash(grep -v \"^$\")"
     ]
   }
 }
