@@ -287,6 +287,326 @@ export async function registerRoutes(httpServer: Server, app: Express) {
 </html>`);
   });
 
+  app.get('/', (_req, res) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Docera</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background:
+        radial-gradient(ellipse at 20% 15%, #e8ecf2 0%, #c8d0dc 30%, transparent 60%),
+        radial-gradient(ellipse at 80% 85%, #d8dee8 0%, #a8b0c0 35%, transparent 65%),
+        radial-gradient(ellipse at 50% 50%, #6a7388 0%, transparent 50%),
+        #b8c0cc;
+      color: #1a1f2a;
+      line-height: 1.7;
+      font-size: 16px;
+      min-height: 100vh;
+    }
+    header {
+      background: rgba(232,236,242,0.82);
+      backdrop-filter: blur(30px) saturate(160%);
+      -webkit-backdrop-filter: blur(30px) saturate(160%);
+      border-bottom: 0.5px solid rgba(255,255,255,0.4);
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header .logo {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1a1f2a;
+      letter-spacing: -0.02em;
+    }
+    a { color: #3a5fa0; }
+    .hero {
+      text-align: center;
+      padding: 80px 24px 56px;
+    }
+    .hero-title {
+      font-size: 52px;
+      font-weight: 700;
+      color: #1a1f2a;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+      margin-bottom: 20px;
+    }
+    .tagline {
+      font-size: 20px;
+      color: #2a3040;
+      max-width: 540px;
+      margin: 0 auto 14px;
+      line-height: 1.5;
+    }
+    .subhead {
+      font-size: 15px;
+      color: #4a5262;
+      max-width: 500px;
+      margin: 0 auto;
+      line-height: 1.65;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 64px;
+    }
+    .feature-card {
+      background: rgba(255,255,255,0.55);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 0.5px solid rgba(255,255,255,0.4);
+      border-radius: 16px;
+      padding: 28px 24px;
+      box-shadow: 0 1px 0 rgba(255,255,255,0.7) inset, 0 4px 16px rgba(0,0,0,0.08);
+    }
+    .feature-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1a1f2a;
+      letter-spacing: -0.01em;
+      margin-bottom: 8px;
+    }
+    .feature-body {
+      font-size: 14px;
+      color: #3a4252;
+      line-height: 1.6;
+      margin: 0;
+    }
+    .footer {
+      text-align: center;
+      padding: 40px 0 0;
+      border-top: 0.5px solid rgba(255,255,255,0.4);
+    }
+    .app-store {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1a1f2a;
+      letter-spacing: -0.01em;
+      margin-bottom: 20px;
+    }
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .footer-links a { font-size: 14px; }
+    .footer-copy {
+      font-size: 13px;
+      color: #4a5262;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="logo">Docera</span>
+  </header>
+  <div class="hero">
+    <h1 class="hero-title">Docera</h1>
+    <p class="tagline">Scan, organise, and send documents from your Gmail inbox.</p>
+    <p class="subhead">Built for solo professionals — accountants, lawyers, consultants — who live in their inbox and need a faster way to handle documents.</p>
+  </div>
+  <div class="container">
+    <div class="features">
+      <div class="feature-card">
+        <p class="feature-title">Scan anywhere</p>
+        <p class="feature-body">Capture documents with your iPhone camera. Automatic edge detection, perspective correction, and clean PDF export.</p>
+      </div>
+      <div class="feature-card">
+        <p class="feature-title">Gmail, organised</p>
+        <p class="feature-body">View your inbox the way it should be: by client, by thread, by document. Every PDF and photo a client has ever sent, in one place.</p>
+      </div>
+      <div class="feature-card">
+        <p class="feature-title">Send in one tap</p>
+        <p class="feature-body">Reply with a scan, share a document, forward an attachment — without leaving the app.</p>
+      </div>
+    </div>
+    <div class="footer">
+      <p class="app-store">Coming soon to the App Store</p>
+      <div class="footer-links">
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms">Terms of Service</a>
+        <a href="mailto:ibraheemabodbay7@gmail.com">ibraheemabodbay7@gmail.com</a>
+      </div>
+      <p class="footer-copy">© 2026 Docera</p>
+    </div>
+  </div>
+</body>
+</html>`);
+  });
+
+  app.get('/terms', (_req, res) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Terms of Service — Docera</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background:
+        radial-gradient(ellipse at 20% 15%, #e8ecf2 0%, #c8d0dc 30%, transparent 60%),
+        radial-gradient(ellipse at 80% 85%, #d8dee8 0%, #a8b0c0 35%, transparent 65%),
+        radial-gradient(ellipse at 50% 50%, #6a7388 0%, transparent 50%),
+        #b8c0cc;
+      color: #1a1f2a;
+      line-height: 1.7;
+      font-size: 16px;
+      min-height: 100vh;
+    }
+    header {
+      background: rgba(232,236,242,0.82);
+      backdrop-filter: blur(30px) saturate(160%);
+      -webkit-backdrop-filter: blur(30px) saturate(160%);
+      border-bottom: 0.5px solid rgba(255,255,255,0.4);
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header .logo {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1a1f2a;
+      letter-spacing: -0.02em;
+    }
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      color: #1a1f2a;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+    .updated {
+      font-size: 13px;
+      color: #4a5262;
+      margin-bottom: 40px;
+    }
+    h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1a1f2a;
+      margin-top: 36px;
+      margin-bottom: 10px;
+    }
+    p { margin-bottom: 14px; color: #2a3040; }
+    ul {
+      margin: 0 0 14px 20px;
+      color: #2a3040;
+    }
+    ul li { margin-bottom: 6px; }
+    a { color: #3a5fa0; }
+    hr {
+      border: none;
+      border-top: 0.5px solid rgba(255,255,255,0.4);
+      margin: 40px 0;
+    }
+    .contact-box {
+      background: rgba(255,255,255,0.55);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 0.5px solid rgba(255,255,255,0.4);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-top: 12px;
+      box-shadow: 0 1px 0 rgba(255,255,255,0.7) inset, 0 4px 16px rgba(0,0,0,0.1);
+    }
+    .contact-box p { margin: 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="logo">Docera</span>
+  </header>
+  <div class="container">
+    <h1>Terms of Service</h1>
+    <p class="updated">Last updated: May 2026</p>
+
+    <p>These terms govern your use of Docera ("the app"), operated by Ibraheem Abodbay ("we", "our", or "us"). By using Docera, you agree to these terms.</p>
+
+    <h2>1. Acceptance of Terms</h2>
+    <p>By creating an account or using Docera, you confirm that you have read, understood, and agreed to these Terms of Service and our Privacy Policy. If you do not agree, do not use the app.</p>
+
+    <h2>2. Eligibility</h2>
+    <p>You must be at least 18 years old to use Docera. By using the app, you represent that you meet this requirement and have the legal capacity to enter into these terms.</p>
+
+    <h2>3. Your Account</h2>
+    <p>You are responsible for maintaining the confidentiality of your account credentials and for all activity that occurs under your account. You agree to notify us immediately of any unauthorised access. We are not liable for any loss resulting from your failure to safeguard your account.</p>
+
+    <h2>4. Acceptable Use</h2>
+    <p>You agree to use Docera only for lawful purposes. You will not:</p>
+    <ul>
+      <li>Use the app to send spam, harassment, or unlawful communications</li>
+      <li>Attempt to gain unauthorised access to our systems or other users' accounts</li>
+      <li>Reverse engineer, decompile, or attempt to extract source code from the app</li>
+      <li>Use the app to store or transmit illegal content</li>
+      <li>Use the app in violation of applicable export controls or sanctions</li>
+    </ul>
+    <p>We reserve the right to suspend or terminate accounts that violate these rules.</p>
+
+    <h2>5. Subscriptions and Payments</h2>
+    <p>Docera offers a free tier and paid subscription tiers. Paid subscriptions are billed through Apple's App Store and managed under Apple's terms. Subscription fees are non-refundable except where required by law. You can cancel your subscription at any time through your Apple ID account settings; cancellation takes effect at the end of the current billing period.</p>
+    <p>Pricing and feature availability may change. We will provide reasonable notice of material changes to existing subscribers.</p>
+
+    <h2>6. Your Data</h2>
+    <p>Your use of Docera and our handling of your data is governed by our <a href="/privacy">Privacy Policy</a>, which is incorporated into these terms by reference. You retain ownership of all content you scan, store, or send through the app.</p>
+
+    <h2>7. Intellectual Property</h2>
+    <p>Docera, including its design, code, branding, and content, is owned by us and protected by intellectual property law. We grant you a limited, non-exclusive, non-transferable, revocable license to use the app for its intended purpose. You may not copy, modify, distribute, or create derivative works without our written permission.</p>
+
+    <h2>8. Third-Party Services</h2>
+    <p>Docera integrates with Google (Gmail), Apple (App Store, in-app purchases), OpenAI (AI features), and RevenueCat (subscription management). Your use of these integrations is also subject to their respective terms. We are not responsible for the availability or behaviour of third-party services.</p>
+
+    <h2>9. Disclaimers</h2>
+    <p>Docera is provided "as is" and "as available" without warranties of any kind, whether express or implied. We do not warrant that the app will be uninterrupted, error-free, secure, or meet your specific requirements. To the maximum extent permitted by law, we disclaim all implied warranties of merchantability, fitness for a particular purpose, and non-infringement.</p>
+
+    <h2>10. Limitation of Liability</h2>
+    <p>To the maximum extent permitted by law, we will not be liable for any indirect, incidental, special, consequential, or punitive damages, including lost profits, data loss, or business interruption, arising from your use of Docera. Our total liability to you for any claim arising from these terms or your use of the app will not exceed the amount you paid us in the 12 months preceding the claim, or 100 USD, whichever is greater.</p>
+
+    <h2>11. Termination</h2>
+    <p>You may stop using Docera at any time by deleting your account or removing the app. We may suspend or terminate your access if you violate these terms or for any other reason at our discretion, with or without notice. Sections that by their nature should survive termination (including ownership, disclaimers, limitation of liability, and governing law) will survive.</p>
+
+    <h2>12. Changes to These Terms</h2>
+    <p>We may update these terms from time to time. We will notify users of material changes by updating the "Last updated" date at the top of this page and, where appropriate, through the app. Continued use of Docera after changes take effect constitutes acceptance of the updated terms.</p>
+
+    <h2>13. Governing Law</h2>
+    <p>These terms are governed by the laws of the State of Israel, without regard to conflict of law principles. Any dispute arising from these terms or your use of Docera will be subject to the exclusive jurisdiction of the competent courts in Israel.</p>
+
+    <hr/>
+
+    <h2>14. Contact</h2>
+    <div class="contact-box">
+      <p>If you have any questions about these terms, please contact us at:<br/>
+      <strong><a href="mailto:ibraheemabodbay7@gmail.com">ibraheemabodbay7@gmail.com</a></strong></p>
+    </div>
+  </div>
+</body>
+</html>`);
+  });
+
   // ── Auth ──────────────────────────────────────────────────────────────────
 
   app.post("/api/auth/signup", async (req, res) => {

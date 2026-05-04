@@ -53,7 +53,8 @@
       "Bash(echo \"EXIT:$?\")",
       "Bash(uuidgen)",
       "Bash(grep -E \"^[0-9]+:\\\\s*<\\\\/.*>$\")",
-      "Bash(grep -v \"^$\")"
+      "Bash(grep -v \"^$\")",
+      "Bash(grep -n \"Auth ──\\\\|}\\);$\" /Users/user/Desktop/app_output/server/routes.ts)"
     ]
   }
 }
