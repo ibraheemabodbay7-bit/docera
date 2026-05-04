@@ -54,7 +54,10 @@
       "Bash(uuidgen)",
       "Bash(grep -E \"^[0-9]+:\\\\s*<\\\\/.*>$\")",
       "Bash(grep -v \"^$\")",
-      "Bash(grep -n \"Auth ──\\\\|}\\);$\" /Users/user/Desktop/app_output/server/routes.ts)"
+      "Bash(grep -n \"Auth ──\\\\|}\\);$\" /Users/user/Desktop/app_output/server/routes.ts)",
+      "Read(//Users/user/Desktop/**)",
+      "Read(//Users/user/Downloads/**)",
+      "Bash(sips *)"
     ]
   }
 }
