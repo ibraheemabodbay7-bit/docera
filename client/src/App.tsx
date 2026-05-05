@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "./lib/queryClient";
+import { queryClient, API_BASE } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { initPurchases } from "@/lib/purchases";
 import { Capacitor } from "@capacitor/core";
@@ -121,6 +121,33 @@ function AppWithAuth() {
   const subscription = useSubscription();
 
   try { localStorage.removeItem('__bootCount'); } catch {}
+
+  // Proactive Gmail token refresh — fires on every cold-launch so the
+  // access token is fresh regardless of which surface the user lands on.
+  useEffect(() => {
+    const proactiveRefresh = async () => {
+      const rt = localStorage.getItem("gmail_refresh_token");
+      const expiry = Number(localStorage.getItem("gmail_token_expiry") ?? 0);
+      if (!rt) return;
+      if (expiry - Date.now() > 10 * 60 * 1000) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/gmail/refresh-token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken: rt }),
+          credentials: "omit",
+        });
+        if (!res.ok) return;
+        const { accessToken } = await res.json();
+        if (!accessToken) return;
+        localStorage.setItem("gmail_access_token", accessToken);
+        localStorage.setItem("gmail_token_expiry", String(Date.now() + 55 * 60 * 1000));
+      } catch {}
+    };
+    proactiveRefresh();
+    const id = setInterval(proactiveRefresh, 45 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     initPurchases().catch(() => {});
