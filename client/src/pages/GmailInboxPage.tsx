@@ -215,7 +215,8 @@ async function generatePdfThumbnail(base64: string): Promise<{ thumb: string; pa
       try { if (page) page.cleanup(); } catch {}
       try { if (pdf) await pdf.destroy(); } catch {}
     }
-  } catch {
+  } catch (err) {
+    console.error("[PDF thumb]", err);
     return { thumb: "", pageCount: 0 };
   }
 }
@@ -424,7 +425,6 @@ function PdfThumbnail({
   const [loading, setLoading] = useState(false);
   const [visible, setVisible] = useState(!!cached);
   const containerRef = useRef<HTMLDivElement>(null);
-  const largeFile = attachment.size > 3 * 1024 * 1024;
 
   useEffect(() => {
     mountedThumbnailCount++;
@@ -432,7 +432,7 @@ function PdfThumbnail({
   }, []);
 
   useEffect(() => {
-    if (cached || largeFile) return;
+    if (cached) return;
     const el = containerRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
@@ -441,10 +441,10 @@ function PdfThumbnail({
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [cached, largeFile]);
+  }, [cached]);
 
   useEffect(() => {
-    if (!visible || thumb || largeFile) return;
+    if (!visible || thumb) return;
     let cancelled = false;
     setLoading(true);
     (async () => {

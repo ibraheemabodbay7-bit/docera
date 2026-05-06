@@ -111,7 +111,8 @@ async function generatePdfThumbnail(base64: string): Promise<{ thumb: string; pa
       try { if (page) page.cleanup(); } catch {}
       try { if (pdf) await pdf.destroy(); } catch {}
     }
-  } catch {
+  } catch (err) {
+    console.error("[PDF thumb]", err);
     return { thumb: "", pageCount: 0 };
   }
 }
