@@ -503,12 +503,16 @@ function PdfThumbnail({
     <div ref={containerRef} style={{ width: 260, borderRadius: 14, overflow: "hidden", marginBottom: 6 }}>
       <div style={{ position: "relative" }}>
         <button onClick={selectMode ? onToggle : onTap} className="block active:opacity-80" style={{ width: 260 }}>
-          {thumb ? (
-            <>
-              <div style={{ width: 260, height: 160, overflow: "hidden" }}>
-                <img src={thumb} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top", display: "block" }} />
-              </div>
-              <div style={{ width: 260, height: 52, display: "flex", alignItems: "center", gap: 10, padding: "0 12px", background: "rgba(0,0,0,0.6)" }}>
+          <div style={{ width: 260, height: 160, overflow: "hidden" }}>
+            {thumb ? (
+              <img src={thumb} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top", display: "block" }} />
+            ) : (
+              fileCardArea
+            )}
+          </div>
+          <div style={{ width: 260, height: 52, display: "flex", alignItems: "center", gap: 10, padding: "0 12px", background: "rgba(0,0,0,0.6)" }}>
+            {thumb && (
+              <>
                 <div className="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center flex-shrink-0">
                   <span className="text-white text-[7px] font-bold">PDF</span>
                 </div>
@@ -516,11 +520,9 @@ function PdfThumbnail({
                   <p className="text-white text-[11px] font-semibold truncate">{attachment.name}</p>
                   <p className="text-white/55 text-[10px]">{pageCount !== null && pageCount > 0 ? `${pageCount} ${pageCount === 1 ? 'page' : 'pages'} · ` : ''}{fmtSize(attachment.size)}</p>
                 </div>
-              </div>
-            </>
-          ) : (
-            fileCardArea
-          )}
+              </>
+            )}
+          </div>
         </button>
         {selectMode && isSelected && (
           <div style={{ position: "absolute", inset: 0, background: "rgba(0,122,255,0.18)", pointerEvents: "none" }} />
@@ -2453,7 +2455,7 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
           {/* ThreadView — slides in from right */}
           <div
             style={{
-              position: "fixed",
+              position: "absolute",
               inset: 0,
               zIndex: 2,
               transform: selectedContact ? "translateX(0)" : "translateX(100%)",
