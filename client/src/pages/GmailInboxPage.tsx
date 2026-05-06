@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, memo, useMemo, useReducer } from "react";
 import { isDarkMode, toggleDarkMode } from "@/lib/theme";
+import { getInboxTheme, type InboxTheme } from "@/lib/themes";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Mail, RefreshCw, FileText, Send, X, AlertCircle,
@@ -32,77 +33,6 @@ const GMAIL_SCOPE = [
   "https://www.googleapis.com/auth/gmail.readonly",
   "https://www.googleapis.com/auth/gmail.send",
 ].join(" ");
-
-// ─── Theme ────────────────────────────────────────────────────────────────────
-
-interface Theme {
-  bg: string;
-  orbBg: string;
-  header: string;
-  cardBg: string;
-  receivedBg: string;
-  receivedText: string;
-  sentBg: string;
-  sentText: string;
-  subText: string;
-  inputBg: string;
-  border: string;
-  pillBg: string;
-  searchBg: string;
-  avatarBg: string;
-  avatarText: string;
-  dark: boolean;
-}
-
-function getTheme(dark: boolean): Theme {
-  return dark
-    ? {
-        bg: "#050507",
-        orbBg: [
-          "radial-gradient(ellipse at 20% 15%, #1a1a1f 0%, #0e0e12 30%, transparent 60%)",
-          "radial-gradient(ellipse at 80% 85%, #16161a 0%, #0a0a0c 35%, transparent 65%)",
-          "radial-gradient(ellipse at 50% 50%, #000000 0%, transparent 50%)",
-          "#050507",
-        ].join(", "),
-        header: "rgba(14,14,18,0.88)",
-        cardBg: "rgba(28,28,32,0.65)",
-        receivedBg: "rgba(28,28,32,0.65)",
-        receivedText: "#ececef",
-        sentBg: "rgba(38,38,46,0.72)",
-        sentText: "#ececef",
-        subText: "#a0a8b8",
-        inputBg: "rgba(28,28,32,0.65)",
-        border: "rgba(255,255,255,0.08)",
-        pillBg: "rgba(28,28,32,0.65)",
-        searchBg: "rgba(28,28,32,0.65)",
-        avatarBg: "#1a1a1f",
-        avatarText: "#d4d4dc",
-        dark: true,
-      }
-    : {
-        bg: "#ececef",
-        orbBg: [
-          "radial-gradient(ellipse at 20% 15%, #e8ecf2 0%, #c8d0dc 30%, transparent 60%)",
-          "radial-gradient(ellipse at 80% 85%, #d8dee8 0%, #a8b0c0 35%, transparent 65%)",
-          "radial-gradient(ellipse at 50% 50%, #6a7388 0%, transparent 50%)",
-          "#b8c0cc",
-        ].join(", "),
-        header: "rgba(232,236,242,0.82)",
-        cardBg: "rgba(255,255,255,0.55)",
-        receivedBg: "rgba(255,255,255,0.55)",
-        receivedText: "#1a1f2a",
-        sentBg: "rgba(200,215,240,0.65)",
-        sentText: "#1a1f2a",
-        subText: "#4a5262",
-        inputBg: "rgba(255,255,255,0.55)",
-        border: "rgba(255,255,255,0.4)",
-        pillBg: "rgba(255,255,255,0.55)",
-        searchBg: "rgba(255,255,255,0.55)",
-        avatarBg: "#2a2a30",
-        avatarText: "#e8e8ec",
-        dark: false,
-      };
-}
 
 function glassStyle(dark: boolean): React.CSSProperties {
   return {
@@ -397,7 +327,7 @@ async function gmailPost<T>(
 
 // ─── Date separator ───────────────────────────────────────────────────────────
 
-function DateSeparator({ dateStr, theme }: { dateStr: string; theme: Theme }) {
+function DateSeparator({ dateStr, theme }: { dateStr: string; theme: InboxTheme }) {
   const label = fmtDateSep(dateStr);
   if (!label) return null;
   return (
@@ -416,7 +346,7 @@ function PdfThumbnail({
   selectMode, isSelected, onToggle,
 }: {
   messageId: string; attachment: GmailAttachment; token: string; refreshToken?: string | null;
-  theme: Theme; onTap: () => void; bodyText?: string; isLastAtt?: boolean;
+  theme: InboxTheme; onTap: () => void; bodyText?: string; isLastAtt?: boolean;
   selectMode?: boolean; isSelected?: boolean; onToggle?: () => void;
 }) {
   const cached = thumbCache.get(attachment.id) ?? null;
@@ -552,7 +482,7 @@ function ImageAttachment({
   selectMode, isSelected, onToggle,
 }: {
   messageId: string; attachment: GmailAttachment; token: string; refreshToken?: string | null;
-  theme: Theme; bodyText?: string; isLastAtt?: boolean;
+  theme: InboxTheme; bodyText?: string; isLastAtt?: boolean;
   selectMode?: boolean; isSelected?: boolean; onToggle?: () => void;
 }) {
   const [src, setSrc] = useState<string | null>(null);
@@ -660,7 +590,7 @@ function MessageBubble({
   msg, token, refreshToken, contacts, theme, searchQuery, onOpenPdf,
   selectMode, selectedAttachments, onToggleAttachment,
 }: {
-  msg: GmailMessage; token: string; refreshToken?: string | null; contacts: Contact[]; theme: Theme; searchQuery?: string;
+  msg: GmailMessage; token: string; refreshToken?: string | null; contacts: Contact[]; theme: InboxTheme; searchQuery?: string;
   onOpenPdf?: (att: GmailAttachment, msgId: string) => void;
   selectMode?: boolean; selectedAttachments?: Set<string>; onToggleAttachment?: (id: string) => void;
 }) {
@@ -813,7 +743,7 @@ function MessageBubble({
 function ChatInput({
   contact, token, refreshToken, onSent, onTokenExpired, theme,
 }: {
-  contact: Contact; token: string; refreshToken?: string | null; onSent: (sentMessage?: GmailMessage) => void; onTokenExpired: () => void; theme: Theme;
+  contact: Contact; token: string; refreshToken?: string | null; onSent: (sentMessage?: GmailMessage) => void; onTokenExpired: () => void; theme: InboxTheme;
 }) {
   const { toast } = useToast();
   const [text, setText] = useState("");
@@ -1086,7 +1016,7 @@ function ThreadView({
   contact, token, refreshToken, contacts, onBack, onTokenExpired, theme,
 }: {
   contact: Contact; token: string; refreshToken?: string | null; contacts: Contact[];
-  onBack: () => void; onTokenExpired: () => void; theme: Theme;
+  onBack: () => void; onTokenExpired: () => void; theme: InboxTheme;
 }) {
   const [messages, setMessages] = useState<GmailMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1712,7 +1642,7 @@ type ContactRowProps = {
   isSelected: boolean;
   isInSelectMode: boolean;
   isOther: boolean;
-  theme: Theme;
+  theme: InboxTheme;
   onTap: (c: Contact) => void;
 };
 
@@ -1793,7 +1723,7 @@ function ContactList({
   onContactsLoaded: (c: Contact[]) => void;
   darkMode: boolean;
   onToggleDark: () => void;
-  theme: Theme;
+  theme: InboxTheme;
 }) {
   const { toast } = useToast();
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -2308,7 +2238,7 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
   // Dark mode — driven by global theme system
   const [, forceUpdate] = useReducer(x => x + 1, 0);
   const darkMode = isDarkMode();
-  const theme = useMemo(() => getTheme(darkMode), [darkMode]);
+  const theme = useMemo(() => getInboxTheme(darkMode), [darkMode]);
 
   // Let the orb div bleed into iOS safe-area zones — body bg would otherwise show beige there
   useEffect(() => {

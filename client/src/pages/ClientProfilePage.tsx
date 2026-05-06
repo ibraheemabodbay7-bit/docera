@@ -3,6 +3,7 @@ import { ChevronLeft, Loader2, ImageOff, Paperclip, Image, MessageCircle } from 
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { API_BASE } from "@/lib/queryClient";
 import { isDarkMode } from "@/lib/theme";
+import { getProfileTheme, TONE_GRADIENTS_DARK, TONE_GRADIENTS_LIGHT } from "@/lib/themes";
 
 const QuickLook = registerPlugin<{ openPDF: (options: { path: string }) => Promise<void> }>("QuickLook");
 
@@ -162,63 +163,6 @@ const ORB_DARK = [
   "#050507",
 ].join(", ");
 
-const TONE_GRADIENTS_LIGHT = [
-  "linear-gradient(135deg, #d8d8dc 0%, #c0c0c8 100%)",
-  "linear-gradient(135deg, #e8e8ec 0%, #d0d0d8 100%)",
-  "linear-gradient(135deg, #2a2a30 0%, #1a1a1f 100%)",
-  "linear-gradient(135deg, #ececef 0%, #dcdce0 100%)",
-];
-const TONE_GRADIENTS_DARK = [
-  "linear-gradient(135deg, #2a2a30 0%, #3a3a42 100%)",
-  "linear-gradient(135deg, #3a3a42 0%, #4a4a54 100%)",
-  "linear-gradient(135deg, #0a0a0c 0%, #1c1c20 100%)",
-  "linear-gradient(135deg, #d4d4dc 0%, #b0b0bc 100%)",
-];
-
-function getTheme(dark: boolean) {
-  return dark
-    ? {
-        base: "transparent",
-        headerBg: "rgba(14,14,18,0.88)",
-        headerInk: "#e8e8ec",
-        headerSubtle: "rgba(232,232,236,0.72)",
-        headerFaint: "rgba(232,232,236,0.46)",
-        ink: "#e8e8ec",
-        subtle: "rgba(232,232,236,0.72)",
-        muted: "#a0a0a8",
-        hair: "rgba(255,255,255,0.08)",
-        statsCard: "rgba(28,28,32,0.65)",
-        statsCardShadow: "0 1px 0 rgba(255,255,255,0.05) inset, 0 4px 20px rgba(0,0,0,0.5)",
-        statsCardBorder: "0.5px solid rgba(255,255,255,0.08)",
-        accentInk: "#e8e8ec",
-        accentBg: "linear-gradient(160deg, #3a3a42, #2a2a30)",
-        accentShadow: "0 10px 24px -8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)",
-        avatarBg: "radial-gradient(circle at 30% 25%, #3a3a42, #2a2a30 80%)",
-        frameDark: true,
-        toneGradients: TONE_GRADIENTS_DARK,
-      }
-    : {
-        base: "transparent",
-        headerBg: "rgba(232,236,242,0.82)",
-        headerInk: "#1a1f2a",
-        headerSubtle: "rgba(26,31,42,0.7)",
-        headerFaint: "rgba(26,31,42,0.45)",
-        ink: "#1a1a1f",
-        subtle: "#6a6a72",
-        muted: "rgba(26,26,31,0.28)",
-        hair: "rgba(255,255,255,0.4)",
-        statsCard: "rgba(255,255,255,0.55)",
-        statsCardShadow: "0 1px 0 rgba(255,255,255,0.7) inset, 0 4px 16px rgba(0,0,0,0.15)",
-        statsCardBorder: "0.5px solid rgba(255,255,255,0.4)",
-        accentInk: "#e8e8ec",
-        accentBg: "linear-gradient(160deg, #3a3a42, #2a2a30)",
-        accentShadow: "0 10px 24px -8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.12)",
-        avatarBg: "radial-gradient(circle at 30% 25%, #ffffff, #e4e4e8 80%)",
-        frameDark: false,
-        toneGradients: TONE_GRADIENTS_LIGHT,
-      };
-}
-
 // ─── Paper skeleton (shown while thumbnail loads) ─────────────────────────────
 
 function PdfPaperSkeleton({ dark }: { dark: boolean }) {
@@ -255,7 +199,7 @@ function PdfThumbnailCard({
   dateStr: string;
   variant?: "card" | "row" | "large";
 }) {
-  const theme = getTheme(dark);
+  const theme = getProfileTheme(dark);
   const cached = profileThumbCache.get(att.id) ?? null;
   const [thumb, setThumb] = useState<string | null>(cached);
   const [pageCount, setPageCount] = useState<number | null>(profilePageCountCache.get(att.id) ?? null);
@@ -509,7 +453,7 @@ export default function ClientProfilePage({
   contact, messages, token, refreshToken, onBack, onOpenConversation,
 }: ClientProfilePageProps) {
   const darkMode = isDarkMode();
-  const theme = getTheme(darkMode);
+  const theme = getProfileTheme(darkMode);
   const orbBg = darkMode ? ORB_DARK : ORB_LIGHT;
 
   useEffect(() => {
