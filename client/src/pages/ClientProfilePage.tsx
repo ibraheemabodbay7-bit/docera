@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { ChevronLeft, Loader2, ImageOff, Paperclip, Image, MessageCircle } from "lucide-react";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { API_BASE } from "@/lib/queryClient";
-import { isDarkMode } from "@/lib/theme";
+import { isDarkMode, getAppliedTheme } from "@/lib/theme";
 import { getProfileTheme, type ProfileTheme, type ThemeMode, TONE_GRADIENTS_DARK, TONE_GRADIENTS_LIGHT } from "@/lib/themes";
 
 const QuickLook = registerPlugin<{ openPDF: (options: { path: string }) => Promise<void> }>("QuickLook");
@@ -199,7 +199,7 @@ function PdfThumbnailCard({
   dateStr: string;
   variant?: "card" | "row" | "large";
 }) {
-  const mode: ThemeMode = dark ? "dark" : "light";
+  const mode: ThemeMode = getAppliedTheme();
   const theme = getProfileTheme(mode);
   const cached = profileThumbCache.get(att.id) ?? null;
   const [thumb, setThumb] = useState<string | null>(cached);
@@ -454,7 +454,7 @@ export default function ClientProfilePage({
   contact, messages, token, refreshToken, onBack, onOpenConversation,
 }: ClientProfilePageProps) {
   const darkMode = isDarkMode();
-  const mode: ThemeMode = darkMode ? "dark" : "light";
+  const mode: ThemeMode = getAppliedTheme();
   const theme = getProfileTheme(mode);
   const orbBg = darkMode ? ORB_DARK : ORB_LIGHT;
 
