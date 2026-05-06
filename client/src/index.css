@@ -25,6 +25,17 @@ html.dark {
   --avatar-text: #d4d4dc;
 }
 
+html.pro {
+  --bg: #0a0f1e;
+  --bg-secondary: #0d1b3e;
+  --text: #f4ead0;
+  --text-secondary: #a89970;
+  --app-border: rgba(201,168,76,0.18);
+  --surface: rgba(201,168,76,0.06);
+  --avatar-bg: #1f2c50;
+  --avatar-text: #f4ead0;
+}
+
 html, body {
   background-color: var(--bg);
   color: var(--text);
@@ -249,6 +260,65 @@ html, body {
   /* Fallback for older browsers */
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+}
+
+.pro {
+  --button-outline: rgba(201,168,76, .22);
+  --badge-outline:  rgba(201,168,76, .12);
+  --opaque-button-border-intensity: 12;
+  --elevate-1: rgba(201,168,76, .05);
+  --elevate-2: rgba(201,168,76, .11);
+
+  /* Page */
+  --background: 222 53% 8%;
+  --foreground: 42 64% 86%;
+
+  /* Generic border / input */
+  --border: 222 35% 22%;
+  --input:  222 30% 28%;
+
+  /* Cards — deep navy */
+  --card:            222 50% 14%;
+  --card-foreground: 42 64% 86%;
+  --card-border:     222 35% 22%;
+
+  /* Sidebar / top-bar */
+  --sidebar:                    222 56% 12%;
+  --sidebar-foreground:          42 64% 86%;
+  --sidebar-border:             222 50% 18%;
+  --sidebar-primary:             42 56% 54%;
+  --sidebar-primary-foreground: 222 60% 8%;
+  --sidebar-accent:              42 40% 70%;
+  --sidebar-accent-foreground:  222 60% 8%;
+  --sidebar-ring:                42 56% 54%;
+
+  /* Popovers */
+  --popover:            222 50% 14%;
+  --popover-foreground: 42 64% 86%;
+  --popover-border:     222 35% 22%;
+
+  /* Primary — gold */
+  --primary:            42 56% 54%;
+  --primary-foreground: 222 60% 8%;
+
+  /* Secondary — navy tint */
+  --secondary:            222 40% 18%;
+  --secondary-foreground: 42 64% 86%;
+
+  /* Muted */
+  --muted:            222 35% 18%;
+  --muted-foreground: 42 30% 65%;
+
+  /* Accent */
+  --accent:            42 56% 54%;
+  --accent-foreground: 222 60% 8%;
+
+  /* Danger */
+  --destructive:            0 84% 42%;
+  --destructive-foreground: 0  0% 98%;
+
+  /* Focus ring — gold */
+  --ring: 42 56% 54%;
 }
 
 @layer base {

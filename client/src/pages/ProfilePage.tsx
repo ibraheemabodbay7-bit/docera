@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest, apiFetch } from "@/lib/queryClient";
-import { ArrowLeft, FileText, FolderOpen, LogOut, ChevronRight, Check, X, Crown, Loader2, User, Mail, AtSign, SlidersHorizontal, Tag, Download, Sparkles } from "lucide-react";
+import { ArrowLeft, FileText, FolderOpen, LogOut, ChevronRight, Check, X, Crown, Loader2, User, Mail, AtSign, SlidersHorizontal, Tag, Download, Sparkles, Palette } from "lucide-react";
 import { getSetting, setSetting, getBoolSetting, setBoolSetting } from "@/lib/settings";
 import { useToast } from "@/hooks/use-toast";
 import type { Document, Folder } from "@shared/schema";
 import type { SubscriptionInfo } from "@/hooks/use-subscription";
-import { isDarkMode } from "@/lib/theme";
+import { isDarkMode, getThemeMode } from "@/lib/theme";
 
 const ORB_LIGHT = [
   "radial-gradient(ellipse at 20% 15%, #e8ecf2 0%, #c8d0dc 30%, transparent 60%)",
@@ -40,9 +40,10 @@ interface ProfilePageProps {
   subscription: SubscriptionInfo;
   onUpgrade?: () => void;
   isGuest?: boolean;
+  onOpenThemePicker: () => void;
 }
 
-export default function ProfilePage({ user, onBack, onLogout, subscription, onUpgrade, isGuest = false }: ProfilePageProps) {
+export default function ProfilePage({ user, onBack, onLogout, subscription, onUpgrade, isGuest = false, onOpenThemePicker }: ProfilePageProps) {
   const { toast } = useToast();
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState(user.name);
@@ -316,6 +317,24 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
         <div className="px-4 mb-5">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">App Preferences</p>
           <div className="rounded-2xl overflow-hidden" style={{ background: cardBg, ...glassStyle(dark) }}>
+
+            {/* Theme */}
+            <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border">
+              <div className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
+                <Palette className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground">Theme</p>
+                <p className="text-xs text-muted-foreground">Light, Dark, System, Pro</p>
+              </div>
+              <button
+                onClick={onOpenThemePicker}
+                className="flex items-center gap-1 text-xs font-medium text-foreground flex-shrink-0"
+              >
+                <span className="capitalize">{getThemeMode()}</span>
+                <ChevronRight className="w-4 h-4 opacity-40" />
+              </button>
+            </div>
 
             {/* Filename prefix */}
             <div className="px-4 py-3.5 border-b border-border">

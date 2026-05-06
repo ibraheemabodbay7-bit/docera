@@ -10,6 +10,7 @@ import ScannerPage from "./pages/ScannerPage";
 import ViewerPage from "./pages/ViewerPage";
 import FolderPage from "./pages/FolderPage";
 import ProfilePage from "./pages/ProfilePage";
+import ThemePickerPage from "./pages/ThemePickerPage";
 import PaywallPage from "./pages/PaywallPage";
 import ClientsPage from "./pages/ClientsPage";
 import GmailInboxPage from "./pages/GmailInboxPage";
@@ -26,6 +27,7 @@ type View =
   | { name: "viewer"; docId: string }
   | { name: "folder"; folderId: string; folderName: string }
   | { name: "profile" }
+  | { name: "themePicker" }
   | { name: "paywall"; returnTo: View; lockedFeature?: string }
   | { name: "clients" }
   | { name: "inbox" }
@@ -465,6 +467,14 @@ function AppWithAuth() {
       </>
     );
   }
+  if (view.name === "themePicker") {
+    return (
+      <>
+        {trialBannerEl}
+        <ThemePickerPage onBack={() => setView({ name: "profile" })} />
+      </>
+    );
+  }
   if (view.name === "profile") {
     return (
       <>
@@ -476,6 +486,7 @@ function AppWithAuth() {
           subscription={subscription}
           onUpgrade={() => setView({ name: "paywall", returnTo: { name: "profile" } })}
           isGuest={isGuest}
+          onOpenThemePicker={() => setView({ name: "themePicker" })}
         />
       </>
     );
