@@ -6,7 +6,7 @@ import { getSetting, setSetting, getBoolSetting, setBoolSetting } from "@/lib/se
 import { useToast } from "@/hooks/use-toast";
 import type { Document, Folder } from "@shared/schema";
 import type { SubscriptionInfo } from "@/hooks/use-subscription";
-import { isDarkMode, getThemeMode } from "@/lib/theme";
+import { isDarkMode, getThemeMode, getAppliedTheme } from "@/lib/theme";
 
 const ORB_LIGHT = [
   "radial-gradient(ellipse at 20% 15%, #e8ecf2 0%, #c8d0dc 30%, transparent 60%)",
@@ -20,6 +20,13 @@ const ORB_DARK = [
   "radial-gradient(ellipse at 80% 85%, #16161a 0%, #0a0a0c 35%, transparent 65%)",
   "radial-gradient(ellipse at 50% 50%, #000000 0%, transparent 50%)",
   "#050507",
+].join(", ");
+
+const ORB_PRO = [
+  "radial-gradient(ellipse at 20% 15%, #1a2444 0%, #0d1530 30%, transparent 60%)",
+  "radial-gradient(ellipse at 80% 85%, #15203c 0%, #0a0f1e 35%, transparent 65%)",
+  "radial-gradient(ellipse at 50% 50%, #0a0f1e 0%, transparent 50%)",
+  "#0a0f1e",
 ].join(", ");
 
 function glassStyle(dark: boolean): React.CSSProperties {
@@ -105,7 +112,7 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
 
 
   const dark = isDarkMode();
-  const orbBg = dark ? ORB_DARK : ORB_LIGHT;
+  const orbBg = getAppliedTheme() === "pro" ? ORB_PRO : (dark ? ORB_DARK : ORB_LIGHT);
   const cardBg = dark ? "rgba(28,28,32,0.65)" : "rgba(255,255,255,0.55)";
   const headerBg = dark ? "rgba(14,14,18,0.88)" : "rgba(232,236,242,0.82)";
   const textPrimary = dark ? "#ececef" : "#1a1f2a";

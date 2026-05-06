@@ -2017,7 +2017,7 @@ function ContactList({
                     </div>
                   )}
                   {todayRows.map(c => (
-                    <div key={c.email} style={{ WebkitTapHighlightColor: 'transparent', isolation: 'isolate' } as React.CSSProperties}>
+                    <div key={c.email} style={{ WebkitTapHighlightColor: 'transparent', isolation: 'isolate', transform: 'translateZ(0)', willChange: 'transform' } as React.CSSProperties}>
                       <ContactRow
                         contact={c}
                         isSelected={selectedEmails.has(c.email)}
@@ -2034,7 +2034,7 @@ function ContactList({
                     </div>
                   )}
                   {earlierRows.map(c => (
-                    <div key={c.email} style={{ WebkitTapHighlightColor: 'transparent', isolation: 'isolate' } as React.CSSProperties}>
+                    <div key={c.email} style={{ WebkitTapHighlightColor: 'transparent', isolation: 'isolate', transform: 'translateZ(0)', willChange: 'transform' } as React.CSSProperties}>
                       <ContactRow
                         contact={c}
                         isSelected={selectedEmails.has(c.email)}
