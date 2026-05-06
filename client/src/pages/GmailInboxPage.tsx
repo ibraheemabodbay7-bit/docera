@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, memo, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Mail, RefreshCw, FileText, Send, X, AlertCircle,
@@ -1703,6 +1703,79 @@ function ComposeSheet({
   );
 }
 
+// ─── Contact row (memoized to prevent full-list re-renders) ──────────────────
+
+type ContactRowProps = {
+  contact: Contact;
+  isSelected: boolean;
+  isInSelectMode: boolean;
+  isOther: boolean;
+  theme: Theme;
+  onTap: (c: Contact) => void;
+};
+
+const ContactRow = memo(function ContactRow({
+  contact, isSelected, isInSelectMode, isOther, theme, onTap,
+}: ContactRowProps) {
+  return (
+    <div style={{ display: "block", WebkitTapHighlightColor: 'transparent', margin: "3px 12px" } as React.CSSProperties}>
+      <button
+        onClick={() => onTap(contact)}
+        style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: theme.cardBg, border: "none", cursor: "pointer", width: "100%", WebkitTapHighlightColor: 'transparent', outline: 'none', borderRadius: 14, ...glassStyle(theme.dark) } as React.CSSProperties}
+      >
+        {isInSelectMode ? (
+          <div style={{ width: 22, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {isSelected
+              ? <CheckCircle style={{ width: 22, height: 22, color: '#007AFF' }} />
+              : <Circle style={{ width: 22, height: 22, color: theme.subText, opacity: 0.4 }} />}
+          </div>
+        ) : isOther ? (
+          <div style={{ width: 12, flexShrink: 0 }} />
+        ) : (
+          <div style={{ width: 12, flexShrink: 0, display: "flex", justifyContent: "center" }}>
+            {contact.hasUnread && <div style={{ width: 8, height: 8, borderRadius: 4, background: theme.avatarBg }} />}
+          </div>
+        )}
+        {isOther ? (
+          <>
+            <div style={{ width: 36, height: 36, borderRadius: 18, background: theme.avatarBg, display: "flex", alignItems: "center", justifyContent: "center", color: theme.avatarText, fontSize: 13, fontWeight: 600, flexShrink: 0, opacity: 0.7 }}>
+              {initials(contact.name)}
+            </div>
+            <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+              <p style={{ color: theme.subText, fontSize: 15, fontWeight: 400, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.name}</p>
+              <p style={{ color: theme.subText, fontSize: 12, margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", opacity: 0.6 }}>{contact.email}</p>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ width: 44, height: 44, borderRadius: 22, background: theme.avatarBg, display: "flex", alignItems: "center", justifyContent: "center", color: theme.avatarText, fontSize: 17, fontWeight: 600, flexShrink: 0 }}>
+              {initials(contact.name)}
+            </div>
+            <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 3 }}>
+                <span style={{ color: theme.receivedText, fontSize: 16, fontWeight: contact.hasUnread ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {contact.name}
+                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                  <span style={{ color: theme.subText, fontSize: 12 }}>{fmtMsgTime(contact.lastDate)}</span>
+                  <ChevronRight style={{ width: 12, height: 12, color: theme.subText, opacity: 0.5 }} />
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                {contact.hasAttachments && <Paperclip style={{ width: 12, height: 12, color: theme.subText, flexShrink: 0 }} />}
+                <p style={{ color: theme.subText, fontSize: 14, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {decodeHtml(contact.lastMessage || contact.lastSubject)}
+                </p>
+              </div>
+            </div>
+          </>
+        )}
+      </button>
+      <div style={{ height: 0 }} />
+    </div>
+  );
+});
+
 // ─── Contact list ─────────────────────────────────────────────────────────────
 
 function ContactList({
@@ -1737,7 +1810,6 @@ function ContactList({
   const [selectMode, setSelectMode] = useState(false);
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [showCompose, setShowCompose] = useState(false);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const contactListRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
@@ -1795,12 +1867,19 @@ function ContactList({
 
   const base = smartMode ? smartContacts : (inboxTab === "important" ? sortedImportant : sortedOther);
 
-  const startLongPress = (c: Contact) => {
-    longPressTimer.current = setTimeout(() => { hapticMedium(); setLongPressTarget(c); }, 500);
-  };
-  const endLongPress = () => {
-    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
-  };
+  const handleRowTap = useCallback((contact: Contact) => {
+    if (blockTaps) return;
+    if (selectMode) {
+      setSelectedEmails(prev => {
+        const next = new Set(prev);
+        if (next.has(contact.email)) next.delete(contact.email); else next.add(contact.email);
+        return next;
+      });
+      return;
+    }
+    hapticLight();
+    onSelect(contact);
+  }, [blockTaps, selectMode, onSelect]);
   const moveContact = (email: string, to: 'important' | 'other') => {
     const next = { ...overrides, [email]: to };
     setOverrides(next);
@@ -1997,79 +2076,7 @@ function ContactList({
             {(() => {
               const todayRows = filtered.filter(c => { try { return isToday(new Date(c.lastDate)); } catch { return false; } });
               const earlierRows = filtered.filter(c => { try { return !isToday(new Date(c.lastDate)); } catch { return true; } });
-              const renderRow = (c: typeof filtered[0]) => {
-                const isOther = inboxTab === "other";
-                const isSelected = selectedEmails.has(c.email);
-                return (
-                  <div style={{ display: "block", WebkitTapHighlightColor: 'transparent', margin: "3px 12px" } as React.CSSProperties}>
-                    <button
-                      onClick={() => {
-                        if (blockTaps) return;
-                        if (selectMode) {
-                          setSelectedEmails(prev => {
-                            const next = new Set(prev);
-                            if (next.has(c.email)) next.delete(c.email); else next.add(c.email);
-                            return next;
-                          });
-                          return;
-                        }
-                        hapticLight();
-                        onSelect(c);
-                      }}
-                      style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: theme.cardBg, border: "none", cursor: "pointer", width: "100%", WebkitTapHighlightColor: 'transparent', outline: 'none', borderRadius: 14, ...glassStyle(theme.dark) } as React.CSSProperties}
-                    >
-                      {selectMode ? (
-                        <div style={{ width: 22, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          {isSelected
-                            ? <CheckCircle style={{ width: 22, height: 22, color: '#007AFF' }} />
-                            : <Circle style={{ width: 22, height: 22, color: theme.subText, opacity: 0.4 }} />}
-                        </div>
-                      ) : isOther ? (
-                        <div style={{ width: 12, flexShrink: 0 }} />
-                      ) : (
-                        <div style={{ width: 12, flexShrink: 0, display: "flex", justifyContent: "center" }}>
-                          {c.hasUnread && <div style={{ width: 8, height: 8, borderRadius: 4, background: theme.avatarBg }} />}
-                        </div>
-                      )}
-                      {isOther ? (
-                        <>
-                          <div style={{ width: 36, height: 36, borderRadius: 18, background: theme.avatarBg, display: "flex", alignItems: "center", justifyContent: "center", color: theme.avatarText, fontSize: 13, fontWeight: 600, flexShrink: 0, opacity: 0.7 }}>
-                            {initials(c.name)}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
-                            <p style={{ color: theme.subText, fontSize: 15, fontWeight: 400, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</p>
-                            <p style={{ color: theme.subText, fontSize: 12, margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", opacity: 0.6 }}>{c.email}</p>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div style={{ width: 44, height: 44, borderRadius: 22, background: theme.avatarBg, display: "flex", alignItems: "center", justifyContent: "center", color: theme.avatarText, fontSize: 17, fontWeight: 600, flexShrink: 0 }}>
-                            {initials(c.name)}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 3 }}>
-                              <span style={{ color: theme.receivedText, fontSize: 16, fontWeight: c.hasUnread ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {c.name}
-                              </span>
-                              <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-                                <span style={{ color: theme.subText, fontSize: 12 }}>{fmtMsgTime(c.lastDate)}</span>
-                                <ChevronRight style={{ width: 12, height: 12, color: theme.subText, opacity: 0.5 }} />
-                              </div>
-                            </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                              {c.hasAttachments && <Paperclip style={{ width: 12, height: 12, color: theme.subText, flexShrink: 0 }} />}
-                              <p style={{ color: theme.subText, fontSize: 14, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {decodeHtml(c.lastMessage || c.lastSubject)}
-                              </p>
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </button>
-                    <div style={{ height: 0 }} />
-                  </div>
-                );
-              };
+              const isOther = inboxTab === "other";
               return (
                 <>
                   {todayRows.length > 0 && (
@@ -2077,13 +2084,35 @@ function ContactList({
                       Today · Recent
                     </div>
                   )}
-                  {todayRows.map(c => <div key={c.email} style={{ WebkitTapHighlightColor: 'transparent', isolation: 'isolate' } as React.CSSProperties}>{renderRow(c)}</div>)}
+                  {todayRows.map(c => (
+                    <div key={c.email} style={{ WebkitTapHighlightColor: 'transparent', isolation: 'isolate' } as React.CSSProperties}>
+                      <ContactRow
+                        contact={c}
+                        isSelected={selectedEmails.has(c.email)}
+                        isInSelectMode={selectMode}
+                        isOther={isOther}
+                        theme={theme}
+                        onTap={handleRowTap}
+                      />
+                    </div>
+                  ))}
                   {earlierRows.length > 0 && todayRows.length > 0 && (
                     <div style={{ padding: "12px 16px 4px", fontSize: 11, fontWeight: 600, letterSpacing: 0.8, textTransform: "uppercase", ...orbTextStyle(theme.dark) }}>
                       Earlier
                     </div>
                   )}
-                  {earlierRows.map(c => <div key={c.email} style={{ WebkitTapHighlightColor: 'transparent', isolation: 'isolate' } as React.CSSProperties}>{renderRow(c)}</div>)}
+                  {earlierRows.map(c => (
+                    <div key={c.email} style={{ WebkitTapHighlightColor: 'transparent', isolation: 'isolate' } as React.CSSProperties}>
+                      <ContactRow
+                        contact={c}
+                        isSelected={selectedEmails.has(c.email)}
+                        isInSelectMode={selectMode}
+                        isOther={isOther}
+                        theme={theme}
+                        onTap={handleRowTap}
+                      />
+                    </div>
+                  ))}
                 </>
               );
             })()}
@@ -2097,7 +2126,13 @@ function ContactList({
           {inboxTab === "other" ? (
             <button
               onClick={() => {
-                selectedEmails.forEach(email => moveContact(email, 'important'));
+                setOverrides(prev => {
+                  const next = { ...prev };
+                  selectedEmails.forEach(email => { next[email] = 'important'; });
+                  localStorage.setItem("docera_contact_overrides", JSON.stringify(next));
+                  return next;
+                });
+                setLongPressTarget(null);
                 setSelectMode(false);
                 setSelectedEmails(new Set());
               }}
@@ -2109,7 +2144,13 @@ function ContactList({
           ) : (
             <button
               onClick={() => {
-                selectedEmails.forEach(email => moveContact(email, 'other'));
+                setOverrides(prev => {
+                  const next = { ...prev };
+                  selectedEmails.forEach(email => { next[email] = 'other'; });
+                  localStorage.setItem("docera_contact_overrides", JSON.stringify(next));
+                  return next;
+                });
+                setLongPressTarget(null);
                 setSelectMode(false);
                 setSelectedEmails(new Set());
               }}
@@ -2267,7 +2308,7 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
     const saved = localStorage.getItem(DARK_MODE_KEY);
     return saved !== null ? saved === "true" : true;
   });
-  const theme = getTheme(darkMode);
+  const theme = useMemo(() => getTheme(darkMode), [darkMode]);
 
   // Let the orb div bleed into iOS safe-area zones — body bg would otherwise show beige there
   useEffect(() => {
