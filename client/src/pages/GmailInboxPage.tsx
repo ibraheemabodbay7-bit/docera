@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback, memo, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, memo, useMemo, useReducer } from "react";
+import { isDarkMode, toggleDarkMode } from "@/lib/theme";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Mail, RefreshCw, FileText, Send, X, AlertCircle,
@@ -27,7 +28,6 @@ const WEB_CLIENT_ID = "787920130380-euura0so62q39iro5t4ukfqlsiu5tagd.apps.google
 const RAILWAY_REDIRECT_URI = "https://docera-production.up.railway.app/api/gmail/callback";
 const GMAIL_TOKEN_KEY = "gmail_access_token";
 const GMAIL_REFRESH_TOKEN_KEY = "gmail_refresh_token";
-const DARK_MODE_KEY = "docera_inbox_dark";
 const GMAIL_SCOPE = [
   "https://www.googleapis.com/auth/gmail.readonly",
   "https://www.googleapis.com/auth/gmail.send",
@@ -2305,11 +2305,9 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
     return () => clearInterval(id);
   }, []);
 
-  // Dark mode — default true, persisted to localStorage
-  const [darkMode, setDarkMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem(DARK_MODE_KEY);
-    return saved !== null ? saved === "true" : true;
-  });
+  // Dark mode — driven by global theme system
+  const [, forceUpdate] = useReducer(x => x + 1, 0);
+  const darkMode = isDarkMode();
   const theme = useMemo(() => getTheme(darkMode), [darkMode]);
 
   // Let the orb div bleed into iOS safe-area zones — body bg would otherwise show beige there
@@ -2344,12 +2342,10 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
     }, 320);
   }, []);
 
-  const toggleDark = () =>
-    setDarkMode(prev => {
-      const next = !prev;
-      localStorage.setItem(DARK_MODE_KEY, String(next));
-      return next;
-    });
+  const toggleDark = () => {
+    toggleDarkMode();
+    forceUpdate();
+  };
 
   useEffect(() => {
     const stored = localStorage.getItem(GMAIL_TOKEN_KEY);
