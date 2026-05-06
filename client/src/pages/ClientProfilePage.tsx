@@ -3,7 +3,7 @@ import { ChevronLeft, Loader2, ImageOff, Paperclip, Image, MessageCircle } from 
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { API_BASE } from "@/lib/queryClient";
 import { isDarkMode } from "@/lib/theme";
-import { getProfileTheme, TONE_GRADIENTS_DARK, TONE_GRADIENTS_LIGHT } from "@/lib/themes";
+import { getProfileTheme, type ProfileTheme, type ThemeMode, TONE_GRADIENTS_DARK, TONE_GRADIENTS_LIGHT } from "@/lib/themes";
 
 const QuickLook = registerPlugin<{ openPDF: (options: { path: string }) => Promise<void> }>("QuickLook");
 
@@ -199,7 +199,8 @@ function PdfThumbnailCard({
   dateStr: string;
   variant?: "card" | "row" | "large";
 }) {
-  const theme = getProfileTheme(dark);
+  const mode: ThemeMode = dark ? "dark" : "light";
+  const theme = getProfileTheme(mode);
   const cached = profileThumbCache.get(att.id) ?? null;
   const [thumb, setThumb] = useState<string | null>(cached);
   const [pageCount, setPageCount] = useState<number | null>(profilePageCountCache.get(att.id) ?? null);
@@ -453,7 +454,8 @@ export default function ClientProfilePage({
   contact, messages, token, refreshToken, onBack, onOpenConversation,
 }: ClientProfilePageProps) {
   const darkMode = isDarkMode();
-  const theme = getProfileTheme(darkMode);
+  const mode: ThemeMode = darkMode ? "dark" : "light";
+  const theme = getProfileTheme(mode);
   const orbBg = darkMode ? ORB_DARK : ORB_LIGHT;
 
   useEffect(() => {

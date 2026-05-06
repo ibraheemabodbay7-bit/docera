@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, memo, useMemo, useReducer } from "react";
 import { isDarkMode, toggleDarkMode } from "@/lib/theme";
-import { getInboxTheme, type InboxTheme } from "@/lib/themes";
+import { getInboxTheme, type InboxTheme, type ThemeMode } from "@/lib/themes";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Mail, RefreshCw, FileText, Send, X, AlertCircle,
@@ -2238,7 +2238,8 @@ export default function GmailInboxPage({ onBack, onUnreadCount }: GmailInboxPage
   // Dark mode — driven by global theme system
   const [, forceUpdate] = useReducer(x => x + 1, 0);
   const darkMode = isDarkMode();
-  const theme = useMemo(() => getInboxTheme(darkMode), [darkMode]);
+  const mode: ThemeMode = darkMode ? "dark" : "light";
+  const theme = useMemo(() => getInboxTheme(mode), [mode]);
 
   // Let the orb div bleed into iOS safe-area zones — body bg would otherwise show beige there
   useEffect(() => {
