@@ -98,8 +98,9 @@ export const DocCard = memo(function DocCard({ doc, onOpen, onDelete, onRename, 
   variant?: "grid" | "recent";
 }) {
   const dark = isDarkMode();
-  const cardBg = dark ? "rgba(28,28,32,0.65)" : "rgba(255,255,255,0.55)";
-  const footerBg = dark ? "rgba(28,28,32,0.85)" : "rgba(26,26,31,0.82)";
+  const isPro = getAppliedTheme() === "pro";
+  const cardBg = isPro ? "rgba(17,25,53,0.65)" : (dark ? "rgba(28,28,32,0.65)" : "rgba(255,255,255,0.55)");
+  const footerBg = isPro ? "rgba(13,20,48,0.92)" : (dark ? "rgba(28,28,32,0.85)" : "rgba(26,26,31,0.82)");
   const [menu, setMenu] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [showFolderPicker, setShowFolderPicker] = useState(false);
@@ -397,12 +398,13 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
   const [, forceUpdate] = useReducer(x => x + 1, 0);
   const dark = isDarkMode();
   const orbBg = getAppliedTheme() === "pro" ? ORB_PRO : (dark ? ORB_DARK : ORB_LIGHT);
-  const cardBg2 = dark ? "rgba(28,28,32,0.65)" : "rgba(255,255,255,0.55)";
-  const headerBg = dark ? "rgba(14,14,18,0.88)" : "rgba(232,236,242,0.82)";
-  const textPrimary = dark ? "#ececef" : "#1a1f2a";
-  const textSecondary = dark ? "#a0a8b8" : "#4a5262";
-  const borderColor = dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.4)";
-  const surfaceBg = dark ? "rgba(28,28,32,0.55)" : "rgba(255,255,255,0.35)";
+  const isPro = getAppliedTheme() === "pro";
+  const cardBg2 = isPro ? "rgba(17,25,53,0.65)" : (dark ? "rgba(28,28,32,0.65)" : "rgba(255,255,255,0.55)");
+  const headerBg = isPro ? "rgba(13,27,62,0.88)" : (dark ? "rgba(14,14,18,0.88)" : "rgba(232,236,242,0.82)");
+  const textPrimary = isPro ? "#f4ead0" : (dark ? "#ececef" : "#1a1f2a");
+  const textSecondary = isPro ? "#a89970" : (dark ? "#a0a8b8" : "#4a5262");
+  const borderColor = isPro ? "rgba(31,44,80,0.6)" : (dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.4)");
+  const surfaceBg = isPro ? "rgba(17,25,53,0.65)" : (dark ? "rgba(28,28,32,0.55)" : "rgba(255,255,255,0.35)");
 
   useEffect(() => {
     const prev = document.body.style.backgroundColor;
@@ -665,8 +667,8 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
         {/* Top row: branding + dark toggle */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: dark ? "rgba(255,255,255,0.1)" : "rgba(26,31,42,0.1)", display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ color: textPrimary, fontSize: 14, fontWeight: 700 }}>D</span>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: isPro ? "linear-gradient(135deg, #d4b65c, #b08a30)" : (dark ? "rgba(255,255,255,0.1)" : "rgba(26,31,42,0.1)"), boxShadow: isPro ? "0 0 0 1px rgba(201,168,76,0.4), 0 4px 12px rgba(201,168,76,0.25)" : "none", display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ color: isPro ? "#0a0f1e" : textPrimary, fontSize: 14, fontWeight: 700 }}>D</span>
             </div>
             <span style={{ fontSize: 16, fontWeight: 600, color: textPrimary }}>Docera</span>
           </div>
@@ -702,18 +704,18 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
             position: 'absolute', top: 3, bottom: 3,
             left: showFavoritesOnly ? 'calc(50% + 1.5px)' : 3,
             width: 'calc(50% - 4.5px)', borderRadius: 7,
-            background: dark ? 'rgba(50,50,58,0.9)' : 'rgba(255,255,255,0.9)', boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+            background: isPro ? 'linear-gradient(180deg, #c9a84c, #b08a30)' : (dark ? 'rgba(50,50,58,0.9)' : 'rgba(255,255,255,0.9)'), boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
             transition: 'left 0.2s ease', pointerEvents: 'none',
           }} />
           <button
             onClick={() => setShowFavoritesOnly(false)}
-            style={{ flex: 1, borderRadius: 7, padding: '7px 0', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, background: 'transparent', color: !showFavoritesOnly ? textPrimary : textSecondary, position: 'relative', zIndex: 1 }}
+            style={{ flex: 1, borderRadius: 7, padding: '7px 0', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, background: 'transparent', color: !showFavoritesOnly ? (isPro ? "#0a0f1e" : textPrimary) : textSecondary, position: 'relative', zIndex: 1 }}
           >
             All
           </button>
           <button
             onClick={() => setShowFavoritesOnly(true)}
-            style={{ flex: 1, borderRadius: 7, padding: '7px 0', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, background: 'transparent', color: showFavoritesOnly ? textPrimary : textSecondary, position: 'relative', zIndex: 1 }}
+            style={{ flex: 1, borderRadius: 7, padding: '7px 0', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, background: 'transparent', color: showFavoritesOnly ? (isPro ? "#0a0f1e" : textPrimary) : textSecondary, position: 'relative', zIndex: 1 }}
           >
             Starred
           </button>
@@ -760,7 +762,7 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
                   onClick={() => onOpenFolder(folder.id, folder.name)}
                   style={{ flexShrink: 0, width: 130, background: cardBg2, backdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`, WebkitBackdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`, borderRadius: 16, padding: '16px 14px', border: `0.5px solid ${borderColor}`, cursor: 'pointer', textAlign: 'left', boxShadow: dark ? "0 1px 0 rgba(255,255,255,0.05) inset, 0 4px 20px rgba(0,0,0,0.5)" : "0 1px 0 rgba(255,255,255,0.7) inset, 0 4px 16px rgba(0,0,0,0.15)" }}
                 >
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: dark ? "rgba(255,255,255,0.08)" : "rgba(26,31,42,0.06)", display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: isPro ? "rgba(168,153,112,0.10)" : (dark ? "rgba(255,255,255,0.08)" : "rgba(26,31,42,0.06)"), display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
                     <FolderOpen style={{ width: 18, height: 18, color: textPrimary }} />
                   </div>
                   <p style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 700, color: textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{folder.name}</p>
@@ -968,10 +970,10 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
       {/* ── Bottom tab bar ── */}
       <div className="fixed bottom-0 left-0 right-0 z-30" style={{ background: headerBg, backdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`, WebkitBackdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`, borderTop: `0.5px solid ${borderColor}` }}>
         <div className="flex items-end justify-around" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
-          <button data-testid="tab-docs" className="flex-1 flex flex-col items-center gap-0.5 pt-3 pb-1 relative" style={{ color: textPrimary, background: 'none', border: 'none', cursor: 'pointer' }}>
+          <button data-testid="tab-docs" className="flex-1 flex flex-col items-center gap-0.5 pt-3 pb-1 relative" style={{ color: isPro ? "#c9a84c" : textPrimary, background: 'none', border: 'none', cursor: 'pointer' }}>
             <FileText style={{ width: 22, height: 22 }} />
             <span style={{ fontSize: 9, fontWeight: 600 }}>Docs</span>
-            <span style={{ position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: 4, height: 4, borderRadius: 2, background: textPrimary }} />
+            <span style={{ position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: 4, height: 4, borderRadius: 2, background: isPro ? "#c9a84c" : textPrimary }} />
           </button>
           <button data-testid="tab-inbox" onClick={onOpenInbox} className="flex-1 flex flex-col items-center gap-0.5 pt-3 pb-1 active:opacity-60" style={{ color: textSecondary, background: 'none', border: 'none', cursor: 'pointer', position: 'relative' }}>
             <div style={{ position: 'relative' }}>
@@ -989,9 +991,9 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
               data-testid="button-scan"
               onClick={() => onScan()}
               className="-mt-7 active:scale-95 transition-transform"
-              style={{ width: 60, height: 60, borderRadius: 30, background: "radial-gradient(circle at 35% 30%, #5a5a66 0%, #2a2a30 60%, #1a1a1f 100%)", display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', boxShadow: '0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)' }}
+              style={{ width: 60, height: 60, borderRadius: 30, background: isPro ? "radial-gradient(circle at 35% 30%, #d4b65c 0%, #b08a30 60%, #8a6420 100%)" : "radial-gradient(circle at 35% 30%, #5a5a66 0%, #2a2a30 60%, #1a1a1f 100%)", display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', boxShadow: isPro ? '0 8px 24px rgba(201,168,76,0.45), 0 0 0 1px rgba(201,168,76,0.3)' : '0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)' }}
             >
-              <Camera style={{ width: 28, height: 28, color: 'white' }} />
+              <Camera style={{ width: 28, height: 28, color: isPro ? '#0a0f1e' : 'white' }} />
             </button>
           </div>
           <button data-testid="tab-settings" onClick={onProfile} className="flex-1 flex flex-col items-center gap-0.5 pt-3 pb-1 active:opacity-60" style={{ color: textSecondary, background: 'none', border: 'none', cursor: 'pointer' }}>
