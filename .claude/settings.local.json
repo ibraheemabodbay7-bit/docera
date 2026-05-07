@@ -59,7 +59,9 @@
       "Read(//Users/user/Downloads/**)",
       "Bash(sips *)",
       "Bash(echo \"GmailInbox EXIT:$?\")",
-      "Bash(echo \"ClientProfile EXIT:$?\")"
+      "Bash(echo \"ClientProfile EXIT:$?\")",
+      "Bash(echo \"exit:$?\")",
+      "Bash(grep *)"
     ]
   }
 }

@@ -1653,7 +1653,7 @@ const ContactRow = memo(function ContactRow({
     <div style={{ display: "block", WebkitTapHighlightColor: 'transparent', margin: "3px 12px" } as React.CSSProperties}>
       <button
         onClick={() => onTap(contact)}
-        style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: theme.cardBg, border: "none", cursor: "pointer", width: "100%", WebkitTapHighlightColor: 'transparent', outline: 'none', borderRadius: 14, ...glassStyle(theme.dark) } as React.CSSProperties}
+        style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: theme.cardBg, border: `0.5px solid ${theme.border}`, cursor: "pointer", width: "100%", WebkitTapHighlightColor: 'transparent', outline: 'none', borderRadius: 14 } as React.CSSProperties}
       >
         {isInSelectMode ? (
           <div style={{ width: 22, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1743,22 +1743,6 @@ function ContactList({
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [showCompose, setShowCompose] = useState(false);
   const contactListRef = useRef<HTMLDivElement>(null);
-      // Forces WebKit to flush cached backdrop-filter buffers after a layout
-      // shift (e.g. moving a contact between Today/Earlier sections) by
-      // nudging scrollTop +1 then restoring it. Imperceptible to the user;
-      // mimics the manual 1px scroll that visibly clears the ghost.
-      const flushScrollPaint = () => {
-        requestAnimationFrame(() => {
-          const el = contactListRef.current;
-          if (!el) return;
-          const top = el.scrollTop;
-          el.scrollTop = top + 1;
-          requestAnimationFrame(() => {
-            const cur = contactListRef.current;
-            if (cur) cur.scrollTop = top;
-          });
-        });
-      };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -2083,7 +2067,6 @@ function ContactList({
                 setLongPressTarget(null);
                 setSelectMode(false);
                 setSelectedEmails(new Set());
-                flushScrollPaint();
               }}
               disabled={selectedEmails.size === 0}
               style={{ flex: 1, height: 48, borderRadius: 12, border: "none", cursor: "pointer", background: selectedEmails.size === 0 ? theme.pillBg : '#007AFF', color: selectedEmails.size === 0 ? theme.subText : 'white', fontSize: 15, fontWeight: 600 }}
@@ -2102,7 +2085,6 @@ function ContactList({
                 setLongPressTarget(null);
                 setSelectMode(false);
                 setSelectedEmails(new Set());
-                flushScrollPaint();
               }}
               disabled={selectedEmails.size === 0}
               style={{ flex: 1, height: 48, borderRadius: 12, border: "none", cursor: "pointer", background: selectedEmails.size === 0 ? theme.pillBg : '#007AFF', color: selectedEmails.size === 0 ? theme.subText : 'white', fontSize: 15, fontWeight: 600 }}
