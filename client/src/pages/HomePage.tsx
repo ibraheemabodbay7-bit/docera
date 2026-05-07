@@ -401,6 +401,7 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
   const isPro = getAppliedTheme() === "pro";
   const cardBg2 = isPro ? "rgba(17,25,53,0.65)" : (dark ? "rgba(28,28,32,0.65)" : "rgba(255,255,255,0.55)");
   const headerBg = isPro ? "rgba(13,27,62,0.5)" : (dark ? "rgba(14,14,18,0.88)" : "rgba(232,236,242,0.82)");
+  const navBg = isPro ? "rgba(13,27,62,0.95)" : headerBg;
   const textPrimary = isPro ? "#f4ead0" : (dark ? "#ececef" : "#1a1f2a");
   const textSecondary = isPro ? "#a89970" : (dark ? "#a0a8b8" : "#4a5262");
   const borderColor = isPro ? "rgba(31,44,80,0.6)" : (dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.4)");
@@ -968,7 +969,7 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
       )}
 
       {/* ── Bottom tab bar ── */}
-      <div className="fixed bottom-0 left-0 right-0 z-30" style={{ background: headerBg, backdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`, WebkitBackdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`, borderTop: `0.5px solid ${borderColor}` }}>
+      <div className="fixed bottom-0 left-0 right-0 z-30" style={{ background: navBg, backdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`, WebkitBackdropFilter: `blur(30px) saturate(${dark ? 140 : 160}%)`, borderTop: `0.5px solid ${borderColor}` }}>
         <div className="flex items-end justify-around" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
           <button data-testid="tab-docs" className="flex-1 flex flex-col items-center gap-0.5 pt-3 pb-1 relative" style={{ color: isPro ? "#c9a84c" : textPrimary, background: 'none', border: 'none', cursor: 'pointer' }}>
             <FileText style={{ width: 22, height: 22 }} />
