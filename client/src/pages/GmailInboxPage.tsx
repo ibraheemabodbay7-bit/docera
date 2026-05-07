@@ -1934,7 +1934,7 @@ function ContactList({
               style={{
                 position: "absolute", top: 2, bottom: 2, left: 0,
                 width: "calc(50% - 2px)", borderRadius: 7,
-                background: theme.dark ? "rgba(40,45,60,0.9)" : "rgba(255,255,255,0.95)",
+                background: getAppliedTheme() === "pro" ? "linear-gradient(180deg, #c9a84c, #b08a30)" : (theme.dark ? "rgba(40,45,60,0.9)" : "rgba(255,255,255,0.95)"),
                 boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
                 pointerEvents: "none",
               }}
@@ -1948,7 +1948,7 @@ function ContactList({
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
                 background: "transparent",
                 color: inboxTab === "important"
-                  ? (theme.dark ? "#ececef" : "#1a1f2a")
+                  ? (getAppliedTheme() === "pro" ? "#0a0f1e" : (theme.dark ? "#ececef" : "#1a1f2a"))
                   : (theme.dark ? "#a0a8b8" : "#4a5262"),
                 position: "relative", zIndex: 1,
               }}
@@ -1964,7 +1964,7 @@ function ContactList({
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
                 background: "transparent",
                 color: inboxTab === "other"
-                  ? (theme.dark ? "#ececef" : "#1a1f2a")
+                  ? (getAppliedTheme() === "pro" ? "#0a0f1e" : (theme.dark ? "#ececef" : "#1a1f2a"))
                   : (theme.dark ? "#a0a8b8" : "#4a5262"),
                 position: "relative", zIndex: 1,
               }}
@@ -2102,13 +2102,13 @@ function ContactList({
           position: "fixed",
           bottom: "max(24px, env(safe-area-inset-bottom))",
           right: 20, width: 56, height: 56, borderRadius: 16,
-          background: "radial-gradient(at 30% 25%, #f8f8fc 0%, #b8b8c4 50%, #2c2c34 100%)",
+          background: getAppliedTheme() === "pro" ? "radial-gradient(circle at 35% 30%, #d4b65c 0%, #b08a30 60%, #8a6420 100%)" : "radial-gradient(at 30% 25%, #f8f8fc 0%, #b8b8c4 50%, #2c2c34 100%)",
           border: "none", cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: "0 1px 0 rgba(255,255,255,0.5) inset, 0 4px 16px rgba(0,0,0,0.25)", zIndex: 50,
+          boxShadow: getAppliedTheme() === "pro" ? "0 8px 24px rgba(201,168,76,0.45), 0 0 0 1px rgba(201,168,76,0.3)" : "0 1px 0 rgba(255,255,255,0.5) inset, 0 4px 16px rgba(0,0,0,0.25)", zIndex: 50,
         }}
       >
-        <PenLine style={{ width: 22, height: 22, color: "#ffffff" }} />
+        <PenLine style={{ width: 22, height: 22, color: getAppliedTheme() === "pro" ? "#0a0f1e" : "#ffffff" }} />
       </AnimatedButton>
 
       {/* Compose sheet */}
