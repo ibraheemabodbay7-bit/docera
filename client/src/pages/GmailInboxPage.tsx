@@ -1743,6 +1743,22 @@ function ContactList({
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [showCompose, setShowCompose] = useState(false);
   const contactListRef = useRef<HTMLDivElement>(null);
+      // Forces WebKit to flush cached backdrop-filter buffers after a layout
+      // shift (e.g. moving a contact between Today/Earlier sections) by
+      // nudging scrollTop +1 then restoring it. Imperceptible to the user;
+      // mimics the manual 1px scroll that visibly clears the ghost.
+      const flushScrollPaint = () => {
+        requestAnimationFrame(() => {
+          const el = contactListRef.current;
+          if (!el) return;
+          const top = el.scrollTop;
+          el.scrollTop = top + 1;
+          requestAnimationFrame(() => {
+            const cur = contactListRef.current;
+            if (cur) cur.scrollTop = top;
+          });
+        });
+      };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -2017,7 +2033,7 @@ function ContactList({
                     </div>
                   )}
                   {todayRows.map(c => (
-                    <div key={c.email} style={{ WebkitTapHighlightColor: 'transparent', isolation: 'isolate', transform: 'translateZ(0)', willChange: 'transform' } as React.CSSProperties}>
+                    <div key={c.email} style={{ WebkitTapHighlightColor: 'transparent', isolation: 'isolate' } as React.CSSProperties}>
                       <ContactRow
                         contact={c}
                         isSelected={selectedEmails.has(c.email)}
@@ -2034,7 +2050,7 @@ function ContactList({
                     </div>
                   )}
                   {earlierRows.map(c => (
-                    <div key={c.email} style={{ WebkitTapHighlightColor: 'transparent', isolation: 'isolate', transform: 'translateZ(0)', willChange: 'transform' } as React.CSSProperties}>
+                    <div key={c.email} style={{ WebkitTapHighlightColor: 'transparent', isolation: 'isolate' } as React.CSSProperties}>
                       <ContactRow
                         contact={c}
                         isSelected={selectedEmails.has(c.email)}
@@ -2067,6 +2083,7 @@ function ContactList({
                 setLongPressTarget(null);
                 setSelectMode(false);
                 setSelectedEmails(new Set());
+                flushScrollPaint();
               }}
               disabled={selectedEmails.size === 0}
               style={{ flex: 1, height: 48, borderRadius: 12, border: "none", cursor: "pointer", background: selectedEmails.size === 0 ? theme.pillBg : '#007AFF', color: selectedEmails.size === 0 ? theme.subText : 'white', fontSize: 15, fontWeight: 600 }}
@@ -2085,6 +2102,7 @@ function ContactList({
                 setLongPressTarget(null);
                 setSelectMode(false);
                 setSelectedEmails(new Set());
+                flushScrollPaint();
               }}
               disabled={selectedEmails.size === 0}
               style={{ flex: 1, height: 48, borderRadius: 12, border: "none", cursor: "pointer", background: selectedEmails.size === 0 ? theme.pillBg : '#007AFF', color: selectedEmails.size === 0 ? theme.subText : 'white', fontSize: 15, fontWeight: 600 }}
