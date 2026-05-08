@@ -724,9 +724,9 @@ function MessageBubble({
           <p
             className="text-[10px] text-right"
             style={{
-              color: hasAtts ? "rgba(255,255,255,0.55)" : bubbleSub,
-              padding: hasAtts ? "0 10px 8px" : "0 12px 8px",
-              background: hasAtts ? "rgba(0,0,0,0.6)" : "transparent",
+              color: bubbleSub,
+              padding: "0 12px 8px",
+              background: "transparent",
             }}
           >
             {fmtBubbleTime(msg.date)}
