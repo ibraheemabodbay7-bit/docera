@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, apiFetch } from "@/lib/queryClient";
 import { Capacitor } from "@capacitor/core";
 import { ArrowLeft, Search, X, FileText, Send, Check, AlertCircle } from "lucide-react";
-import { isDarkMode } from "@/lib/theme";
+import { isDarkMode, getAppliedTheme } from "@/lib/theme";
 import { useToast } from "@/hooks/use-toast";
 import type { DocumentSummary, Folder, DocStatus, Client } from "@shared/schema";
 import { dataUrlToBlob, docFilename, docMime } from "@/lib/docUtils";
@@ -26,6 +26,13 @@ const ORB_DARK = [
   "#050507",
 ].join(", ");
 
+const ORB_PRO = [
+  "radial-gradient(ellipse at 20% 15%, #1a2444 0%, #0d1530 30%, transparent 60%)",
+  "radial-gradient(ellipse at 80% 85%, #15203c 0%, #0a0f1e 35%, transparent 65%)",
+  "radial-gradient(ellipse at 50% 50%, #0a0f1e 0%, transparent 50%)",
+  "#0a0f1e",
+].join(", ");
+
 // ── Props ──────────────────────────────────────────────────────────────────
 
 interface AllDocumentsPageProps {
@@ -39,7 +46,7 @@ interface AllDocumentsPageProps {
 export default function AllDocumentsPage({ onBack, onOpenDoc, onEditDoc }: AllDocumentsPageProps) {
   const { toast } = useToast();
   const dark = isDarkMode();
-  const orbBg = dark ? ORB_DARK : ORB_LIGHT;
+  const orbBg = getAppliedTheme() === "pro" ? ORB_PRO : (dark ? ORB_DARK : ORB_LIGHT);
   const headerBg = dark ? "rgba(14,14,18,0.88)" : "rgba(232,236,242,0.82)";
   const textPrimary = dark ? "#ececef" : "#1a1f2a";
   const textSecondary = dark ? "#a0a8b8" : "#4a5262";
