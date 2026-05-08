@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { isDarkMode } from "@/lib/theme";
+import { isDarkMode, getAppliedTheme } from "@/lib/theme";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, apiFetch, API_BASE } from "@/lib/queryClient";
 import {
@@ -327,6 +327,7 @@ async function nativeShareDoc(doc: { name: string; type: string; dataUrl: string
 
 const ORB_LIGHT = "radial-gradient(ellipse 80% 50% at 20% 20%, rgba(180,195,220,0.55) 0%, transparent 60%), radial-gradient(ellipse 60% 70% at 80% 80%, rgba(160,180,210,0.45) 0%, transparent 55%), radial-gradient(ellipse 100% 100% at 50% 50%, rgba(200,210,230,0.25) 0%, transparent 70%), linear-gradient(135deg, #d8e2ef 0%, #c8d4e6 50%, #b8c8e0 100%)";
 const ORB_DARK  = "radial-gradient(ellipse 80% 50% at 20% 20%, rgba(40,55,90,0.7) 0%, transparent 60%), radial-gradient(ellipse 60% 70% at 80% 80%, rgba(30,45,80,0.6) 0%, transparent 55%), radial-gradient(ellipse 100% 100% at 50% 50%, rgba(20,30,60,0.4) 0%, transparent 70%), linear-gradient(135deg, #0e0e14 0%, #121620 50%, #0a0e18 100%)";
+const ORB_PRO   = "radial-gradient(ellipse 80% 50% at 20% 20%, rgba(31,44,80,0.8) 0%, transparent 60%), radial-gradient(ellipse 60% 70% at 80% 80%, rgba(13,27,62,0.7) 0%, transparent 55%), radial-gradient(ellipse 100% 100% at 50% 50%, rgba(10,15,30,0.5) 0%, transparent 70%), linear-gradient(135deg, #0a0f1e 0%, #0d1b3e 50%, #0a0f1e 100%)";
 
 function glassStyle(dark: boolean): React.CSSProperties {
   return {
@@ -369,10 +370,11 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
   const isNative = Capacitor.isNativePlatform();
 
   const dark = isDarkMode();
-  const orbBg = dark ? ORB_DARK : ORB_LIGHT;
-  const headerBg = dark ? "rgba(14,14,18,0.88)" : "rgba(232,236,242,0.82)";
-  const actionBarBg = dark ? "rgba(28,28,32,0.65)" : "rgba(255,255,255,0.55)";
-  const textPrimary = dark ? "#ececef" : "#1a1f2a";
+  const isPro = getAppliedTheme() === "pro";
+  const orbBg = isPro ? ORB_PRO : (dark ? ORB_DARK : ORB_LIGHT);
+  const headerBg = isPro ? "rgba(13,27,62,0.5)" : (dark ? "rgba(14,14,18,0.88)" : "rgba(232,236,242,0.82)");
+  const actionBarBg = isPro ? "rgba(17,25,53,0.65)" : (dark ? "rgba(28,28,32,0.65)" : "rgba(255,255,255,0.55)");
+  const textPrimary = isPro ? "#f4ead0" : (dark ? "#ececef" : "#1a1f2a");
 
   useEffect(() => {
     const prev = document.body.style.backgroundColor;
@@ -816,12 +818,12 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
 
       {/* ── Bottom action bar ── */}
       <div className="flex-shrink-0 flex items-center"
-        style={{ background: actionBarBg, backdropFilter: `blur(30px) saturate(${dark ? "140%" : "160%"})`, WebkitBackdropFilter: `blur(30px) saturate(${dark ? "140%" : "160%"})`, borderTop: `0.5px solid ${dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.4)"}`, paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
+        style={{ background: actionBarBg, backdropFilter: `blur(30px) saturate(${dark ? "140%" : "160%"})`, WebkitBackdropFilter: `blur(30px) saturate(${dark ? "140%" : "160%"})`, borderTop: `0.5px solid ${isPro ? "rgba(201,168,76,0.15)" : (dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.4)")}`, paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
 
         <button data-testid="button-download" onClick={handleDownload} disabled={!blobUrl}
           className="flex-1 flex flex-col items-center gap-1 pt-3 pb-1 disabled:opacity-40 active:opacity-60"
           style={{ color: textPrimary }}>
-          <Download className="w-5 h-5" />
+          <Download className="w-5 h-5" style={isPro ? { color: "#c9a84c" } : undefined} />
           <span className="text-[10px] font-semibold">Download</span>
         </button>
 
@@ -850,7 +852,7 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
           disabled={!doc}
           className="flex-1 flex flex-col items-center gap-1 pt-3 pb-1 disabled:opacity-40 active:opacity-60"
           style={{ color: textPrimary }}>
-          <Mail className="w-5 h-5" />
+          <Mail className="w-5 h-5" style={isPro ? { color: "#c9a84c" } : undefined} />
           <span className="text-[10px] font-semibold">Send</span>
         </button>
 
@@ -859,7 +861,7 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
           style={{ color: textPrimary }}>
           {duplicateDoc.isPending
             ? <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-            : <Copy className="w-5 h-5" />}
+            : <Copy className="w-5 h-5" style={isPro ? { color: "#c9a84c" } : undefined} />}
           <span className="text-[10px] font-semibold">Duplicate</span>
         </button>
 
@@ -867,7 +869,7 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
           className="flex-1 flex flex-col items-center gap-1 pt-3 pb-1 disabled:opacity-40 active:opacity-60"
           style={{ color: textPrimary }}>
           <div className="relative">
-            <Info className="w-5 h-5" />
+            <Info className="w-5 h-5" style={isPro ? { color: "#c9a84c" } : undefined} />
             {doc?.notes && (
               <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary" />
             )}
@@ -879,7 +881,7 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
           <button data-testid="button-edit-text" onClick={() => onEditText(docId)}
             className="flex-1 flex flex-col items-center gap-1 pt-3 pb-1 active:opacity-60"
             style={{ color: textPrimary }}>
-            <Pencil className="w-5 h-5" />
+            <Pencil className="w-5 h-5" style={isPro ? { color: "#c9a84c" } : undefined} />
             <span className="text-[10px] font-semibold">Edit</span>
           </button>
         )}
@@ -887,7 +889,7 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
           <button data-testid="button-edit-doc" onClick={() => onEdit(docId)}
             className="flex-1 flex flex-col items-center gap-1 pt-3 pb-1 active:opacity-60"
             style={{ color: textPrimary }}>
-            <Pencil className="w-5 h-5" />
+            <Pencil className="w-5 h-5" style={isPro ? { color: "#c9a84c" } : undefined} />
             <span className="text-[10px] font-semibold">Edit</span>
           </button>
         )}
