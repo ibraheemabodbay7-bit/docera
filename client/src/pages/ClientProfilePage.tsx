@@ -163,6 +163,13 @@ const ORB_DARK = [
   "#050507",
 ].join(", ");
 
+const ORB_PRO = [
+  "radial-gradient(ellipse at 20% 15%, #1a2444 0%, #0d1530 30%, transparent 60%)",
+  "radial-gradient(ellipse at 80% 85%, #15203c 0%, #0a0f1e 35%, transparent 65%)",
+  "radial-gradient(ellipse at 50% 50%, #0a0f1e 0%, transparent 50%)",
+  "#0a0f1e",
+].join(", ");
+
 // ─── Paper skeleton (shown while thumbnail loads) ─────────────────────────────
 
 function PdfPaperSkeleton({ dark }: { dark: boolean }) {
@@ -456,7 +463,7 @@ export default function ClientProfilePage({
   const darkMode = isDarkMode();
   const mode: ThemeMode = getAppliedTheme();
   const theme = getProfileTheme(mode);
-  const orbBg = darkMode ? ORB_DARK : ORB_LIGHT;
+  const orbBg = getAppliedTheme() === "pro" ? ORB_PRO : (darkMode ? ORB_DARK : ORB_LIGHT);
 
   useEffect(() => {
     const prev = document.body.style.backgroundColor;
