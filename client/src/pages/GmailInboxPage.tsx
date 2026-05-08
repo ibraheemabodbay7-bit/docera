@@ -418,7 +418,7 @@ function PdfThumbnail({
         borderRadius: 0,
       }}
     >
-      <div className="w-12 h-12 rounded-xl bg-red-500 flex items-center justify-center">
+      <div className="w-12 h-12 rounded-xl bg-red-500 flex items-center justify-center" style={getAppliedTheme() === "pro" ? { background: "#1f2c50" } : undefined}>
         <span className="text-white text-xs font-bold">PDF</span>
       </div>
       <p className="text-xs font-semibold px-4 text-center" style={{ color: theme.receivedText, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -440,10 +440,10 @@ function PdfThumbnail({
               fileCardArea
             )}
           </div>
-          <div style={{ width: 260, height: 52, display: "flex", alignItems: "center", gap: 10, padding: "0 12px", background: "rgba(0,0,0,0.6)" }}>
+          <div style={{ width: 260, height: 52, display: "flex", alignItems: "center", gap: 10, padding: "0 12px", background: getAppliedTheme() === "pro" ? "rgba(13,20,48,0.95)" : "rgba(0,0,0,0.6)" }}>
             {thumb && (
               <>
-                <div className="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center flex-shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center flex-shrink-0" style={getAppliedTheme() === "pro" ? { background: "#1f2c50" } : undefined}>
                   <span className="text-white text-[7px] font-bold">PDF</span>
                 </div>
                 <div className="flex-1 min-w-0 text-left">
@@ -467,7 +467,7 @@ function PdfThumbnail({
         )}
       </div>
       {isLastAtt && bodyText && (
-        <div style={{ padding: "8px 12px", fontSize: 13, color: thumb ? "white" : theme.receivedText, background: thumb ? "rgba(0,0,0,0.6)" : theme.cardBg }}>
+        <div style={{ padding: "8px 12px", fontSize: 13, color: thumb ? "white" : theme.receivedText, background: thumb ? (getAppliedTheme() === "pro" ? "rgba(13,20,48,0.95)" : "rgba(0,0,0,0.6)") : theme.cardBg }}>
           {bodyText}
         </div>
       )}
@@ -971,7 +971,7 @@ function ChatInput({
           className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-60 mb-1"
           style={{ background: theme.pillBg }}
         >
-          <Plus className="w-5 h-5" style={{ color: theme.subText }} />
+          <Plus className="w-5 h-5" style={{ color: getAppliedTheme() === "pro" ? "#c9a84c" : theme.subText }} />
         </button>
 
         <textarea
@@ -999,11 +999,11 @@ function ChatInput({
           onClick={sendText}
           disabled={!text.trim() || sending}
           className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-60 mb-1 disabled:opacity-40"
-          style={{ background: theme.avatarBg }}
+          style={{ background: getAppliedTheme() === "pro" ? "radial-gradient(circle at 35% 30%, #d4b65c 0%, #b08a30 60%, #8a6420 100%)" : theme.avatarBg, boxShadow: getAppliedTheme() === "pro" ? "0 4px 12px rgba(201,168,76,0.4)" : undefined }}
         >
           {sending
             ? <Loader2 className="w-4 h-4 animate-spin" style={{ color: theme.avatarText }} />
-            : <Send className="w-4 h-4 text-white" />
+            : <Send className="w-4 h-4" style={{ color: getAppliedTheme() === "pro" ? "#0a0f1e" : "#ffffff" }} />
           }
         </AnimatedButton>
       </div>

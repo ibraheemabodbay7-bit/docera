@@ -39,7 +39,7 @@ export function getInboxTheme(mode: ThemeMode): InboxTheme {
       cardBg: "rgba(17,25,53,0.65)",
       receivedBg: "rgba(17,25,53,0.65)",
       receivedText: "#f4ead0",
-      sentBg: "rgba(201,168,76,0.25)",
+      sentBg: "rgba(201,168,76,0.4)",
       sentText: "#f4ead0",
       subText: "#a89970",
       inputBg: "rgba(17,25,53,0.65)",
