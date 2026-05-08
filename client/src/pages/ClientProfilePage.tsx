@@ -637,7 +637,7 @@ export default function ClientProfilePage({
           : pdfs;
         const searchBg = theme.frameDark ? "rgba(232,232,236,0.08)" : "rgba(26,26,31,0.06)";
         return (
-          <div style={{ position: "absolute", inset: 0, zIndex: 10, background: darkMode ? "rgba(5,5,7,0.97)" : "rgba(232,236,242,0.97)", backdropFilter: "blur(30px)", WebkitBackdropFilter: "blur(30px)", display: "flex", flexDirection: "column" }}>
+          <div style={{ position: "absolute", inset: 0, zIndex: 10, background: getAppliedTheme() === "pro" ? "rgba(10,15,30,0.97)" : (darkMode ? "rgba(5,5,7,0.97)" : "rgba(232,236,242,0.97)"), backdropFilter: "blur(30px)", WebkitBackdropFilter: "blur(30px)", display: "flex", flexDirection: "column" }}>
             {/* Header */}
             <div style={{ background: theme.headerBg, backdropFilter: "blur(30px) saturate(160%)", WebkitBackdropFilter: "blur(30px) saturate(160%)", paddingTop: "max(3rem, env(safe-area-inset-top))", paddingBottom: 10, paddingLeft: 20, paddingRight: 20, flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
