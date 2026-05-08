@@ -47,11 +47,12 @@ export default function AllDocumentsPage({ onBack, onOpenDoc, onEditDoc }: AllDo
   const { toast } = useToast();
   const dark = isDarkMode();
   const orbBg = getAppliedTheme() === "pro" ? ORB_PRO : (dark ? ORB_DARK : ORB_LIGHT);
-  const headerBg = dark ? "rgba(14,14,18,0.88)" : "rgba(232,236,242,0.82)";
-  const textPrimary = dark ? "#ececef" : "#1a1f2a";
-  const textSecondary = dark ? "#a0a8b8" : "#4a5262";
-  const borderColor = dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.4)";
-  const surfaceBg = dark ? "rgba(28,28,32,0.55)" : "rgba(255,255,255,0.35)";
+  const isPro = getAppliedTheme() === "pro";
+  const headerBg = isPro ? "rgba(13,27,62,0.5)" : (dark ? "rgba(14,14,18,0.88)" : "rgba(232,236,242,0.82)");
+  const textPrimary = isPro ? "#f4ead0" : (dark ? "#ececef" : "#1a1f2a");
+  const textSecondary = isPro ? "#a89970" : (dark ? "#a0a8b8" : "#4a5262");
+  const borderColor = isPro ? "rgba(31,44,80,0.6)" : (dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.4)");
+  const surfaceBg = isPro ? "rgba(17,25,53,0.65)" : (dark ? "rgba(28,28,32,0.55)" : "rgba(255,255,255,0.35)");
 
   const [search, setSearch] = useState("");
 
