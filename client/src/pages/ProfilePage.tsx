@@ -113,11 +113,12 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
 
   const dark = isDarkMode();
   const orbBg = getAppliedTheme() === "pro" ? ORB_PRO : (dark ? ORB_DARK : ORB_LIGHT);
-  const cardBg = dark ? "rgba(28,28,32,0.65)" : "rgba(255,255,255,0.55)";
-  const headerBg = dark ? "rgba(14,14,18,0.88)" : "rgba(232,236,242,0.82)";
-  const textPrimary = dark ? "#ececef" : "#1a1f2a";
-  const textSecondary = dark ? "#a0a8b8" : "#4a5262";
-  const borderColor = dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.4)";
+  const isPro = getAppliedTheme() === "pro";
+  const cardBg = isPro ? "rgba(17,25,53,0.65)" : (dark ? "rgba(28,28,32,0.65)" : "rgba(255,255,255,0.55)");
+  const headerBg = isPro ? "rgba(13,27,62,0.5)" : (dark ? "rgba(14,14,18,0.88)" : "rgba(232,236,242,0.82)");
+  const textPrimary = isPro ? "#f4ead0" : (dark ? "#ececef" : "#1a1f2a");
+  const textSecondary = isPro ? "#a89970" : (dark ? "#a0a8b8" : "#4a5262");
+  const borderColor = isPro ? "rgba(201,168,76,0.18)" : (dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.4)");
 
   useEffect(() => {
     const prev = document.body.style.backgroundColor;
@@ -207,7 +208,7 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">Subscription</p>
           <div className="rounded-2xl overflow-hidden" style={{ background: cardBg, ...glassStyle(dark) }}>
             <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center" style={isPro ? { background: "rgba(244,234,208,0.15)", backgroundImage: "none" } : undefined}>
                 <Crown className="w-4 h-4 text-amber-600" />
               </div>
               <div className="flex-1">

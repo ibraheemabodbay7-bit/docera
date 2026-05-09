@@ -61,7 +61,8 @@
       "Bash(echo \"GmailInbox EXIT:$?\")",
       "Bash(echo \"ClientProfile EXIT:$?\")",
       "Bash(echo \"exit:$?\")",
-      "Bash(grep *)"
+      "Bash(grep *)",
+      "Bash(npm audit *)"
     ]
   }
 }
