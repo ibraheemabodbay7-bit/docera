@@ -96,16 +96,30 @@ const THUMB_CACHE_LIMIT = 100;
 
 let activeThumbnailLoads = 0;
 const MAX_CONCURRENT_THUMBNAILS = 1;
-const thumbnailQueue: Array<() => void> = [];
+type QueueEntry = { resolve: () => void; priority: number };
+const thumbnailQueue: QueueEntry[] = [];
 let mountedThumbnailCount = 0;
 
-function acquireThumbnailSlot(): Promise<void> {
+function acquireThumbnailSlot(priority: number = 0): Promise<void> {
   return new Promise(resolve => {
     if (activeThumbnailLoads < MAX_CONCURRENT_THUMBNAILS) {
       activeThumbnailLoads++;
       resolve();
     } else {
-      thumbnailQueue.push(() => { activeThumbnailLoads++; resolve(); });
+      const entry: QueueEntry = {
+        resolve: () => { activeThumbnailLoads++; resolve(); },
+        priority,
+      };
+      // Insert sorted descending by priority — higher priority runs first
+      let inserted = false;
+      for (let i = 0; i < thumbnailQueue.length; i++) {
+        if (priority > thumbnailQueue[i].priority) {
+          thumbnailQueue.splice(i, 0, entry);
+          inserted = true;
+          break;
+        }
+      }
+      if (!inserted) thumbnailQueue.push(entry);
     }
   });
 }
@@ -113,7 +127,7 @@ function acquireThumbnailSlot(): Promise<void> {
 function releaseThumbnailSlot() {
   activeThumbnailLoads--;
   const next = thumbnailQueue.shift();
-  if (next) next();
+  if (next) next.resolve();
 }
 
 async function generatePdfThumbnail(base64: string): Promise<{ thumb: string; pageCount: number }> {
@@ -343,11 +357,12 @@ function DateSeparator({ dateStr, theme }: { dateStr: string; theme: InboxTheme 
 
 function PdfThumbnail({
   messageId, attachment, token, refreshToken, theme, onTap, bodyText, isLastAtt,
-  selectMode, isSelected, onToggle,
+  selectMode, isSelected, onToggle, priority = 0,
 }: {
   messageId: string; attachment: GmailAttachment; token: string; refreshToken?: string | null;
   theme: InboxTheme; onTap: () => void; bodyText?: string; isLastAtt?: boolean;
   selectMode?: boolean; isSelected?: boolean; onToggle?: () => void;
+  priority?: number;
 }) {
   const cached = thumbCache.get(attachment.id) ?? null;
   const [thumb, setThumb] = useState<string | null>(cached);
@@ -378,7 +393,7 @@ function PdfThumbnail({
     let cancelled = false;
     setLoading(true);
     (async () => {
-      await acquireThumbnailSlot();
+      await acquireThumbnailSlot(priority);
       try {
         if (cancelled) return;
         const data = await gmailPost<{ base64: string }>(
@@ -588,11 +603,12 @@ function highlightText(text: string, query: string): React.ReactNode {
 
 function MessageBubble({
   msg, token, refreshToken, contacts, theme, searchQuery, onOpenPdf,
-  selectMode, selectedAttachments, onToggleAttachment,
+  selectMode, selectedAttachments, onToggleAttachment, priority = 0,
 }: {
   msg: GmailMessage; token: string; refreshToken?: string | null; contacts: Contact[]; theme: InboxTheme; searchQuery?: string;
   onOpenPdf?: (att: GmailAttachment, msgId: string) => void;
   selectMode?: boolean; selectedAttachments?: Set<string>; onToggleAttachment?: (id: string) => void;
+  priority?: number;
 }) {
   const { toast } = useToast();
   const isSent = msg.direction === "sent";
@@ -657,6 +673,7 @@ function MessageBubble({
                       selectMode={selectMode}
                       isSelected={selectedAttachments?.has(selId) ?? false}
                       onToggle={() => onToggleAttachment?.(selId)}
+                      priority={priority}
                     />
                   </div>
                 );
@@ -1214,7 +1231,8 @@ function ThreadView({
   const renderMessages = () => {
     const nodes: React.ReactNode[] = [];
     let lastDate: Date | null = null;
-    for (const msg of visibleMessages) {
+    for (let msgIdx = 0; msgIdx < visibleMessages.length; msgIdx++) {
+      const msg = visibleMessages[msgIdx];
       const d = new Date(msg.date);
       if (!lastDate || (isValid(d) && !isSameDay(lastDate, d))) {
         nodes.push(<DateSeparator key={`sep-${msg.id}`} dateStr={msg.date} theme={theme} />);
@@ -1240,6 +1258,7 @@ function ThreadView({
             });
           }}
           onOpenPdf={(att, msgId) => { hapticLight(); openWithQuickLook(att, msgId, token, refreshToken); }}
+          priority={msgIdx}
         />,
       );
     }
