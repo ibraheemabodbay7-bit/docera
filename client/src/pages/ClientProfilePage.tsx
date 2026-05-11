@@ -160,6 +160,16 @@ function PdfThumbnailCard({
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Re-check cache — it may have been populated by chat after our mount
+    const fresh = thumbCache.get(att.id);
+    const freshPageCount = pageCountCache.get(att.id);
+    if (fresh) {
+      setThumb(fresh);
+      if (freshPageCount !== undefined) setPageCount(freshPageCount);
+      setVisible(true);
+      return; // skip observer setup entirely
+    }
+
     if (cached) return;
     const el = containerRef.current;
     if (!el) return;
