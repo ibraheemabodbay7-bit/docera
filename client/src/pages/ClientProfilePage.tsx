@@ -4,6 +4,7 @@ import { Capacitor, registerPlugin } from "@capacitor/core";
 import { API_BASE } from "@/lib/queryClient";
 import { isDarkMode, getAppliedTheme } from "@/lib/theme";
 import { getProfileTheme, type ProfileTheme, type ThemeMode, TONE_GRADIENTS_DARK, TONE_GRADIENTS_LIGHT } from "@/lib/themes";
+import { thumbCache, pageCountCache, THUMB_CACHE_LIMIT, acquireThumbnailSlot, releaseThumbnailSlot, generatePdfThumbnail } from "./GmailInboxPage";
 
 const QuickLook = registerPlugin<{ openPDF: (options: { path: string }) => Promise<void> }>("QuickLook");
 
@@ -58,65 +59,6 @@ function fmtDate(dateStr: string) {
 
 // ─── PDF thumbnail cache ───────────────────────────────────────────────────────
 
-const profileThumbCache = new Map<string, string>();
-const profilePageCountCache = new Map<string, number>();
-const THUMB_CACHE_LIMIT = 100;
-
-let activeProfileThumbnailLoads = 0;
-const MAX_CONCURRENT = 1;
-const profileThumbnailQueue: Array<() => void> = [];
-
-function acquireSlot(): Promise<void> {
-  return new Promise(resolve => {
-    if (activeProfileThumbnailLoads < MAX_CONCURRENT) {
-      activeProfileThumbnailLoads++;
-      resolve();
-    } else {
-      profileThumbnailQueue.push(() => { activeProfileThumbnailLoads++; resolve(); });
-    }
-  });
-}
-
-function releaseSlot() {
-  activeProfileThumbnailLoads--;
-  const next = profileThumbnailQueue.shift();
-  if (next) next();
-}
-
-async function generatePdfThumbnail(base64: string): Promise<{ thumb: string; pageCount: number }> {
-  let pdf: any = null;
-  let page: any = null;
-  try {
-    const pdfjsLib = await import("pdfjs-dist");
-    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-      "pdfjs-dist/build/pdf.worker.min.mjs",
-      import.meta.url,
-    ).href;
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    try {
-      pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
-      const pageCount = pdf.numPages;
-      page = await pdf.getPage(1);
-      const viewport = page.getViewport({ scale: 1.5 });
-      const canvas = document.createElement("canvas");
-      canvas.width = viewport.width;
-      canvas.height = Math.floor(viewport.width * 0.45);
-      const ctx = canvas.getContext("2d")!;
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      await (page.render as any)({ canvasContext: ctx, viewport }).promise;
-      return { thumb: canvas.toDataURL("image/jpeg", 0.9), pageCount };
-    } finally {
-      try { if (page) page.cleanup(); } catch {}
-      try { if (pdf) await pdf.destroy(); } catch {}
-    }
-  } catch (err) {
-    console.error("[PDF thumb]", err);
-    return { thumb: "", pageCount: 0 };
-  }
-}
 
 async function openImageFromProfile(base64: string, name: string, mimeType: string) {
   if (!Capacitor.isNativePlatform()) return;
@@ -197,7 +139,7 @@ function PdfPaperSkeleton({ dark }: { dark: boolean }) {
 // ─── PDF thumbnail card ───────────────────────────────────────────────────────
 
 function PdfThumbnailCard({
-  att, msgId, token, dark, dateStr, variant = "card",
+  att, msgId, token, dark, dateStr, variant = "card", priority = 0,
 }: {
   att: GmailAttachment & { msgId: string };
   msgId: string;
@@ -205,12 +147,13 @@ function PdfThumbnailCard({
   dark: boolean;
   dateStr: string;
   variant?: "card" | "row" | "large";
+  priority?: number;
 }) {
   const mode: ThemeMode = getAppliedTheme();
   const theme = getProfileTheme(mode);
-  const cached = profileThumbCache.get(att.id) ?? null;
+  const cached = thumbCache.get(att.id) ?? null;
   const [thumb, setThumb] = useState<string | null>(cached);
-  const [pageCount, setPageCount] = useState<number | null>(profilePageCountCache.get(att.id) ?? null);
+  const [pageCount, setPageCount] = useState<number | null>(pageCountCache.get(att.id) ?? null);
   const [loading, setLoading] = useState(false);
   const [visible, setVisible] = useState(!!cached);
   const [opening, setOpening] = useState(false);
@@ -233,7 +176,7 @@ function PdfThumbnailCard({
     let cancelled = false;
     setLoading(true);
     (async () => {
-      await acquireSlot();
+      await acquireThumbnailSlot(priority);
       try {
         if (cancelled) return;
         const res = await fetch(`${API_BASE}/api/gmail/attachment`, {
@@ -247,21 +190,21 @@ function PdfThumbnailCard({
         if (!data.base64 || cancelled) return;
         const { thumb: url, pageCount: count } = await generatePdfThumbnail(data.base64);
         if (!cancelled && url) {
-          profileThumbCache.set(att.id, url);
-          if (profileThumbCache.size > THUMB_CACHE_LIMIT) {
-            const oldestKey = profileThumbCache.keys().next().value;
-            if (oldestKey) profileThumbCache.delete(oldestKey);
+          thumbCache.set(att.id, url);
+          if (thumbCache.size > THUMB_CACHE_LIMIT) {
+            const oldestKey = thumbCache.keys().next().value;
+            if (oldestKey) thumbCache.delete(oldestKey);
           }
-          profilePageCountCache.set(att.id, count);
-          if (profilePageCountCache.size > THUMB_CACHE_LIMIT) {
-            const oldestKey = profilePageCountCache.keys().next().value;
-            if (oldestKey) profilePageCountCache.delete(oldestKey);
+          pageCountCache.set(att.id, count);
+          if (pageCountCache.size > THUMB_CACHE_LIMIT) {
+            const oldestKey = pageCountCache.keys().next().value;
+            if (oldestKey) pageCountCache.delete(oldestKey);
           }
           setThumb(url);
           setPageCount(count);
         }
       } catch { } finally {
-        releaseSlot();
+        releaseThumbnailSlot();
         if (!cancelled) setLoading(false);
       }
     })();
@@ -579,6 +522,7 @@ export default function ClientProfilePage({
                   dark={theme.frameDark}
                   dateStr={fmtDate(att.date)}
                   variant="card"
+                  priority={pdfs.length - i}
                 />
               ))}
             </div>
@@ -672,6 +616,7 @@ export default function ClientProfilePage({
                     dark={theme.frameDark}
                     dateStr={fmtDate(att.date)}
                     variant="large"
+                    priority={filtered.length - i}
                   />
                 ))}
               </div>

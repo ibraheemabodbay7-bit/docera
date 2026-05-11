@@ -88,19 +88,19 @@ type DocItem = { id: string; name: string; type: string; dataUrl: string };
 
 // ─── PDF thumbnail cache ──────────────────────────────────────────────────────
 
-const thumbCache = new Map<string, string>();
-const pageCountCache = new Map<string, number>();
-const THUMB_CACHE_LIMIT = 100;
+export const thumbCache = new Map<string, string>();
+export const pageCountCache = new Map<string, number>();
+export const THUMB_CACHE_LIMIT = 200;
 
 // ─── Thumbnail load semaphore (max 1 concurrent) ──────────────────────────────
 
 let activeThumbnailLoads = 0;
 const MAX_CONCURRENT_THUMBNAILS = 1;
-type QueueEntry = { resolve: () => void; priority: number };
+export type QueueEntry = { resolve: () => void; priority: number };
 const thumbnailQueue: QueueEntry[] = [];
 let mountedThumbnailCount = 0;
 
-function acquireThumbnailSlot(priority: number = 0): Promise<void> {
+export function acquireThumbnailSlot(priority: number = 0): Promise<void> {
   return new Promise(resolve => {
     if (activeThumbnailLoads < MAX_CONCURRENT_THUMBNAILS) {
       activeThumbnailLoads++;
@@ -124,13 +124,13 @@ function acquireThumbnailSlot(priority: number = 0): Promise<void> {
   });
 }
 
-function releaseThumbnailSlot() {
+export function releaseThumbnailSlot() {
   activeThumbnailLoads--;
   const next = thumbnailQueue.shift();
   if (next) next.resolve();
 }
 
-async function generatePdfThumbnail(base64: string): Promise<{ thumb: string; pageCount: number }> {
+export async function generatePdfThumbnail(base64: string): Promise<{ thumb: string; pageCount: number }> {
   let pdf: any = null;
   let page: any = null;
   try {
