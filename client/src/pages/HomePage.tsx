@@ -1,7 +1,6 @@
 import { useState, useMemo, memo, useRef, useReducer, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, apiFetch } from "@/lib/queryClient";
-import { getSetting } from "@/lib/settings";
 import { Capacitor } from "@capacitor/core";
 import {
   Camera, FileText, FolderOpen, Plus, Search, MoreVertical, Trash2, Edit2, X,
@@ -413,7 +412,7 @@ export default function HomePage({ user, onScan, onOpenDoc, onEditDoc, onOpenFol
     return () => { document.body.style.backgroundColor = prev; };
   }, []);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | DocStatus>(() => getSetting("defaultFilter", "all") as "all" | DocStatus);
+  const [statusFilter, setStatusFilter] = useState<"all" | DocStatus>("all");
   const [clientFilter, setClientFilter] = useState<"all" | string>("all");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");

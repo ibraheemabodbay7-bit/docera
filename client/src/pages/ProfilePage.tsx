@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest, apiFetch } from "@/lib/queryClient";
-import { ArrowLeft, FileText, LogOut, ChevronRight, Check, X, Crown, User, Mail, Tag, Sparkles, Palette } from "lucide-react";
+import { ArrowLeft, FileText, LogOut, ChevronRight, Check, X, Crown, User, Mail, Sparkles, Palette } from "lucide-react";
 import { getSetting, setSetting } from "@/lib/settings";
 import { useToast } from "@/hooks/use-toast";
 import type { Document } from "@shared/schema";
@@ -60,7 +60,6 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
   const [filenamePrefix, setFilenamePrefix] = useState(() => getSetting("filenamePrefix", "Scan"));
   const [prefixEditing, setPrefixEditing] = useState(false);
   const [prefixDraft, setPrefixDraft] = useState(filenamePrefix);
-  const [defaultFilter, setDefaultFilter] = useState(() => getSetting("defaultFilter", "all"));
 
   const { data: docs = [] } = useQuery<Document[]>({
     queryKey: ["/api/documents"],
@@ -355,32 +354,6 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
                   </button>
                 </div>
               )}
-            </div>
-
-            {/* Default filter */}
-            <div className="flex items-center gap-3 px-4 py-3.5">
-              <div className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
-                <Tag className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">Default View</p>
-                <p className="text-xs text-muted-foreground">Filter shown when you open the app</p>
-              </div>
-              <select
-                data-testid="select-default-filter"
-                value={defaultFilter}
-                onChange={(e) => {
-                  setDefaultFilter(e.target.value);
-                  setSetting("defaultFilter", e.target.value);
-                }}
-                className="text-xs font-medium text-foreground bg-muted border-0 rounded-lg px-2 py-1.5 outline-none"
-              >
-                <option value="all">All</option>
-                <option value="draft">Draft</option>
-                <option value="pending">Waiting for Reply</option>
-                <option value="sent">Sent</option>
-                <option value="approved">Approved</option>
-              </select>
             </div>
           </div>
         </div>
