@@ -286,7 +286,7 @@ function makeScanPage(original: HTMLCanvasElement, isScreenshot = false, prewarp
     filterMode: "none", filterStrength: 60,
     rotation: 0, flipH: false, flipV: false,
     processedUrl: "",
-    manualCrop: false, // auto-detection allowed until user drags a corner
+    manualCrop: prewarped, // prewarped pages already have correct geometry — block auto-detection
     isScreenshot,
   };
 }
