@@ -521,6 +521,14 @@ export default function ScannerPage({
   // The quad shown in the overlay: use live drag state if dragging, else committed page quad
   const displayQuad = activeQuad ?? currentPage?.quad ?? DEFAULT_QUAD;
 
+  // Auto-open crop view whenever the editor stage is entered.
+  // Fires once per transition; user can toggle off with the Crop button.
+  useEffect(() => {
+    if (stage === "editor" && pagesRef.current.length > 0) {
+      setCropMode(true);
+    }
+  }, [stage]);
+
   // Sync localStrength when switching pages
   useEffect(() => {
     if (currentPage) setLocalStrength(currentPage.filterStrength);
