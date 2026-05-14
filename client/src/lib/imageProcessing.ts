@@ -512,7 +512,7 @@ export function noShadowFilter(canvas: HTMLCanvasElement, strength: number): HTM
   const cellW = Math.ceil(w / gridX);
   const cellH = Math.ceil(h / gridY);
   const bgGrid = new Float32Array(gridX * gridY);
-  const minBg  = Math.max(40, globalWhite * 0.20);
+  const minBg  = Math.max(100, globalWhite * 0.55);
 
   for (let gy = 0; gy < gridY; gy++) {
     for (let gx = 0; gx < gridX; gx++) {
@@ -572,7 +572,7 @@ export function noShadowFilter(canvas: HTMLCanvasElement, strength: number): HTM
           out_v = Math.round(255 - (255 - norm) * (1 - s) * 0.5);
         } else {
           // Foreground (ink) → push toward black
-          const darkened = Math.round(norm * (1 - s * 0.6));
+          const darkened = Math.round(norm * (1 - s * 0.35));
           out_v = Math.round(g * (1 - s) + darkened * s);
         }
       }
@@ -585,7 +585,7 @@ export function noShadowFilter(canvas: HTMLCanvasElement, strength: number): HTM
   outCtx.putImageData(outData, 0, 0);
 
   // ── Step 5: strong unsharp mask for CamScanner-level crispness ───────────
-  return _unsharpMask(out, 0.70);
+  return _unsharpMask(out, 0.45);
 }
 
 function _unsharpMask(canvas: HTMLCanvasElement, amount: number): HTMLCanvasElement {
