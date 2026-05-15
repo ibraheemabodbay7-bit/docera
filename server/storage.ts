@@ -5,14 +5,13 @@ import type {
   InsertUser, InsertFolder, InsertDocument, InsertDocumentEvent, InsertClient,
   User, Folder, Document, DocumentSummary, DocumentEvent, Client,
 } from "@shared/schema";
-import bcrypt from "bcrypt";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByStripeCustomerId(customerId: string): Promise<User | undefined>;
   getUserByStripeSubscriptionId(subscriptionId: string): Promise<User | undefined>;
-  createUser(data: { username: string; password: string; name: string }): Promise<User>;
+  createUser(data: { username: string; name: string }): Promise<User>;
   updateUser(id: string, data: { name?: string; senderName?: string | null }): Promise<User | undefined>;
   updateUserStripeInfo(id: string, data: { stripeCustomerId?: string; stripeSubscriptionId?: string }): Promise<User | undefined>;
   getUserSubscriptionStatus(id: string): Promise<{ status: string; currentPeriodEnd: number | null }>;
@@ -86,11 +85,9 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async createUser(data: { username: string; password: string; name: string }): Promise<User> {
-    const hashed = await bcrypt.hash(data.password, 10);
+  async createUser(data: { username: string; name: string }): Promise<User> {
     const [user] = await db.insert(users).values({
       username: data.username,
-      password: hashed,
       name: data.name,
     }).returning();
     return user;
