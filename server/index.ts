@@ -21,7 +21,25 @@ process.on("unhandledRejection", (reason) => {
 const app = express();
 const httpServer = createServer(app);
 
+app.disable("x-powered-by");
 app.use(helmet({ contentSecurityPolicy: false }));
+
+app.use((_req, res, next) => {
+  res.setHeader(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), accelerometer=(), gyroscope=()"
+  );
+  next();
+});
+
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/")) {
+    res.setHeader("Cache-Control", "no-store");
+  } else if (!req.path.startsWith("/assets/")) {
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  }
+  next();
+});
 
 const CORS_ALLOWLIST = new Set([
   "https://docera.io",
