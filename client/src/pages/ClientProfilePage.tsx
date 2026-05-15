@@ -463,7 +463,7 @@ export default function ClientProfilePage({
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", flexDirection: "column", background: "transparent", overflow: "hidden" }}>
       <div style={{ position: "absolute", inset: 0, zIndex: 0, background: orbBg, pointerEvents: "none" }} />
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap');`}</style>
+
 
       <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 1 }}>
 
