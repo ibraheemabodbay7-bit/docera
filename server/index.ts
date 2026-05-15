@@ -1,5 +1,6 @@
 import "dotenv/config";
 import cors from "cors";
+import helmet from "helmet";
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
@@ -20,8 +21,23 @@ process.on("unhandledRejection", (reason) => {
 const app = express();
 const httpServer = createServer(app);
 
+app.use(helmet({ contentSecurityPolicy: false }));
+
+const CORS_ALLOWLIST = new Set([
+  "https://docera.io",
+  "https://www.docera.io",
+  "capacitor://localhost",
+  "https://localhost",
+  "ionic://localhost",
+]);
+
 app.use(cors({
-  origin: true,
+  origin: (origin, callback) => {
+    if (process.env.NODE_ENV !== "production") return callback(null, true);
+    if (!origin || CORS_ALLOWLIST.has(origin)) return callback(null, true);
+    console.warn(`[CORS] Rejected origin: ${origin}`);
+    callback(new Error(`Origin ${origin} not allowed`));
+  },
   credentials: true,
 }));
 
@@ -47,7 +63,7 @@ app.post(
 // ── Body parsers (after webhook route) ────────────────────────────────────
 app.use(
   express.json({
-    limit: "50mb",
+    limit: "10mb",
     verify: (req: Request & { rawBody?: unknown }, _res, buf) => {
       req.rawBody = buf;
     },
