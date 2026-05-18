@@ -204,9 +204,10 @@ const MAX_SCAN_DIM = 3000;
 
 /**
  * Maximum dimension for PDF page images (camera photos).
- * Matches MAX_SCAN_DIM so photos are treated at full resolution, same as screenshots.
+ * 2048px gives crisp text at ~185 DPI equivalent for A4 while keeping
+ * per-canvas memory at ~16 MB vs ~36 MB at 3000px — important for bulk imports.
  */
-const PDF_DIM = 3000;
+const PDF_DIM = 2048;
 
 /**
  * Maximum dimension for PDF page images when the source is a screenshot.
@@ -217,9 +218,9 @@ const PDF_DIM_SCREENSHOT = MAX_SCAN_DIM;
 
 /**
  * Maximum dimension for serialised original pages (stored for re-editing).
- * Matches PDF_DIM so re-edit originals are stored at the same resolution used for export.
+ * 2048px is sufficient for re-crop sharpness and keeps re-edit storage size reasonable.
  */
-const ORIG_DIM = 3000;
+const ORIG_DIM = 2048;
 
 /** Yield one animation frame to let the browser paint before heavy work. */
 const yieldToMain = (): Promise<void> => new Promise((r) => requestAnimationFrame(() => r()));
@@ -1818,7 +1819,7 @@ export default function ScannerPage({
       // ── Full path: serialise originals + generate PDF ────────────────────
 
       // Step 1 — Serialise original pages for future re-editing.
-      // Downscale to ORIG_DIM (3000px) so re-cropping/re-filtering stays sharp.
+      // Downscale to ORIG_DIM (2048px) so re-cropping/re-filtering stays sharp.
       setProgress("Preparing pages…");
       await yieldToMain();
       const serializedPages: SerializablePage[] = [];
@@ -1841,7 +1842,7 @@ export default function ScannerPage({
       const pagesJson = JSON.stringify(serializedPages);
 
       // Step 2 — Process and composite into PDF.
-      // For camera photos, pre-downscale to PDF_DIM (3000px) before warping.
+      // For camera photos, pre-downscale to PDF_DIM (2048px) before warping.
       // Screenshots keep their full imported resolution (up to PDF_DIM_SCREENSHOT)
       // and receive a post-warp sharpening pass to compensate for bilinear softness.
       setProgress("Generating PDF…");
