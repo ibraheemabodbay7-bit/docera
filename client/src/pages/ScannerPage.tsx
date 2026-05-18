@@ -204,9 +204,9 @@ const MAX_SCAN_DIM = 3000;
 
 /**
  * Maximum dimension for PDF page images (camera photos).
- * 2048px gives crisp text at ~185 DPI equivalent for A4.
+ * Matches MAX_SCAN_DIM so photos are treated at full resolution, same as screenshots.
  */
-const PDF_DIM = 2048;
+const PDF_DIM = 3000;
 
 /**
  * Maximum dimension for PDF page images when the source is a screenshot.
@@ -217,9 +217,9 @@ const PDF_DIM_SCREENSHOT = MAX_SCAN_DIM;
 
 /**
  * Maximum dimension for serialised original pages (stored for re-editing).
- * 2048px is the same as the import cap so no extra downscale occurs on save.
+ * Matches PDF_DIM so re-edit originals are stored at the same resolution used for export.
  */
-const ORIG_DIM = 2048;
+const ORIG_DIM = 3000;
 
 /** Yield one animation frame to let the browser paint before heavy work. */
 const yieldToMain = (): Promise<void> => new Promise((r) => requestAnimationFrame(() => r()));
@@ -275,6 +275,16 @@ function makeThumbnail(canvas: HTMLCanvasElement, maxW = 480, quality = 0.82): s
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(canvas, 0, 0, w, h);
   return out.toDataURL("image/jpeg", quality);
+}
+
+/** Returns true if quad is essentially the full-image identity (within ±0.005 per corner). */
+function isQuadIdentityish(quad: QuadPoints, tol = 0.005): boolean {
+  return (
+    Math.abs(quad.tl.x)     < tol && Math.abs(quad.tl.y)     < tol &&
+    Math.abs(quad.tr.x - 1) < tol && Math.abs(quad.tr.y)     < tol &&
+    Math.abs(quad.br.x - 1) < tol && Math.abs(quad.br.y - 1) < tol &&
+    Math.abs(quad.bl.x)     < tol && Math.abs(quad.bl.y - 1) < tol
+  );
 }
 
 function makeScanPage(original: HTMLCanvasElement, isScreenshot = false, prewarped = false): ScanPage {
@@ -822,10 +832,10 @@ export default function ScannerPage({
         return { ...p, quad, manualCrop: true, filterMode: suggestedFilter };
       }));
     } else {
-      // Detection found nothing — restore manualCrop protection so the quad the user
-      // had before pressing "Auto Detect" cannot be overwritten by future auto-detections.
+      // Detection found nothing — use IDENTITY_QUAD so the full image is preserved
+      // with no crop. manualCrop blocks future auto-detection from overwriting this.
       setPages((prev) => prev.map((p) =>
-        p.id !== page.id ? p : { ...p, manualCrop: true }
+        p.id !== page.id ? p : { ...p, quad: IDENTITY_QUAD, manualCrop: true }
       ));
     }
 
@@ -1808,7 +1818,7 @@ export default function ScannerPage({
       // ── Full path: serialise originals + generate PDF ────────────────────
 
       // Step 1 — Serialise original pages for future re-editing.
-      // Downscale to ORIG_DIM (2048px) so re-cropping/re-filtering stays sharp.
+      // Downscale to ORIG_DIM (3000px) so re-cropping/re-filtering stays sharp.
       setProgress("Preparing pages…");
       await yieldToMain();
       const serializedPages: SerializablePage[] = [];
@@ -1831,25 +1841,27 @@ export default function ScannerPage({
       const pagesJson = JSON.stringify(serializedPages);
 
       // Step 2 — Process and composite into PDF.
-      // For camera photos, pre-downscale to PDF_DIM (2048px) before warping.
+      // For camera photos, pre-downscale to PDF_DIM (3000px) before warping.
       // Screenshots keep their full imported resolution (up to PDF_DIM_SCREENSHOT)
       // and receive a post-warp sharpening pass to compensate for bilinear softness.
       setProgress("Generating PDF…");
 
       const processPage = (p: ScanPage): HTMLCanvasElement => {
-        // Screenshots preserve full imported resolution; camera photos are capped
-        // at PDF_DIM to keep file sizes reasonable.
         const srcDim = p.isScreenshot ? PDF_DIM_SCREENSHOT : PDF_DIM;
         const src = downscaleCanvas(p.original, srcDim);
-        const warped = perspectiveWarp(src, p.quad);
+        // Skip the perspective warp entirely when the quad is identity — avoids a
+        // bilinear resample on images that need no perspective correction (e.g. a
+        // WhatsApp photo where no document was detected).
+        const warpSkipped = isQuadIdentityish(p.quad);
+        const warped = warpSkipped ? src : perspectiveWarp(src, p.quad);
         const rotated = rotateCanvas(warped, p.rotation);
         const flipped = flipCanvas(rotated, p.flipH, p.flipV);
         const filtered = getFilteredCanvas(flipped, p.filterMode, p.filterStrength);
-        // For screenshots the bilinear perspective warp slightly softens sharp text
-        // edges.  A stronger unsharp mask restores crispness without affecting
-        // camera photos (which already go through _unsharpMask inside noShadowFilter).
-        const sharpened = p.isScreenshot && p.filterMode === "none"
-          ? sharpenCanvas(filtered, 0.75)
+        // Sharpen when warp ran (bilinear softens) or always for screenshots (sharp text).
+        // Skip when a pixel-level filter ran — it handles its own sharpening internally.
+        const needsSharpen = p.filterMode === "none" && (p.isScreenshot || !warpSkipped);
+        const sharpened = needsSharpen
+          ? sharpenCanvas(filtered, p.isScreenshot ? 0.75 : 0.5)
           : filtered;
         return sharpened;
       };
