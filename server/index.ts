@@ -10,6 +10,7 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { WebhookHandlers } from "./webhookHandlers";
 import { getStripeSync, runMigrations } from "./stripeClient";
+import { ensureSchema } from "./ensureSchema";
 
 process.on("uncaughtException", (err) => {
   console.error("[uncaughtException] Non-fatal error swallowed:", err.message);
@@ -169,6 +170,9 @@ async function initStripe() {
 }
 
 (async () => {
+  if (process.env.DATABASE_URL) {
+    await ensureSchema(process.env.DATABASE_URL);
+  }
   await initStripe();
   await registerRoutes(httpServer, app);
 
