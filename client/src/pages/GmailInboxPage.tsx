@@ -1061,6 +1061,12 @@ function ThreadView({
   const bottomRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
+  const pollCancelledRef = useRef(false);
+  const isAppActiveRef = useRef(true);
+  const messagesRef = useRef<GmailMessage[]>([]);
+
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
+
   const load = useCallback(async (olderThan?: string) => {
     if (!olderThan) { setLoading(true); setError(null); }
     else setLoadingOlder(true);
@@ -1096,6 +1102,33 @@ function ThreadView({
       else setLoadingOlder(false);
     }
   }, [contact.email, token, refreshToken]);
+
+  const pollLoad = useCallback(async () => {
+    if (!isAppActiveRef.current) return;
+    pollCancelledRef.current = false;
+    try {
+      const data = await gmailPost<{ messages: GmailMessage[]; hasMore: boolean }>(
+        "/api/gmail/thread-messages",
+        { contactEmail: contact.email },
+        token,
+        refreshToken,
+      );
+      if (pollCancelledRef.current) return;
+      const incoming = data.messages;
+      const knownIds = new Set(messagesRef.current.map(m => m.id));
+      const fresh = incoming.filter(m => !knownIds.has(m.id));
+      if (fresh.length === 0) return;
+      setMessages(prev => {
+        const existingIds = new Set(prev.map(m => m.id));
+        const toAdd = fresh.filter(m => !existingIds.has(m.id));
+        return toAdd.length > 0 ? [...prev, ...toAdd] : prev;
+      });
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 280);
+    } catch (err) {
+      const e = err as Error & { status?: number };
+      if (e.status === 401 || e.status === 403) onTokenExpired();
+    }
+  }, [contact.email, token, refreshToken, onTokenExpired]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1136,6 +1169,24 @@ function ThreadView({
     el.addEventListener("scroll", handler);
     return () => el.removeEventListener("scroll", handler);
   }, [hasMore]);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let handle: { remove: () => void } | null = null;
+    CapApp.addListener("appStateChange", ({ isActive }: { isActive: boolean }) => {
+      isAppActiveRef.current = isActive;
+    }).then(h => { handle = h; });
+    return () => { handle?.remove(); };
+  }, []);
+
+  useEffect(() => {
+    pollCancelledRef.current = false;
+    const id = setInterval(() => { void pollLoad(); }, 30_000);
+    return () => {
+      pollCancelledRef.current = true;
+      clearInterval(id);
+    };
+  }, [pollLoad]);
 
   const loadOlder = useCallback(async () => {
     if (!oldestDate || loadingOlder) return;
