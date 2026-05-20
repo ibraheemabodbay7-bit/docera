@@ -120,7 +120,24 @@ function getBaseUrl(req: Request): string {
 }
 
 export async function registerRoutes(httpServer: Server, app: Express) {
-  app.get('/api/health', (_req, res) => res.json({ ok: true }));
+  app.get('/api/health', async (_req, res) => {
+    try {
+      await db.execute(sql`SELECT 1`);
+      res.json({
+        status: 'ok',
+        db: 'connected',
+        uptime: Math.floor(process.uptime()),
+        timestamp: new Date().toISOString(),
+      });
+    } catch {
+      res.status(503).json({
+        status: 'error',
+        db: 'unreachable',
+        uptime: Math.floor(process.uptime()),
+        timestamp: new Date().toISOString(),
+      });
+    }
+  });
 
   app.get('/privacy', (_req, res) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
