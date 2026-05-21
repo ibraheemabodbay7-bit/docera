@@ -949,7 +949,7 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
         <div className="fixed inset-0 z-[60] flex items-end" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => { if (!sendEmail.isPending && !sendViaGmail.isPending) { setShowEmailModal(false); setEmailError(""); } }}>
           <div
             className="dark relative w-full rounded-t-3xl"
-            style={{ background: "#1c1c1e", paddingBottom: "max(1.5rem, calc(env(safe-area-inset-bottom) + 1rem))" }}
+            style={{ background: isPro ? "#0a0f1e" : "#1c1c1e", paddingBottom: "max(1.5rem, calc(env(safe-area-inset-bottom) + 1rem))" }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Handle + header */}
