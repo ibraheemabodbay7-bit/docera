@@ -245,7 +245,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     <h1>Privacy Policy — Docera</h1>
     <p><strong>Last updated: May 22, 2026</strong></p>
 
-    <p>This policy explains what Docera does with your data in plain English. If you have questions, email <a href="mailto:ibraheemabodbay7@gmail.com">ibraheemabodbay7@gmail.com</a>.</p>
+    <p>This policy explains what Docera does with your data in plain English.</p>
 
     <h2>Who we are</h2>
     <p>Docera is an iOS app for scanning, organizing, and sharing documents. It's built and operated by Ibrahim Abu Dbay (referred to as "we" or "Docera" below).</p>
@@ -364,17 +364,6 @@ export async function registerRoutes(httpServer: Server, app: Express) {
 
     <h2>Children</h2>
     <p>Docera is not intended for users under 13 (or under 16 in the European Union). We do not knowingly collect personal information from minors. If you believe a minor has used Docera, email us and we'll delete their data.</p>
-
-    <h2>Your rights</h2>
-    <p>Depending on where you live, you may have rights under laws like the GDPR (Europe) or CCPA (California), including:</p>
-    <ul>
-      <li><strong>Access:</strong> Most of your data lives on your device, so you already have it. For the small amount on our server, email us.</li>
-      <li><strong>Deletion:</strong> Use the in-app delete feature, or email us.</li>
-      <li><strong>Correction:</strong> Edit your name in the app, or email us.</li>
-      <li><strong>Portability:</strong> Email us and we'll send you a copy of your data.</li>
-      <li><strong>Opt-out of sale:</strong> We don't sell data, so this doesn't apply.</li>
-    </ul>
-    <p>To exercise any of these rights, email <a href="mailto:ibraheemabodbay7@gmail.com">ibraheemabodbay7@gmail.com</a>.</p>
 
     <h2>Changes to this policy</h2>
     <p>We may update this policy when we add features or change how we handle data. The "Last updated" date at the top will change, and significant changes will be announced inside the app.</p>
