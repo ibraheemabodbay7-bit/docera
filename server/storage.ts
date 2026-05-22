@@ -17,9 +17,6 @@ export interface IStorage {
   getUserSubscriptionStatus(id: string): Promise<{ status: string; currentPeriodEnd: number | null }>;
   startTrial(id: string): Promise<void>;
   setSubscribed(id: string, value: boolean): Promise<void>;
-  getHwCredits(userId: string): Promise<{ credits: number; resetAt: Date | null }>;
-  consumeHwCredit(userId: string): Promise<{ ok: boolean; remaining: number }>;
-  addHwCredits(userId: string, amount: number): Promise<{ credits: number }>;
   getFolders(userId: string): Promise<Folder[]>;
   getFolder(id: string): Promise<Folder | undefined>;
   createFolder(data: InsertFolder): Promise<Folder>;
@@ -158,55 +155,6 @@ export class DatabaseStorage implements IStorage {
     await db.update(users)
       .set({ isSubscribed: value })
       .where(eq(users.id, id));
-  }
-
-  // ── Handwriting credit helpers ─────────────────────────────────────────────
-
-  /** Resets hwCredits to 10 if the last reset was > 30 days ago (or never). */
-  private async resetHwCreditsIfDue(userId: string): Promise<void> {
-    const [row] = await db
-      .select({ hwCreditsResetAt: users.hwCreditsResetAt })
-      .from(users)
-      .where(eq(users.id, userId));
-    if (!row) return;
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    if (!row.hwCreditsResetAt || row.hwCreditsResetAt < thirtyDaysAgo) {
-      await db.update(users)
-        .set({ hwCredits: 10, hwCreditsResetAt: new Date() })
-        .where(eq(users.id, userId));
-    }
-  }
-
-  async getHwCredits(userId: string): Promise<{ credits: number; resetAt: Date | null }> {
-    await this.resetHwCreditsIfDue(userId);
-    const [row] = await db
-      .select({ hwCredits: users.hwCredits, hwCreditsResetAt: users.hwCreditsResetAt })
-      .from(users)
-      .where(eq(users.id, userId));
-    return { credits: row?.hwCredits ?? 10, resetAt: row?.hwCreditsResetAt ?? null };
-  }
-
-  async consumeHwCredit(userId: string): Promise<{ ok: boolean; remaining: number }> {
-    await this.resetHwCreditsIfDue(userId);
-    const [row] = await db
-      .select({ hwCredits: users.hwCredits })
-      .from(users)
-      .where(eq(users.id, userId));
-    const current = row?.hwCredits ?? 0;
-    if (current <= 0) return { ok: false, remaining: 0 };
-    const next = current - 1;
-    await db.update(users).set({ hwCredits: next }).where(eq(users.id, userId));
-    return { ok: true, remaining: next };
-  }
-
-  async addHwCredits(userId: string, amount: number): Promise<{ credits: number }> {
-    const [row] = await db
-      .select({ hwCredits: users.hwCredits })
-      .from(users)
-      .where(eq(users.id, userId));
-    const next = (row?.hwCredits ?? 0) + amount;
-    await db.update(users).set({ hwCredits: next }).where(eq(users.id, userId));
-    return { credits: next };
   }
 
   async getFolders(userId: string): Promise<Folder[]> {

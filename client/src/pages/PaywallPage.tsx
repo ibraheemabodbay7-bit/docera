@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  AlignRight, ScanLine, FileText, Check, Lock, X, Sparkles, RotateCcw, Loader2,
+  ScanLine, FileText, Check, Lock, X, Sparkles, RotateCcw, Loader2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -14,7 +14,6 @@ import { isDarkMode } from "@/lib/theme";
 
 // ── Feature list ──────────────────────────────────────────────────────────────
 const FEATURES = [
-  { icon: AlignRight, text: "10 handwriting scans per month" },
   { icon: ScanLine,   text: "Scan and edit documents" },
   { icon: FileText,   text: "Export files" },
 ];
@@ -95,7 +94,6 @@ export default function PaywallPage({ onBack, lockedFeature }: PaywallPageProps)
       // Non-fatal
     }
     queryClient.invalidateQueries({ queryKey: ["/api/subscription"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/credits/hw"] });
   };
 
   // ── Subscribe ─────────────────────────────────────────────────────────────
