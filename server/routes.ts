@@ -198,6 +198,13 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       margin-top: 36px;
       margin-bottom: 10px;
     }
+    h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #1a1f2a;
+      margin-top: 20px;
+      margin-bottom: 8px;
+    }
     p { margin-bottom: 14px; color: #2a3040; }
     ul {
       margin: 0 0 14px 20px;
@@ -205,6 +212,13 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     }
     ul li { margin-bottom: 6px; }
     a { color: #3a5fa0; }
+    code {
+      font-family: ui-monospace, monospace;
+      font-size: 13px;
+      background: rgba(0,0,0,0.06);
+      padding: 2px 5px;
+      border-radius: 4px;
+    }
     hr {
       border: none;
       border-top: 0.5px solid rgba(255,255,255,0.4);
@@ -228,73 +242,149 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     <span class="logo">Docera</span>
   </header>
   <div class="container">
-    <h1>Privacy Policy</h1>
-    <p class="updated">Last updated: April 2026</p>
+    <h1>Privacy Policy — Docera</h1>
+    <p><strong>Last updated: May 22, 2026</strong></p>
 
-    <p>Docera ("we", "our", or "us") is committed to protecting your privacy. This policy explains what information we collect, how we use it, and your rights regarding your data.</p>
+    <p>This policy explains what Docera does with your data in plain English. If you have questions, email <a href="mailto:ibraheemabodbay7@gmail.com">ibraheemabodbay7@gmail.com</a>.</p>
 
-    <h2>1. Data We Collect</h2>
-    <p>When you use Docera, we may access or process the following types of data:</p>
+    <h2>Who we are</h2>
+    <p>Docera is an iOS app for scanning, organizing, and sharing documents. It's built and operated by Ibrahim Abu Dbay (referred to as "we" or "Docera" below).</p>
+
+    <h2>What data Docera handles</h2>
+    <p><strong>On your device (stored locally, never sent to our servers):</strong></p>
     <ul>
-      <li><strong>Email messages</strong> — subject lines, sender/recipient addresses, and body content from your Gmail inbox, used to organise your communications.</li>
-      <li><strong>PDF files and documents</strong> — files you scan, import, or send through the app.</li>
-      <li><strong>Photos</strong> — images captured via your device camera for document scanning, or retrieved from Gmail attachments.</li>
-      <li><strong>Account information</strong> — your name and email address when you create a Docera account.</li>
+      <li>Scanned documents (the PDF or image you create from your camera, plus thumbnails and edit state)</li>
+      <li>Photos shared into Docera from other apps (via the iOS share sheet)</li>
+      <li>Your filename preferences, theme, and other app settings</li>
+      <li>A cached copy of your account info so the app launches fast</li>
     </ul>
 
-    <h2>2. How We Use Your Data</h2>
+    <p><strong>On our servers (PostgreSQL on Railway, EU West):</strong></p>
     <ul>
-      <li>Organising and displaying your Gmail emails and threads in the app.</li>
-      <li>Sending documents and files to your clients on your behalf.</li>
-      <li>Classifying emails using AI to surface relevant messages.</li>
-      <li>Storing documents locally on your device for offline access.</li>
+      <li>An auto-generated account record for your device: a unique ID, an auto-generated username, your display name, and your trial/subscription state</li>
+      <li>The session that keeps you signed in</li>
+      <li>That's it. We do not store your scanned documents, your Gmail messages, your photos, or your contacts on our servers.</li>
     </ul>
 
-    <h2>3. Gmail Data Usage</h2>
-    <p>Docera uses the Google Gmail API to:</p>
+    <p><strong>On your device in Safari/WebKit storage:</strong></p>
     <ul>
-      <li><strong>Read emails</strong> — to display your inbox and conversation threads inside the app.</li>
-      <li><strong>Send emails on your behalf</strong> — when you compose or forward documents to clients.</li>
-    </ul>
-    <p>Docera's use of Gmail data complies with the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">Google API Services User Data Policy</a>, including the Limited Use requirements. We do not use Gmail data to serve advertising, and we do not share Gmail data with third parties except as described in this policy.</p>
-
-    <h2>4. Data Storage</h2>
-    <p>Docera is designed with a <strong>local-first</strong> architecture:</p>
-    <ul>
-      <li>Your emails and documents are stored <strong>locally on your device</strong> using IndexedDB.</li>
-      <li>We do <strong>not</strong> store your email content or documents on our servers.</li>
-      <li>Authentication tokens required to access Gmail are stored securely on your device and used only to communicate with Google's APIs on your behalf.</li>
+      <li>Gmail OAuth tokens (so you don't need to sign in every time)</li>
+      <li>Display-name overrides for your contacts</li>
+      <li>Your guest device ID</li>
     </ul>
 
-    <h2>5. Third-Party Services</h2>
+    <h2>What we do with it</h2>
+    <p>We use this data to:</p>
     <ul>
-      <li><strong>Google Gmail API</strong> — used to read and send emails. Subject to <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's Privacy Policy</a>.</li>
-      <li><strong>OpenAI</strong> — used for AI-powered email classification and organisation. Only minimal, non-identifying metadata may be sent. Subject to <a href="https://openai.com/policies/privacy-policy" target="_blank" rel="noopener">OpenAI's Privacy Policy</a>.</li>
-      <li><strong>RevenueCat</strong> — used to manage in-app subscriptions. Subject to <a href="https://www.revenuecat.com/privacy" target="_blank" rel="noopener">RevenueCat's Privacy Policy</a>.</li>
+      <li>Show you your Gmail inbox inside the app</li>
+      <li>Send documents to your contacts on your behalf, via your Gmail account</li>
+      <li>Save and organize your scanned documents on your device</li>
+      <li>Track your free trial and subscription status</li>
+    </ul>
+    <p>That's the full list. We don't profile you, build advertising audiences, or sell your data.</p>
+
+    <h2>Third-party services we use</h2>
+    <p>Docera relies on three services. Here's what each one sees:</p>
+
+    <h3>Google (Gmail API)</h3>
+    <ul>
+      <li>What it sees: your Gmail messages (read), the emails you send through the app (write)</li>
+      <li>Scopes: <code>gmail.readonly</code> and <code>gmail.send</code></li>
+      <li>Docera's use of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">Google API Services User Data Policy</a>, including the Limited Use requirements.</li>
+      <li>We do not use Gmail data to train AI or machine learning models.</li>
+      <li>We do not sell or transfer Gmail data to any third party.</li>
+      <li>We only use Gmail data to show your inbox and send emails on your behalf.</li>
     </ul>
 
-    <h2>6. Data Sharing</h2>
-    <p>We do not sell, rent, or share your personal data with third parties for marketing purposes. Data is only shared with the third-party services listed above, and only to the extent necessary to provide the app's functionality.</p>
+    <h3>RevenueCat</h3>
+    <ul>
+      <li>What it sees: an anonymous identifier their SDK generates, your device platform, your app version, and Apple's purchase receipts when you subscribe or restore purchases</li>
+      <li>Why: to verify and manage your subscription</li>
+      <li>What's NOT sent: your name, email, or any personally identifying info from our side</li>
+    </ul>
 
-    <h2>7. Data Retention & Deletion</h2>
-    <p>Because email and document data is stored locally on your device, you can delete it at any time by removing the app. If you delete your Docera account, any server-side account data (name, email address) is permanently deleted.</p>
+    <h3>Apple</h3>
+    <ul>
+      <li>What it sees: your subscription state, since billing is handled by Apple</li>
+      <li>You can view and cancel subscriptions in your Apple ID settings at any time</li>
+    </ul>
 
-    <h2>8. Security</h2>
-    <p>We use industry-standard practices to protect your data, including secure HTTPS connections and OAuth 2.0 for Gmail authentication. We never store your Google account password.</p>
+    <p>That's the complete list. There's no analytics service, no crash reporter, no advertising network, no email delivery provider, no AI service.</p>
 
-    <h2>9. Children's Privacy</h2>
-    <p>Docera is not directed at children under 13. We do not knowingly collect personal information from children under 13.</p>
+    <h2>How authentication works</h2>
+    <p>Docera does not have a username/password sign-up. There's no "create account" screen.</p>
+    <p>When you first open the app, we automatically create a guest account tied to your device. This account exists on our server only so we can track your trial and subscription state. It has no email, no password, and no personally identifying information.</p>
+    <p>If you connect your Gmail account, you grant Docera limited access through Google's standard OAuth flow. You can disconnect at any time from inside the app, and the tokens are deleted from your device.</p>
+    <p>We never see or store your Google password.</p>
 
-    <h2>10. Changes to This Policy</h2>
-    <p>We may update this privacy policy from time to time. We will notify you of significant changes by updating the "Last updated" date at the top of this page.</p>
+    <h2>Sharing your data</h2>
+    <p>We do not sell your data. We do not rent it. We do not share it with anyone except the three services listed above, and only to the extent needed to provide the features you use.</p>
+    <p>We may disclose data if legally required (court order, lawful request) or to protect against fraud or abuse — but this has not happened and we have no agreements requiring it.</p>
+
+    <h2>Deleting your account and data</h2>
+    <p>You can delete your Docera account and all associated data directly inside the app:</p>
+    <p><strong>Profile → Delete Account → type DELETE → confirm</strong></p>
+    <p>When you do this:</p>
+    <ul>
+      <li>All your documents, folders, clients, and history on our server are permanently deleted (cascade delete in a single transaction)</li>
+      <li>All local data on your device is cleared (documents, settings, tokens)</li>
+      <li>Your Gmail OAuth grant is revoked via Google's token revocation endpoint, so Docera disappears from your Google account's connected apps list</li>
+      <li>Your session is destroyed</li>
+    </ul>
+    <p>This is immediate and cannot be undone.</p>
+    <p><strong>Active subscriptions are handled separately.</strong> Apple manages your subscription. Deleting your Docera account does not cancel your Apple subscription. To cancel, go to Settings → [your name] → Subscriptions on your iPhone.</p>
+    <p>If you can't access the app and want your data deleted, email <a href="mailto:ibraheemabodbay7@gmail.com">ibraheemabodbay7@gmail.com</a> and we'll process the request manually.</p>
+
+    <h2>Data we briefly handle (but don't store)</h2>
+    <p>Some Gmail data passes through our server in memory only, never written to a database or log:</p>
+    <ul>
+      <li>Email body text when you open a thread (proxied from Gmail to your device)</li>
+      <li>Attachment binaries when you tap one (proxied from Gmail to your device)</li>
+      <li>Recipient address and PDF binary when you send a document via Gmail</li>
+    </ul>
+    <p>These are processed in RAM during a single request and discarded.</p>
+    <p>Note: server logs may include contact email addresses when threads are loaded, for debugging purposes. These logs rotate within the standard Railway log retention window.</p>
+
+    <h2>Where your data lives geographically</h2>
+    <ul>
+      <li>Our server is hosted on Railway in the EU West region (Netherlands).</li>
+      <li>Google processes Gmail data according to Google's own policies and infrastructure.</li>
+      <li>RevenueCat processes purchase data on their infrastructure (US-based).</li>
+    </ul>
+
+    <h2>Security</h2>
+    <ul>
+      <li>All connections use HTTPS.</li>
+      <li>Gmail authentication uses OAuth 2.0.</li>
+      <li>We never see or store your Google account password.</li>
+      <li>Session cookies are httpOnly and Secure in production.</li>
+      <li>Gmail OAuth tokens are stored in your device's local app storage, not on our servers.</li>
+    </ul>
+    <p>We're a small operation, so we keep our attack surface minimal — fewer third parties, less data retained, less to go wrong.</p>
+
+    <h2>Children</h2>
+    <p>Docera is not intended for users under 13 (or under 16 in the European Union). We do not knowingly collect personal information from minors. If you believe a minor has used Docera, email us and we'll delete their data.</p>
+
+    <h2>Your rights</h2>
+    <p>Depending on where you live, you may have rights under laws like the GDPR (Europe) or CCPA (California), including:</p>
+    <ul>
+      <li><strong>Access:</strong> Most of your data lives on your device, so you already have it. For the small amount on our server, email us.</li>
+      <li><strong>Deletion:</strong> Use the in-app delete feature, or email us.</li>
+      <li><strong>Correction:</strong> Edit your name in the app, or email us.</li>
+      <li><strong>Portability:</strong> Email us and we'll send you a copy of your data.</li>
+      <li><strong>Opt-out of sale:</strong> We don't sell data, so this doesn't apply.</li>
+    </ul>
+    <p>To exercise any of these rights, email <a href="mailto:ibraheemabodbay7@gmail.com">ibraheemabodbay7@gmail.com</a>.</p>
+
+    <h2>Changes to this policy</h2>
+    <p>We may update this policy when we add features or change how we handle data. The "Last updated" date at the top will change, and significant changes will be announced inside the app.</p>
+
+    <h2>Contact</h2>
+    <p>For questions, requests, or anything privacy-related:</p>
+    <p><strong><a href="mailto:ibraheemabodbay7@gmail.com">ibraheemabodbay7@gmail.com</a></strong></p>
 
     <hr/>
-
-    <h2>Contact Us</h2>
-    <div class="contact-box">
-      <p>If you have any questions or concerns about this privacy policy, please contact us at:<br/>
-      <strong><a href="mailto:ibraheemabodbay7@gmail.com">ibraheemabodbay7@gmail.com</a></strong></p>
-    </div>
+    <p><em>This policy applies only to the Docera iOS app. The Docera website is not currently functional for end users.</em></p>
   </div>
 </body>
 </html>`);
