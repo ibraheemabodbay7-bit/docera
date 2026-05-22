@@ -696,6 +696,54 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     res.json({ id: user.id, name: user.name, username: user.username, senderName: user.senderName ?? null });
   });
 
+  app.delete("/api/auth/account", requireAuth, async (req, res) => {
+    const userId = (req.session as any).userId!;
+    const schema = z.object({
+      gmailRefreshToken: z.string().optional(),
+      gmailAccessToken: z.string().optional(),
+    });
+    const parsed = schema.safeParse(req.body ?? {});
+    const tokens = parsed.success ? parsed.data : {};
+
+    try {
+      // Cascade delete in correct order to avoid FK violations.
+      // Use a transaction so partial deletion can't strand the user.
+      await db.transaction(async (tx) => {
+        await tx.execute(sql`DELETE FROM document_events WHERE user_id = ${userId}`);
+        await tx.execute(sql`DELETE FROM documents WHERE user_id = ${userId}`);
+        await tx.execute(sql`DELETE FROM folders WHERE user_id = ${userId}`);
+        await tx.execute(sql`DELETE FROM clients WHERE user_id = ${userId}`);
+        await tx.execute(sql`DELETE FROM users WHERE id = ${userId}`);
+      });
+
+      // Revoke Google OAuth tokens (best effort, do not fail deletion if this errors).
+      // Per Google OAuth 2.0 Policy: revoke when no longer needed.
+      const tokenToRevoke = tokens.gmailRefreshToken || tokens.gmailAccessToken;
+      if (tokenToRevoke) {
+        try {
+          await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(tokenToRevoke)}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          });
+        } catch (revokeErr) {
+          console.error("[delete-account] Google token revocation failed:", revokeErr);
+          // Do not abort — user data is already deleted on our side
+        }
+      }
+
+      // Destroy session
+      await new Promise<void>((resolve) => {
+        req.session.destroy(() => resolve());
+      });
+
+      res.json({ ok: true });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Account deletion failed";
+      console.error("[delete-account]", message);
+      res.status(500).json({ error: "deletion_failed", message });
+    }
+  });
+
   // ── Subscription / Stripe ─────────────────────────────────────────────────
 
   app.get("/api/subscription", requireAuth, async (req, res) => {

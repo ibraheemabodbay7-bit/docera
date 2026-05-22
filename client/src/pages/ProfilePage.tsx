@@ -55,6 +55,10 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState(user.name);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deletionComplete, setDeletionComplete] = useState(false);
 
   // App preferences (localStorage)
   const [filenamePrefix, setFilenamePrefix] = useState(() => getSetting("filenamePrefix", "Scan"));
@@ -105,6 +109,57 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
   const periodEnd = subscription.currentPeriodEnd
     ? new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString()
     : null;
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      const gmailRefreshToken = localStorage.getItem("gmail_refresh_token") || undefined;
+      const gmailAccessToken = localStorage.getItem("gmail_access_token") || undefined;
+
+      const res = await apiRequest("DELETE", "/api/auth/account", {
+        gmailRefreshToken,
+        gmailAccessToken,
+      });
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error((errBody as { message?: string }).message || "Server deletion failed");
+      }
+
+      const lsKeys = [
+        "docera_guest_device_id",
+        "docera_cached_user",
+        "gmail_access_token",
+        "gmail_refresh_token",
+        "gmail_token_expiry",
+        "gmail_sender_email",
+        "docera_contact_overrides",
+        "docera_pref_filenamePrefix",
+        "docera_pref_defaultFilter",
+        "docera_pref_autoExport",
+        "docera_theme_mode",
+        "docera_dark_mode",
+      ];
+      for (const key of lsKeys) {
+        try { localStorage.removeItem(key); } catch {}
+      }
+
+      try {
+        await new Promise<void>((resolve) => {
+          const req = indexedDB.deleteDatabase("docera_db");
+          req.onsuccess = () => resolve();
+          req.onerror = () => resolve();
+          req.onblocked = () => resolve();
+        });
+      } catch {}
+
+      setDeletionComplete(true);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to delete account";
+      toast({ title: "Deletion failed", description: msg, variant: "destructive" });
+      setDeleting(false);
+    }
+  };
 
   return (
     <>
@@ -376,6 +431,23 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
           </div>
         </div>
         )}
+        {/* Delete Account */}
+        <div className="px-4 mb-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wide mb-2 px-1" style={{ color: textSecondary }}>Delete Account</p>
+          <div className="rounded-2xl overflow-hidden" style={{ background: cardBg, ...glassStyle(dark) }}>
+            <p className="px-4 pt-3.5 pb-2 text-xs" style={{ color: textSecondary }}>
+              Permanently delete your account, all documents, and all data stored on our servers. This cannot be undone.
+            </p>
+            <button
+              data-testid="button-delete-account"
+              onClick={() => setShowDeleteModal(true)}
+              className="w-full flex items-center gap-3 px-4 py-3.5 text-red-600"
+            >
+              <span className="text-sm font-medium flex-1 text-left text-red-600">Delete Account</span>
+            </button>
+          </div>
+        </div>
+
         <p className="text-center text-[10px] mt-4 mb-2" style={{ color: textSecondary }}>
           Docera v1.0.0
         </p>
@@ -397,6 +469,70 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
                 Sign Out
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center px-5" style={{ background: "rgba(0,0,0,0.6)" }}>
+          <div className="w-full max-w-sm rounded-3xl p-6" style={{ background: cardBg, ...glassStyle(dark) }} onClick={(e) => e.stopPropagation()}>
+            {deletionComplete ? (
+              <>
+                <p className="text-base font-bold text-foreground text-center mb-2">Account deleted</p>
+                <p className="text-sm text-muted-foreground text-center mb-6">
+                  Your account and all data have been permanently removed. Tap below to start fresh.
+                </p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="w-full py-3 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm"
+                >
+                  Start Fresh
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-base font-bold text-foreground text-center mb-3">Delete account?</p>
+                <div className="mb-5 space-y-3 text-sm text-muted-foreground leading-relaxed">
+                  <p>This will permanently delete your account, all documents, all folders, all clients, and all data stored on our servers.</p>
+                  <p>Active subscriptions are managed by Apple and will continue until you cancel them in your Apple ID settings.</p>
+                  <p>Connected Gmail access will be revoked.</p>
+                  <p className="font-medium text-foreground">This action cannot be undone.</p>
+                </div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
+                  Type DELETE to confirm
+                </p>
+                <input
+                  data-testid="input-delete-confirm"
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="DELETE"
+                  disabled={deleting}
+                  className="w-full px-4 py-3 rounded-2xl bg-muted text-sm text-foreground placeholder:text-muted-foreground border-0 outline-none focus:ring-2 focus:ring-red-500/30 disabled:opacity-50 mb-4"
+                />
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => { setShowDeleteModal(false); setDeleteConfirmText(""); }}
+                    disabled={deleting}
+                    className="flex-1 py-3 rounded-2xl bg-muted text-foreground font-semibold text-sm disabled:opacity-40"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    data-testid="button-delete-account-confirm"
+                    onClick={handleDeleteAccount}
+                    disabled={deleteConfirmText !== "DELETE" || deleting}
+                    className="flex-1 py-3 rounded-2xl bg-red-600 text-white font-semibold text-sm disabled:opacity-40 flex items-center justify-center gap-2"
+                  >
+                    {deleting ? (
+                      <><div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /> Deleting…</>
+                    ) : (
+                      "Delete Account"
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
