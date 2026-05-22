@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { isDarkMode, getAppliedTheme } from "@/lib/theme";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, apiFetch, API_BASE } from "@/lib/queryClient";
@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format, isToday, isYesterday } from "date-fns";
 import type { Document, DocumentEvent, DocStatus, Client } from "@shared/schema";
 import { dataUrlToBlob, docFilename, docMime } from "@/lib/docUtils";
-import ClientEmailSuggest from "@/components/ClientEmailSuggest";
+import GmailContactSuggest, { type GmailContact } from "@/components/GmailContactSuggest";
 import type { SubscriptionInfo } from "@/hooks/use-subscription";
 import { Capacitor } from "@capacitor/core";
 import { Share } from "@capacitor/share";
@@ -354,6 +354,8 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
   const [emailSentSuccess, setEmailSentSuccess] = useState(false);
   const [gmailAccessToken, setGmailAccessToken] = useState<string | null>(null);
   const [gmailConnecting, setGmailConnecting] = useState(false);
+  const [gmailContacts, setGmailContacts] = useState<GmailContact[]>([]);
+  const [gmailContactsLoading, setGmailContactsLoading] = useState(false);
 
   // Inline rename state (inside info sheet)
   const [renaming, setRenaming] = useState(false);
@@ -462,6 +464,25 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
     return () => { handle?.remove(); };
   }, []);
 
+  useEffect(() => {
+    if (!showEmailModal || !gmailAccessToken || gmailContacts.length > 0) return;
+    setGmailContactsLoading(true);
+    fetch(`${API_BASE}/api/gmail/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accessToken: gmailAccessToken }),
+      credentials: Capacitor.isNativePlatform() ? "omit" : "include",
+    })
+      .then((r) => r.json())
+      .then((data: { contacts?: Array<{ name?: string; email: string }> }) => {
+        if (Array.isArray(data.contacts)) {
+          setGmailContacts(data.contacts.map((c) => ({ name: c.name, email: c.email })));
+        }
+      })
+      .catch(() => { /* silent fail */ })
+      .finally(() => setGmailContactsLoading(false));
+  }, [showEmailModal, gmailAccessToken, gmailContacts.length]);
+
   const deleteDoc = useMutation({
     mutationFn: async () => {
       if (isNative) {
@@ -516,6 +537,15 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
     queryKey: ["/api/clients"],
     enabled: !isNative,
   });
+
+  const mergedContacts = useMemo((): GmailContact[] => {
+    const clientContacts: GmailContact[] = clientsAll
+      .filter((c) => !!c.email)
+      .map((c) => ({ name: c.name, email: c.email! }));
+    const seen = new Set(clientContacts.map((c) => c.email.toLowerCase()));
+    const gmailOnly = gmailContacts.filter((c) => !seen.has(c.email.toLowerCase()));
+    return [...clientContacts, ...gmailOnly].slice(0, 5);
+  }, [clientsAll, gmailContacts]);
 
   const setClientId = useMutation({
     mutationFn: async (clientId: string | null) => {
@@ -1028,11 +1058,12 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
                 <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">
                   Recipient email
                 </label>
-                <ClientEmailSuggest
+                <GmailContactSuggest
                   data-testid="input-email-to"
                   value={emailTo}
                   onChange={(v) => { setEmailTo(v); setEmailError(""); }}
-                  linkedClientId={doc?.clientId ?? null}
+                  contacts={mergedContacts}
+                  loading={gmailContactsLoading}
                   onKeyDown={(e) => { if (e.key === "Enter") handleSendEmail(); }}
                   disabled={sendEmail.isPending || sendViaGmail.isPending}
                   inputClassName="w-full px-4 py-3 rounded-2xl bg-muted text-sm text-foreground placeholder:text-muted-foreground border-0 outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
