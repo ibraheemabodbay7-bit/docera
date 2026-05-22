@@ -1298,7 +1298,7 @@ export default function ScannerPage({
     const { rotation, previewUrl, processedUrl, filterMode, warpedPreviewUrl } = currentPage;
     const needsCanvas = filterMode === "document" || filterMode === "id" || filterMode === "noshadow";
     const inCropInteraction = cropMode || cropFullscreen;
-    const src = (needsCanvas && processedUrl && !inCropInteraction) ? processedUrl
+    const src = (needsCanvas && processedUrl && (!inCropInteraction || !warpedPreviewUrl) && !cropFullscreen) ? processedUrl
               : (!inCropInteraction && warpedPreviewUrl) ? warpedPreviewUrl
               : previewUrl;
     if (!src) { setDisplayUrl(""); return; }
@@ -2307,7 +2307,7 @@ export default function ScannerPage({
       currentPage.filterMode === "document" ||
       currentPage.filterMode === "id" ||
       currentPage.filterMode === "noshadow"
-    ) && !!currentPage.processedUrl && !inCropInteraction;
+    ) && !!currentPage.processedUrl && (!inCropInteraction || !currentPage.warpedPreviewUrl) && !cropFullscreen;
     const imgSrc = useProcUrl ? currentPage.processedUrl
                  : (!inCropInteraction && currentPage.warpedPreviewUrl) ? currentPage.warpedPreviewUrl
                  : currentPage.previewUrl;
