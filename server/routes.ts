@@ -2,11 +2,8 @@ import type { Express, Request, Response, NextFunction } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import { getUncachableStripeClient } from "./stripeClient";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
-import { sendDocumentEmail } from "./email";
-import { Resend } from "resend";
 import { google } from "googleapis";
 
 declare module "express-session" {
@@ -713,33 +710,11 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       await storage.startTrial(userId);
     }
 
-    // Auto-recovery: if user has a Stripe customer but no subscription ID stored,
-    // look one up live. This handles missed webhooks and interrupted sync calls.
-    if (userBeforeCheck?.stripeCustomerId && !userBeforeCheck.stripeSubscriptionId) {
-      try {
-        const stripe = await getUncachableStripeClient();
-        const subs = await stripe.subscriptions.list({
-          customer: userBeforeCheck.stripeCustomerId,
-          status: "all",
-          limit: 5,
-        });
-        const activeSub = subs.data.find((s) => s.status === "active" || s.status === "trialing");
-        if (activeSub) {
-          await storage.updateUserStripeInfo(userId, { stripeSubscriptionId: activeSub.id });
-          await storage.setSubscribed(userId, false);
-        }
-      } catch {
-        // Non-fatal — fall through with existing data
-      }
-    }
-
-    const user = await storage.getUser(userId);
     const { status, currentPeriodEnd } = await storage.getUserSubscriptionStatus(userId);
     const active = status === "active" || status === "trialing";
     const isTrialing = status === "trialing";
     const trialEnd = (isTrialing || status === "expired") ? currentPeriodEnd : null;
-    const hasStripeCustomer = !!(user?.stripeCustomerId);
-    res.json({ status, active, currentPeriodEnd, trialEnd, hasStripeCustomer });
+    res.json({ status, active, currentPeriodEnd, trialEnd, hasStripeCustomer: false });
   });
 
   // ── Native IAP activation (called from client after RevenueCat confirms purchase) ──
@@ -747,139 +722,6 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const userId = (req.session as any).userId!;
     await storage.setSubscribed(userId, true);
     res.json({ status: "active", active: true });
-  });
-
-  app.get("/api/stripe/plans", async (_req, res) => {
-    try {
-      const result = await db.execute(sql`
-        SELECT
-          p.id as product_id,
-          p.name as product_name,
-          p.description as product_description,
-          pr.id as price_id,
-          pr.unit_amount,
-          pr.currency,
-          pr.recurring
-        FROM stripe.products p
-        JOIN stripe.prices pr ON pr.product = p.id AND pr.active = true
-        WHERE p.active = true
-        ORDER BY pr.unit_amount ASC
-      `);
-      res.json({ plans: result.rows });
-    } catch {
-      res.json({ plans: [] });
-    }
-  });
-
-  app.post("/api/stripe/checkout", requireAuth, async (req, res) => {
-    // Accept optional priceId override; default to env var
-    const schema = z.object({ priceId: z.string().optional() });
-    const parsed = schema.safeParse(req.body);
-    const priceId = parsed.data?.priceId ?? process.env.STRIPE_PRICE_ID;
-    if (!priceId) return res.status(500).json({ error: "No price configured. Set STRIPE_PRICE_ID." });
-
-    const user = await storage.getUser((req.session as any).userId!);
-    if (!user) return res.status(401).json({ error: "Unauthorized" });
-
-    try {
-      const stripe = await getUncachableStripeClient();
-      const base = getBaseUrl(req);
-
-      let customerId = user.stripeCustomerId ?? undefined;
-      if (!customerId) {
-        const customer = await stripe.customers.create({
-          email: user.username,
-          name: user.name,
-          metadata: { userId: user.id },
-        });
-        await storage.updateUserStripeInfo(user.id, { stripeCustomerId: customer.id });
-        customerId = customer.id;
-      }
-
-      // Check whether this user has already had a trial to avoid re-granting
-      const existingSub = await storage.getUserSubscriptionStatus(user.id);
-      const hasHadTrial = existingSub.status !== "none";
-
-      const session = await stripe.checkout.sessions.create({
-        customer: customerId,
-        payment_method_types: ["card"],
-        line_items: [{ price: priceId, quantity: 1 }],
-        mode: "subscription",
-        success_url: `${base}/?checkout=success`,
-        cancel_url: `${base}/?checkout=cancel`,
-        subscription_data: {
-          metadata: { userId: user.id },
-          // Grant a 7-day free trial only to brand-new subscribers
-          ...(hasHadTrial ? {} : { trial_period_days: 7 }),
-        },
-      });
-
-      res.json({ url: session.url });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      console.error("[stripe] checkout error:", message);
-      res.status(500).json({ error: "checkout_failed", message: `Could not start checkout: ${message}` });
-    }
-  });
-
-  // Called after Stripe checkout success — syncs subscription ID from Stripe to user record
-  app.post("/api/stripe/sync", requireAuth, async (req, res) => {
-    const user = await storage.getUser((req.session as any).userId!);
-    if (!user?.stripeCustomerId) return res.json({ synced: false, reason: "no_customer" });
-
-    try {
-      const stripe = await getUncachableStripeClient();
-      const subs = await stripe.subscriptions.list({
-        customer: user.stripeCustomerId,
-        status: "all",
-        limit: 5,
-      });
-
-      // Find the most recent active/trialing subscription
-      const activeSub = subs.data.find((s) => s.status === "active" || s.status === "trialing");
-      if (activeSub && activeSub.id !== user.stripeSubscriptionId) {
-        await storage.updateUserStripeInfo(user.id, { stripeSubscriptionId: activeSub.id });
-        // Clear the simulated subscription flag if set
-        await storage.setSubscribed(user.id, false);
-        return res.json({ synced: true, subscriptionId: activeSub.id, status: activeSub.status });
-      }
-
-      res.json({ synced: false, reason: "no_active_subscription" });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      console.error("[stripe] sync error:", message);
-      res.status(500).json({ synced: false, error: message });
-    }
-  });
-
-  app.post("/api/stripe/portal", requireAuth, async (req, res) => {
-    const user = await storage.getUser((req.session as any).userId!);
-    if (!user?.stripeCustomerId) {
-      return res.status(400).json({ error: "no_stripe_customer", message: "No billing account found. Start a paid subscription to access billing management." });
-    }
-
-    try {
-      const stripe = await getUncachableStripeClient();
-      const base = getBaseUrl(req);
-
-      const portalSession = await stripe.billingPortal.sessions.create({
-        customer: user.stripeCustomerId,
-        return_url: `${base}/`,
-      });
-
-      res.json({ url: portalSession.url });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      console.error("[stripe] billing portal error:", message);
-      // Stripe throws a specific error when the customer portal is not configured
-      const isPortalNotConfigured = message.includes("customer portal") || message.includes("configuration") || message.includes("No such customer");
-      res.status(500).json({
-        error: "portal_failed",
-        message: isPortalNotConfigured
-          ? "Billing portal is not configured in Stripe. Please set up your customer portal in the Stripe Dashboard."
-          : `Could not open billing portal: ${message}`,
-      });
-    }
   });
 
   // ── Folders ───────────────────────────────────────────────────────────────
@@ -1149,87 +991,6 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       label: parsed.data.label,
     });
     res.json(event);
-  });
-
-  // ── Send document by email ─────────────────────────────────────────────────
-
-  app.post("/api/documents/:id/send-email", async (req, res) => {
-    const schema = z.object({
-      to: z.string().min(1),
-      message: z.string().max(1000).optional(),
-    });
-    const parsed = schema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid input" });
-    }
-    const doc = await storage.getDocument(sp(req.params.id));
-    if (!doc || doc.userId !== (req.session as any).userId) {
-      return res.status(404).json({ error: "Not found" });
-    }
-    if (!doc.dataUrl || doc.dataUrl.length < 50) {
-      return res.status(422).json({
-        error: "This document has no exported file yet — please save or re-export it first.",
-      });
-    }
-    const sender = await storage.getUser((req.session as any).userId!);
-    const senderDisplayName = sender?.senderName?.trim() || sender?.name?.trim() || null;
-    const emailSubject = `Document from Docera – ${doc.name}`;
-    try { await sendDocumentEmail({
-        to: parsed.data.to,
-        subject: emailSubject,
-        message: parsed.data.message,
-        docName: doc.name,
-        docType: doc.type,
-        dataUrl: doc.dataUrl,
-        senderDisplayName,
-      });
-      const eventLabel = senderDisplayName
-        ? `Sent to ${parsed.data.to} · ${senderDisplayName}`
-        : `Sent to ${parsed.data.to}`;
-      await Promise.all([
-        storage.updateDocument(doc.id, { status: "sent" }),
-        storage.createDocumentEvent({
-          documentId: doc.id,
-          userId: (req.session as any).userId!,
-          type: "sent",
-          label: eventLabel,
-        }),
-      ]);
-      res.json({ ok: true });
-    } catch (err: unknown) {
-      console.error("Email send error:", JSON.stringify(err, Object.getOwnPropertyNames(err)));
-      const message = err instanceof Error ? err.message : "Failed to send email";
-      res.status(500).json({ error: message });
-    }
-  });
-
-  // ── Direct email route — no DB, used by native iOS ───────────────────────
-  app.post("/api/send-email-direct", async (req, res) => {
-    const schema = z.object({
-      to: z.string().min(1),
-      message: z.string().max(1000).optional(),
-      documentName: z.string().min(1),
-      pdfBase64: z.string().min(50),
-      docType: z.string().optional(),
-    });
-    const parsed = schema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid input" });
-    }
-    const { to, message, documentName, pdfBase64, docType = "pdf" } = parsed.data;
-    try {
-      await sendDocumentEmail({
-        to,
-        message,
-        docName: documentName,
-        docType,
-        dataUrl: `data:application/pdf;base64,${pdfBase64}`,
-      });
-      res.json({ ok: true });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to send email";
-      res.status(500).json({ error: msg });
-    }
   });
 
   // ── Gmail OAuth: exchange auth code for tokens ────────────────────────────
@@ -1855,48 +1616,6 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       res.json({ credits, resetAt });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to get credits";
-      res.status(500).json({ error: message });
-    }
-  });
-
-  // Creates a Stripe one-time payment for +10 handwriting credits (₪9.90)
-  app.post("/api/credits/hw/checkout", requireAuth, async (req, res) => {
-    try {
-      const stripe = await getUncachableStripeClient();
-      const user = await storage.getUser((req.session as any).userId!);
-      if (!user) return res.status(404).json({ error: "User not found" });
-
-      let customerId = user.stripeCustomerId;
-      if (!customerId) {
-        const customer = await stripe.customers.create({ email: user.username, name: user.name || undefined });
-        await storage.updateUserStripeInfo(user.id, { stripeCustomerId: customer.id });
-        customerId = customer.id;
-      }
-
-      const base = getBaseUrl(req);
-      const session = await stripe.checkout.sessions.create({
-        customer: customerId,
-        payment_method_types: ["card"],
-        line_items: [{
-          price_data: {
-            currency: "ils",
-            unit_amount: 990, // ₪9.90 in agorot
-            product_data: {
-              name: "+10 Handwriting Scans",
-              description: "Add 10 handwriting recognition scans to your account",
-            },
-          },
-          quantity: 1,
-        }],
-        mode: "payment",
-        success_url: `${base}/?topup=success`,
-        cancel_url: `${base}/?topup=cancel`,
-        metadata: { purpose: "hw_credit_topup", userId: user.id },
-      });
-
-      res.json({ url: session.url });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Checkout failed";
       res.status(500).json({ error: message });
     }
   });

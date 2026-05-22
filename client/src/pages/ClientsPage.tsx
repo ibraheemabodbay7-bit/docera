@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, apiFetch, API_BASE } from "@/lib/queryClient";
 import ClientEmailSuggest from "@/components/ClientEmailSuggest";
 import {
   ArrowLeft, Plus, Search, X, Mail, Phone, FileText, Edit2, Trash2,
@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import type { Client, DocumentSummary, DocStatus } from "@shared/schema";
 import { isDarkMode } from "@/lib/theme";
+import { startGmailConnection } from "@/lib/gmail-auth";
 
 const ORB_LIGHT = [
   "radial-gradient(ellipse at 20% 15%, #e8ecf2 0%, #c8d0dc 30%, transparent 60%)",
@@ -234,6 +235,8 @@ export default function ClientsPage({ onBack, onOpenDoc, onScan }: ClientsPagePr
   const [sendEmailMsg, setSendEmailMsg] = useState("");
   const [sendEmailError, setSendEmailError] = useState("");
   const [sendEmailSuccess, setSendEmailSuccess] = useState(false);
+  const [gmailAccessToken, setGmailAccessToken] = useState<string | null>(() => localStorage.getItem("gmail_access_token"));
+  const [gmailConnecting, setGmailConnecting] = useState(false);
 
   const { data: clients = [], isLoading } = useQuery<Client[]>({
     queryKey: ["/api/clients"],
@@ -294,9 +297,38 @@ export default function ClientsPage({ onBack, onOpenDoc, onScan }: ClientsPagePr
     onError: () => toast({ title: "Failed to delete client", variant: "destructive" }),
   });
 
-  const sendEmail = useMutation({
-    mutationFn: ({ docId, to, message }: { docId: string; to: string; message?: string }) =>
-      apiRequest("POST", `/api/documents/${docId}/send-email`, { to, message }),
+  const handleConnectGmail = async () => {
+    setGmailConnecting(true);
+    await startGmailConnection();
+    setGmailConnecting(false);
+  };
+
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "gmail_access_token") setGmailAccessToken(e.newValue);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  const sendViaGmail = useMutation({
+    mutationFn: async ({ docId, to, message }: { docId: string; to: string; message?: string }) => {
+      if (!gmailAccessToken) throw new Error("Gmail not connected");
+      const res = await apiFetch(`/api/documents/${docId}`);
+      if (!res.ok) throw new Error("Could not load document");
+      const fullDoc: { dataUrl: string; name: string; type: string } = await res.json();
+      if (!fullDoc.dataUrl || fullDoc.dataUrl.length < 50) throw new Error("No file available to send.");
+      const pdfBase64 = fullDoc.dataUrl.includes(",") ? fullDoc.dataUrl.split(",")[1] : fullDoc.dataUrl;
+      const r = await apiRequest("POST", `${API_BASE}/api/gmail/send`, {
+        accessToken: gmailAccessToken,
+        to,
+        subject: `Document from Docera – ${fullDoc.name}`,
+        message,
+        pdfBase64,
+        documentName: fullDoc.name,
+      });
+      return r.json() as Promise<{ ok?: boolean; error?: string }>;
+    },
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
       setSendEmailSuccess(true);
@@ -310,7 +342,12 @@ export default function ClientsPage({ onBack, onOpenDoc, onScan }: ClientsPagePr
       }, 1800);
     },
     onError: (err: unknown) => {
-      setSendEmailError(err instanceof Error ? err.message : "Failed to send email");
+      const msg = err instanceof Error ? err.message : "Failed to send email";
+      setSendEmailError(msg);
+      if (msg.includes("401") || msg.includes("invalid_grant") || msg.includes("expired")) {
+        localStorage.removeItem("gmail_access_token");
+        setGmailAccessToken(null);
+      }
     },
   });
 
@@ -563,7 +600,7 @@ export default function ClientsPage({ onBack, onOpenDoc, onScan }: ClientsPagePr
         {sendDoc && (
           <div
             className="fixed inset-0 z-[80] flex items-end"
-            onClick={() => { if (!sendEmail.isPending) { setSendDoc(null); setSendEmailSuccess(false); } }}
+            onClick={() => { if (!sendViaGmail.isPending) { setSendDoc(null); setSendEmailSuccess(false); } }}
           >
             <div className="absolute inset-0 bg-black/50" />
             <div
@@ -580,7 +617,7 @@ export default function ClientsPage({ onBack, onOpenDoc, onScan }: ClientsPagePr
                   </div>
                   <button
                     onClick={() => { setSendDoc(null); setSendEmailSuccess(false); }}
-                    disabled={sendEmail.isPending}
+                    disabled={sendViaGmail.isPending}
                     className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground disabled:opacity-40"
                   >
                     <X className="w-4 h-4" />
@@ -598,32 +635,65 @@ export default function ClientsPage({ onBack, onOpenDoc, onScan }: ClientsPagePr
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">Recipient email</label>
-                  <ClientEmailSuggest
-                    data-testid="input-client-send-email-to"
-                    value={sendEmailTo}
-                    onChange={(v) => { setSendEmailTo(v); setSendEmailError(""); }}
-                    linkedClientId={selectedClient?.id ?? null}
-                    disabled={sendEmail.isPending || sendEmailSuccess}
-                    inputClassName="w-full px-4 py-3 rounded-2xl bg-muted text-sm text-foreground placeholder:text-muted-foreground border-0 outline-none disabled:opacity-50"
-                  />
-                </div>
+                {/* Gmail connection status */}
+                {gmailAccessToken ? (
+                  <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-green-50 dark:bg-green-950/30 border border-green-200/60 dark:border-green-800/30">
+                    <div className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+                      <span className="text-green-700 dark:text-green-400 text-sm font-medium">Gmail connected</span>
+                    </div>
+                    <button
+                      onClick={() => { localStorage.removeItem("gmail_access_token"); setGmailAccessToken(null); }}
+                      className="text-xs text-muted-foreground underline active:opacity-60"
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleConnectGmail}
+                    disabled={gmailConnecting}
+                    className="w-full py-3 rounded-2xl bg-blue-600 text-white text-sm font-bold flex items-center justify-center gap-2 active:opacity-80 disabled:opacity-50"
+                  >
+                    {gmailConnecting ? (
+                      <><div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /> Connecting…</>
+                    ) : (
+                      <><Send className="w-4 h-4" /> Connect Gmail to Send</>
+                    )}
+                  </button>
+                )}
 
-                <div>
-                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">
-                    Message <span className="text-muted-foreground/50 font-normal normal-case">(optional)</span>
-                  </label>
-                  <textarea
-                    data-testid="input-client-send-email-message"
-                    placeholder="Add a personal note…"
-                    value={sendEmailMsg}
-                    onChange={(e) => setSendEmailMsg(e.target.value)}
-                    rows={3}
-                    disabled={sendEmail.isPending || sendEmailSuccess}
-                    className="w-full px-4 py-3 rounded-2xl bg-muted text-sm text-foreground placeholder:text-muted-foreground border-0 outline-none resize-none disabled:opacity-50"
-                  />
-                </div>
+                {/* Recipient + message — only shown once Gmail is connected */}
+                {gmailAccessToken && (
+                  <>
+                    <div>
+                      <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">Recipient email</label>
+                      <ClientEmailSuggest
+                        data-testid="input-client-send-email-to"
+                        value={sendEmailTo}
+                        onChange={(v) => { setSendEmailTo(v); setSendEmailError(""); }}
+                        linkedClientId={selectedClient?.id ?? null}
+                        disabled={sendViaGmail.isPending || sendEmailSuccess}
+                        inputClassName="w-full px-4 py-3 rounded-2xl bg-muted text-sm text-foreground placeholder:text-muted-foreground border-0 outline-none disabled:opacity-50"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">
+                        Message <span className="text-muted-foreground/50 font-normal normal-case">(optional)</span>
+                      </label>
+                      <textarea
+                        data-testid="input-client-send-email-message"
+                        placeholder="Add a personal note…"
+                        value={sendEmailMsg}
+                        onChange={(e) => setSendEmailMsg(e.target.value)}
+                        rows={3}
+                        disabled={sendViaGmail.isPending || sendEmailSuccess}
+                        className="w-full px-4 py-3 rounded-2xl bg-muted text-sm text-foreground placeholder:text-muted-foreground border-0 outline-none resize-none disabled:opacity-50"
+                      />
+                    </div>
+                  </>
+                )}
 
                 {sendEmailError && (
                   <div className="flex items-start gap-2.5 px-4 py-3 rounded-2xl bg-red-50 dark:bg-red-950/30 border border-red-200/60">
@@ -637,25 +707,25 @@ export default function ClientsPage({ onBack, onOpenDoc, onScan }: ClientsPagePr
                     <Check className="w-4 h-4" />
                     Sent successfully
                   </div>
-                ) : (
+                ) : gmailAccessToken ? (
                   <button
                     data-testid="button-client-send-email-submit"
                     onClick={() => {
                       const t = sendEmailTo.trim();
                       if (!t || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) { setSendEmailError("Please enter a valid email address."); return; }
                       setSendEmailError("");
-                      sendEmail.mutate({ docId: sendDoc.id, to: t, message: sendEmailMsg.trim() || undefined });
+                      sendViaGmail.mutate({ docId: sendDoc.id, to: t, message: sendEmailMsg.trim() || undefined });
                     }}
-                    disabled={sendEmail.isPending || !sendEmailTo.trim()}
+                    disabled={sendViaGmail.isPending || !sendEmailTo.trim()}
                     className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 active:opacity-80 disabled:opacity-50"
                   >
-                    {sendEmail.isPending ? (
+                    {sendViaGmail.isPending ? (
                       <><div className="w-4 h-4 rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground animate-spin" />Sending…</>
                     ) : (
-                      <><Send className="w-4 h-4" />Send Document</>
+                      <><Send className="w-4 h-4" />Send via Gmail</>
                     )}
                   </button>
-                )}
+                ) : null}
               </div>
             </div>
           </div>

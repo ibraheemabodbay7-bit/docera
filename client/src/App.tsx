@@ -250,26 +250,6 @@ function AppWithAuth() {
     initAuth();
   }, []);
 
-  // Handle Stripe redirect back from subscription checkout
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("checkout") === "success") {
-      window.history.replaceState({}, "", "/");
-      fetch("/api/stripe/sync", { method: "POST", credentials: "include" })
-        .then(() => queryClient.invalidateQueries({ queryKey: ["/api/subscription"] }))
-        .catch(() => queryClient.invalidateQueries({ queryKey: ["/api/subscription"] }));
-    }
-  }, []);
-
-  // Handle Stripe redirect back from credit top-up checkout
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("topup") === "success") {
-      window.history.replaceState({}, "", "/");
-      // Refresh credits count so the Handwriting tab immediately reflects the new balance
-      queryClient.invalidateQueries({ queryKey: ["/api/credits/hw"] });
-    }
-  }, []);
 
   if (loading || (subscription.loading && !subscriptionTimedOut)) {
     return (

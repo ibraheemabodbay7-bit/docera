@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest, apiFetch } from "@/lib/queryClient";
+import { queryClient, apiRequest, apiFetch, API_BASE } from "@/lib/queryClient";
 import { Capacitor } from "@capacitor/core";
+import { startGmailConnection } from "@/lib/gmail-auth";
 import { ArrowLeft, Search, X, FileText, Send, Check, AlertCircle } from "lucide-react";
 import { isDarkMode, getAppliedTheme } from "@/lib/theme";
 import { useToast } from "@/hooks/use-toast";
@@ -61,6 +62,8 @@ export default function AllDocumentsPage({ onBack, onOpenDoc, onEditDoc }: AllDo
   const [cardEmailMsg, setCardEmailMsg] = useState("");
   const [cardEmailError, setCardEmailError] = useState("");
   const [cardEmailSuccess, setCardEmailSuccess] = useState(false);
+  const [gmailAccessToken, setGmailAccessToken] = useState<string | null>(() => localStorage.getItem("gmail_access_token"));
+  const [gmailConnecting, setGmailConnecting] = useState(false);
 
   useEffect(() => {
     const prev = document.body.style.backgroundColor;
@@ -177,9 +180,38 @@ export default function AllDocumentsPage({ onBack, onOpenDoc, onEditDoc }: AllDo
     onError: () => toast({ title: "Failed to update favorite", variant: "destructive" }),
   });
 
-  const sendEmailCard = useMutation({
-    mutationFn: ({ id, to, message }: { id: string; to: string; message?: string }) =>
-      apiRequest("POST", `/api/documents/${id}/send-email`, { to, message }),
+  const handleConnectGmail = async () => {
+    setGmailConnecting(true);
+    await startGmailConnection();
+    setGmailConnecting(false);
+  };
+
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "gmail_access_token") setGmailAccessToken(e.newValue);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  const sendViaGmail = useMutation({
+    mutationFn: async ({ id, to, message }: { id: string; to: string; message?: string }) => {
+      if (!gmailAccessToken) throw new Error("Gmail not connected");
+      const res = await apiFetch(`/api/documents/${id}`);
+      if (!res.ok) throw new Error("Could not load document");
+      const fullDoc: { dataUrl: string; name: string; type: string } = await res.json();
+      if (!fullDoc.dataUrl || fullDoc.dataUrl.length < 50) throw new Error("No file available to send.");
+      const pdfBase64 = fullDoc.dataUrl.includes(",") ? fullDoc.dataUrl.split(",")[1] : fullDoc.dataUrl;
+      const r = await apiRequest("POST", `${API_BASE}/api/gmail/send`, {
+        accessToken: gmailAccessToken,
+        to,
+        subject: `Document from Docera – ${fullDoc.name}`,
+        message,
+        pdfBase64,
+        documentName: fullDoc.name,
+      });
+      return r.json() as Promise<{ ok?: boolean; error?: string }>;
+    },
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
       setCardEmailSuccess(true);
@@ -195,6 +227,10 @@ export default function AllDocumentsPage({ onBack, onOpenDoc, onEditDoc }: AllDo
     onError: (err: unknown) => {
       const msg = err instanceof Error ? err.message : "Failed to send email";
       setCardEmailError(msg);
+      if (msg.includes("401") || msg.includes("invalid_grant") || msg.includes("expired")) {
+        localStorage.removeItem("gmail_access_token");
+        setGmailAccessToken(null);
+      }
     },
   });
 
@@ -365,7 +401,7 @@ export default function AllDocumentsPage({ onBack, onOpenDoc, onEditDoc }: AllDo
         {sendingDoc && (
           <div
             className="fixed inset-0 z-[60] flex items-end"
-            onClick={() => { if (!sendEmailCard.isPending) { setSendingDoc(null); setCardEmailTo(""); setCardEmailMsg(""); setCardEmailError(""); setCardEmailSuccess(false); } }}
+            onClick={() => { if (!sendViaGmail.isPending) { setSendingDoc(null); setCardEmailTo(""); setCardEmailMsg(""); setCardEmailError(""); setCardEmailSuccess(false); } }}
           >
             <div className="absolute inset-0 bg-black/50" />
             <div
@@ -382,7 +418,7 @@ export default function AllDocumentsPage({ onBack, onOpenDoc, onEditDoc }: AllDo
                   </div>
                   <button
                     onClick={() => { setSendingDoc(null); setCardEmailTo(""); setCardEmailMsg(""); setCardEmailError(""); setCardEmailSuccess(false); }}
-                    disabled={sendEmailCard.isPending}
+                    disabled={sendViaGmail.isPending}
                     className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground active:opacity-60 disabled:opacity-40"
                   >
                     <X className="w-4 h-4" />
@@ -399,36 +435,71 @@ export default function AllDocumentsPage({ onBack, onOpenDoc, onEditDoc }: AllDo
                     <p className="text-sm font-semibold text-foreground truncate">{sendingDoc.name}</p>
                   </div>
                 </div>
-                <div>
-                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">Recipient email</label>
-                  <ClientEmailSuggest
-                    value={cardEmailTo}
-                    onChange={(v) => { setCardEmailTo(v); setCardEmailError(""); }}
-                    linkedClientId={sendingDoc?.clientId}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        const t = cardEmailTo.trim();
-                        if (t && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) sendEmailCard.mutate({ id: sendingDoc!.id, to: t, message: cardEmailMsg.trim() || undefined });
-                        else setCardEmailError("Please enter a valid email address.");
-                      }
-                    }}
-                    disabled={sendEmailCard.isPending || cardEmailSuccess}
-                    inputClassName="w-full px-4 py-3 rounded-2xl bg-muted text-sm text-foreground placeholder:text-muted-foreground border-0 outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">
-                    Message <span className="text-muted-foreground/50 font-normal normal-case">(optional)</span>
-                  </label>
-                  <textarea
-                    placeholder="Add a personal note to the recipient…"
-                    value={cardEmailMsg}
-                    onChange={(e) => setCardEmailMsg(e.target.value)}
-                    rows={3}
-                    disabled={sendEmailCard.isPending || cardEmailSuccess}
-                    className="w-full px-4 py-3 rounded-2xl bg-muted text-sm text-foreground placeholder:text-muted-foreground border-0 outline-none resize-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
-                  />
-                </div>
+
+                {/* Gmail connection status */}
+                {gmailAccessToken ? (
+                  <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-green-50 dark:bg-green-950/30 border border-green-200/60 dark:border-green-800/30">
+                    <div className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+                      <span className="text-green-700 dark:text-green-400 text-sm font-medium">Gmail connected</span>
+                    </div>
+                    <button
+                      onClick={() => { localStorage.removeItem("gmail_access_token"); setGmailAccessToken(null); }}
+                      className="text-xs text-muted-foreground underline active:opacity-60"
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleConnectGmail}
+                    disabled={gmailConnecting}
+                    className="w-full py-3 rounded-2xl bg-blue-600 text-white text-sm font-bold flex items-center justify-center gap-2 active:opacity-80 disabled:opacity-50"
+                  >
+                    {gmailConnecting ? (
+                      <><div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /> Connecting…</>
+                    ) : (
+                      <><Send className="w-4 h-4" /> Connect Gmail to Send</>
+                    )}
+                  </button>
+                )}
+
+                {/* Recipient + message — only shown once Gmail is connected */}
+                {gmailAccessToken && (
+                  <>
+                    <div>
+                      <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">Recipient email</label>
+                      <ClientEmailSuggest
+                        value={cardEmailTo}
+                        onChange={(v) => { setCardEmailTo(v); setCardEmailError(""); }}
+                        linkedClientId={sendingDoc?.clientId}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            const t = cardEmailTo.trim();
+                            if (t && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) sendViaGmail.mutate({ id: sendingDoc!.id, to: t, message: cardEmailMsg.trim() || undefined });
+                            else setCardEmailError("Please enter a valid email address.");
+                          }
+                        }}
+                        disabled={sendViaGmail.isPending || cardEmailSuccess}
+                        inputClassName="w-full px-4 py-3 rounded-2xl bg-muted text-sm text-foreground placeholder:text-muted-foreground border-0 outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">
+                        Message <span className="text-muted-foreground/50 font-normal normal-case">(optional)</span>
+                      </label>
+                      <textarea
+                        placeholder="Add a personal note to the recipient…"
+                        value={cardEmailMsg}
+                        onChange={(e) => setCardEmailMsg(e.target.value)}
+                        rows={3}
+                        disabled={sendViaGmail.isPending || cardEmailSuccess}
+                        className="w-full px-4 py-3 rounded-2xl bg-muted text-sm text-foreground placeholder:text-muted-foreground border-0 outline-none resize-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
+                      />
+                    </div>
+                  </>
+                )}
+
                 {cardEmailError && (
                   <div className="flex items-start gap-2.5 px-4 py-3 rounded-2xl bg-red-50 border border-red-200/60">
                     <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
@@ -439,22 +510,22 @@ export default function AllDocumentsPage({ onBack, onOpenDoc, onEditDoc }: AllDo
                   <div className="w-full py-3.5 rounded-2xl bg-green-500/10 border border-green-500/20 text-green-600 text-sm font-bold flex items-center justify-center gap-2">
                     <Check className="w-4 h-4" /> Document sent successfully
                   </div>
-                ) : (
+                ) : gmailAccessToken ? (
                   <button
                     onClick={() => {
                       const t = cardEmailTo.trim();
                       if (!t || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) { setCardEmailError("Please enter a valid email address."); return; }
                       setCardEmailError("");
-                      sendEmailCard.mutate({ id: sendingDoc.id, to: t, message: cardEmailMsg.trim() || undefined });
+                      sendViaGmail.mutate({ id: sendingDoc.id, to: t, message: cardEmailMsg.trim() || undefined });
                     }}
-                    disabled={sendEmailCard.isPending || !cardEmailTo.trim()}
+                    disabled={sendViaGmail.isPending || !cardEmailTo.trim()}
                     className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 active:opacity-80 disabled:opacity-50 transition-opacity"
                   >
-                    {sendEmailCard.isPending
+                    {sendViaGmail.isPending
                       ? <><div className="w-4 h-4 rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground animate-spin" /> Sending…</>
-                      : <><Send className="w-4 h-4" /> Send Document</>}
+                      : <><Send className="w-4 h-4" /> Send via Gmail</>}
                   </button>
-                )}
+                ) : null}
               </div>
             </div>
           </div>

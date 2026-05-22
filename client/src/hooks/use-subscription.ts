@@ -15,8 +15,6 @@ export interface SubscriptionInfo {
   /** Days remaining in trial, or null if not trialing */
   trialDaysLeft: number | null;
   isTrialing: boolean;
-  /** true only when user has a real Stripe customer — required for billing portal */
-  hasStripeCustomer: boolean;
   loading: boolean;
 }
 
@@ -28,7 +26,6 @@ export function useSubscription(): SubscriptionInfo {
     active: boolean;
     currentPeriodEnd: number | null;
     trialEnd: number | null;
-    hasStripeCustomer: boolean;
   }>({
     queryKey: ["/api/subscription"],
     retry: false,
@@ -66,7 +63,6 @@ export function useSubscription(): SubscriptionInfo {
     trialEnd,
     trialDaysLeft,
     isTrialing,
-    hasStripeCustomer: data?.hasStripeCustomer ?? false,
     loading: effectivelyLoading,
   };
 }

@@ -8,8 +8,6 @@ import pg from "pg";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
-import { WebhookHandlers } from "./webhookHandlers";
-import { getStripeSync, runMigrations } from "./stripeClient";
 import { ensureSchema } from "./ensureSchema";
 
 process.on("uncaughtException", (err) => {
@@ -60,26 +58,7 @@ app.use(cors({
   credentials: true,
 }));
 
-// ── Stripe webhook — MUST be registered BEFORE express.json() ──────────────
-app.post(
-  "/api/stripe/webhook",
-  express.raw({ type: "application/json" }),
-  async (req, res) => {
-    const signature = req.headers["stripe-signature"];
-    if (!signature) return res.status(400).json({ error: "Missing stripe-signature" });
-    const sig = Array.isArray(signature) ? signature[0] : signature;
-    try {
-      await WebhookHandlers.processWebhook(req.body as Buffer, sig);
-      res.status(200).json({ received: true });
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Webhook error";
-      console.error("Webhook error:", msg);
-      res.status(400).json({ error: "Webhook processing error" });
-    }
-  }
-);
-
-// ── Body parsers (after webhook route) ────────────────────────────────────
+// ── Body parsers ────────────────────────────────────────────────────────────
 app.use(
   express.json({
     limit: "10mb",
@@ -145,35 +124,10 @@ app.use((req, res, next) => {
   next();
 });
 
-async function initStripe() {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    log("DATABASE_URL not set — skipping Stripe init", "stripe");
-    return;
-  }
-  try {
-    log("Initializing Stripe schema...", "stripe");
-    await runMigrations({ databaseUrl });
-    log("Stripe schema ready", "stripe");
-
-    const stripeSync = await getStripeSync();
-    const webhookBaseUrl = `https://${process.env.REPLIT_DOMAINS?.split(",")[0]}`;
-    await stripeSync.findOrCreateManagedWebhook(`${webhookBaseUrl}/api/stripe/webhook`);
-    log("Stripe webhook configured", "stripe");
-
-    stripeSync.syncBackfill()
-      .then(() => log("Stripe data synced", "stripe"))
-      .catch((err: unknown) => log(`Stripe sync error: ${err}`, "stripe"));
-  } catch (error) {
-    log(`Stripe init failed: ${error}`, "stripe");
-  }
-}
-
 (async () => {
   if (process.env.DATABASE_URL) {
     await ensureSchema(process.env.DATABASE_URL);
   }
-  await initStripe();
   await registerRoutes(httpServer, app);
 
   app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {

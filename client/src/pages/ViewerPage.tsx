@@ -16,7 +16,7 @@ import type { SubscriptionInfo } from "@/hooks/use-subscription";
 import { Capacitor } from "@capacitor/core";
 import { Share } from "@capacitor/share";
 import { Filesystem, Directory } from "@capacitor/filesystem";
-import { Browser } from "@capacitor/browser";
+import { startGmailConnection } from "@/lib/gmail-auth";
 import { App as CapApp } from "@capacitor/app";
 
 interface ViewerPageProps {
@@ -577,60 +577,6 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/documents", docId, "events"] }),
   });
 
-  const sendEmail = useMutation({
-    mutationFn: async ({ to, message }: { to: string; message?: string }) => {
-      console.log('[email] Starting send, to:', to, 'type:', typeof to);
-      try {
-        if (Capacitor.isNativePlatform()) {
-          console.log('[email] Native platform path');
-          console.log('[email] doc?.dataUrl length:', doc?.dataUrl?.length, 'prefix:', doc?.dataUrl?.slice(0, 50));
-          if (!doc?.dataUrl || doc.dataUrl.length < 50) {
-            throw new Error("No file available to send. Please export the document first.");
-          }
-          const hasComma = doc.dataUrl.includes(",");
-          console.log('[email] dataUrl has comma:', hasComma);
-          const pdfBase64 = hasComma ? doc.dataUrl.split(",")[1] : doc.dataUrl;
-          console.log('[email] pdfBase64 length:', pdfBase64?.length, 'type:', typeof pdfBase64);
-          const targetUrl = `${API_BASE}/api/send-email-direct`;
-          console.log('[email] Fetching URL:', targetUrl);
-          const payload = { to, message, documentName: doc.name, pdfBase64, docType: doc.type };
-          console.log('[email] Payload keys:', Object.keys(payload), 'doc.name:', doc.name, 'doc.type:', doc.type);
-          const res = await apiRequest("POST", targetUrl, payload);
-          console.log('[email] Response status:', res.status);
-          return res.json() as Promise<{ ok?: boolean; error?: string }>;
-        }
-        console.log('[email] Web platform path, docId:', docId);
-        const res = await apiRequest("POST", `/api/documents/${docId}/send-email`, { to, message });
-        console.log('[email] Web response status:', res.status);
-        return res.json() as Promise<{ ok?: boolean; error?: string }>;
-      } catch (err: unknown) {
-        const e = err as Error & { code?: number; name?: string };
-        console.log('[email] Full error:', JSON.stringify(err), e?.message, e?.name, e?.code, e?.stack);
-        throw err;
-      }
-    },
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/documents", docId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/documents", docId, "events"] });
-      setEmailSentSuccess(true);
-      toast({ title: "Email sent!", description: `Document sent to ${vars.to}` });
-      setTimeout(() => {
-        setShowEmailModal(false);
-        setEmailTo("");
-        setEmailMessage("");
-        setEmailError("");
-        setEmailSentSuccess(false);
-      }, 1800);
-    },
-    onError: (err: unknown) => {
-      console.error("[sendEmail] Error:", err instanceof Error ? err.message : String(err));
-      const msg = err instanceof Error ? err.message : "Failed to send email";
-      setEmailError(msg);
-      toast({ title: "Failed to send email", variant: "destructive" });
-    },
-  });
-
   const sendViaGmail = useMutation({
     mutationFn: async ({ to, message }: { to: string; message?: string }) => {
       if (!gmailAccessToken) throw new Error("Gmail not connected");
@@ -670,18 +616,7 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
   });
 
   const handleConnectGmail = async () => {
-    const clientId = Capacitor.isNativePlatform()
-      ? "787920130380-25us11cn9ekfe14fbkoj4dntqf6i7hlk.apps.googleusercontent.com"
-      : "787920130380-euura0so62q39iro5t4ukfqlsiu5tagd.apps.googleusercontent.com";
-    const authUrl =
-      "https://accounts.google.com/o/oauth2/v2/auth" +
-      `?client_id=${clientId}` +
-      "&redirect_uri=com.docera.app:/oauth2callback" +
-      "&response_type=code" +
-      "&scope=https://www.googleapis.com/auth/gmail.send" +
-      "&access_type=offline" +
-      "&prompt=consent";
-    await Browser.open({ url: authUrl });
+    await startGmailConnection();
   };
 
   const handleDisconnectGmail = () => {
@@ -696,11 +631,7 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
       toast({ title: "Please enter an email address", variant: "destructive" });
       return;
     }
-    if (gmailAccessToken && Capacitor.isNativePlatform()) {
-      sendViaGmail.mutate({ to: trimmed, message: emailMessage.trim() || undefined });
-    } else {
-      sendEmail.mutate({ to: trimmed, message: emailMessage.trim() || undefined });
-    }
+    sendViaGmail.mutate({ to: trimmed, message: emailMessage.trim() || undefined });
   };
 
   const handleDownload = () => {
@@ -946,7 +877,7 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
 
       {/* ── Email modal ── */}
       {showEmailModal && (
-        <div className="fixed inset-0 z-[60] flex items-end" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => { if (!sendEmail.isPending && !sendViaGmail.isPending) { setShowEmailModal(false); setEmailError(""); } }}>
+        <div className="fixed inset-0 z-[60] flex items-end" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => { if (!sendViaGmail.isPending) { setShowEmailModal(false); setEmailError(""); } }}>
           <div
             className="dark relative w-full rounded-t-3xl"
             style={{ background: isPro ? "#0a0f1e" : "#1c1c1e", paddingBottom: "max(1.5rem, calc(env(safe-area-inset-bottom) + 1rem))" }}
@@ -965,7 +896,7 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
                 <button
                   data-testid="button-email-close"
                   onClick={() => { setShowEmailModal(false); setEmailError(""); }}
-                  disabled={sendEmail.isPending || sendViaGmail.isPending}
+                  disabled={sendViaGmail.isPending}
                   className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground active:opacity-60 disabled:opacity-40"
                 >
                   <X className="w-4 h-4" />
@@ -1023,37 +954,42 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
                 )
               )}
 
-              {/* Recipient email */}
-              <div>
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">
-                  Recipient email
-                </label>
-                <ClientEmailSuggest
-                  data-testid="input-email-to"
-                  value={emailTo}
-                  onChange={(v) => { setEmailTo(v); setEmailError(""); }}
-                  linkedClientId={doc?.clientId ?? null}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleSendEmail(); }}
-                  disabled={sendEmail.isPending || sendViaGmail.isPending}
-                  inputClassName="w-full px-4 py-3 rounded-2xl bg-muted text-sm text-foreground placeholder:text-muted-foreground border-0 outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
-                />
-              </div>
+              {/* Recipient + message — only shown once Gmail is connected */}
+              {gmailAccessToken && (
+                <>
+                  {/* Recipient email */}
+                  <div>
+                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">
+                      Recipient email
+                    </label>
+                    <ClientEmailSuggest
+                      data-testid="input-email-to"
+                      value={emailTo}
+                      onChange={(v) => { setEmailTo(v); setEmailError(""); }}
+                      linkedClientId={doc?.clientId ?? null}
+                      onKeyDown={(e) => { if (e.key === "Enter") handleSendEmail(); }}
+                      disabled={sendViaGmail.isPending}
+                      inputClassName="w-full px-4 py-3 rounded-2xl bg-muted text-sm text-foreground placeholder:text-muted-foreground border-0 outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
+                    />
+                  </div>
 
-              {/* Message */}
-              <div>
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">
-                  Message <span className="text-muted-foreground/50 font-normal normal-case">(optional)</span>
-                </label>
-                <textarea
-                  data-testid="input-email-message"
-                  placeholder="Add a personal note to the recipient…"
-                  value={emailMessage}
-                  onChange={(e) => setEmailMessage(e.target.value)}
-                  rows={3}
-                  disabled={sendEmail.isPending || sendViaGmail.isPending}
-                  className="w-full px-4 py-3 rounded-2xl bg-muted text-sm text-foreground placeholder:text-muted-foreground border-0 outline-none resize-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
-                />
-              </div>
+                  {/* Message */}
+                  <div>
+                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">
+                      Message <span className="text-muted-foreground/50 font-normal normal-case">(optional)</span>
+                    </label>
+                    <textarea
+                      data-testid="input-email-message"
+                      placeholder="Add a personal note to the recipient…"
+                      value={emailMessage}
+                      onChange={(e) => setEmailMessage(e.target.value)}
+                      rows={3}
+                      disabled={sendViaGmail.isPending}
+                      className="w-full px-4 py-3 rounded-2xl bg-muted text-sm text-foreground placeholder:text-muted-foreground border-0 outline-none resize-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
+                    />
+                  </div>
+                </>
+              )}
 
               {/* Error */}
               {emailError && (
@@ -1073,10 +1009,10 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
                 <button
                   data-testid="button-email-send"
                   onClick={handleSendEmail}
-                  disabled={sendEmail.isPending || sendViaGmail.isPending || !emailTo.trim() || (Capacitor.isNativePlatform() && !gmailAccessToken)}
+                  disabled={sendViaGmail.isPending || !emailTo.trim() || !gmailAccessToken}
                   className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 active:opacity-80 disabled:opacity-50 transition-opacity"
                 >
-                  {(sendEmail.isPending || sendViaGmail.isPending) ? (
+                  {sendViaGmail.isPending ? (
                     <>
                       <div className="w-4 h-4 rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground animate-spin" />
                       Sending…
@@ -1084,7 +1020,7 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
                   ) : (
                     <>
                       <Send className="w-4 h-4" />
-                      {gmailAccessToken && Capacitor.isNativePlatform() ? "Send via Gmail" : "Send Document"}
+                      Send via Gmail
                     </>
                   )}
                 </button>
@@ -1093,8 +1029,8 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
             <div className="px-5 pt-2">
               <button
                 data-testid="button-email-cancel"
-                onClick={() => { if (!sendEmail.isPending && !sendViaGmail.isPending) { setShowEmailModal(false); setEmailError(""); } }}
-                disabled={sendEmail.isPending || sendViaGmail.isPending}
+                onClick={() => { if (!sendViaGmail.isPending) { setShowEmailModal(false); setEmailError(""); } }}
+                disabled={sendViaGmail.isPending}
                 className="w-full py-3.5 rounded-2xl active:opacity-70 disabled:opacity-40"
                 style={{ background: "rgba(255,255,255,0.1)", color: "#ececef", fontSize: 15, fontWeight: 600 }}>
                 Cancel
