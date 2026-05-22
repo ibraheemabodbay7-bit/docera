@@ -1186,7 +1186,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       type ContactEntry = {
         email: string; name: string; lastSubject: string; lastDate: string;
         lastMessage: string; messageCount: number; lastDirection: "sent" | "received";
-        hasUnread: boolean; hasAttachments: boolean;
+        hasUnread: boolean; hasAttachments: boolean; hasSentMail: boolean;
       };
       const contactMap = new Map<string, ContactEntry>();
 
@@ -1218,11 +1218,13 @@ export async function registerRoutes(httpServer: Server, app: Express) {
             lastDirection: isSent ? "sent" : "received",
             hasUnread: isUnread || (existing?.hasUnread ?? false),
             hasAttachments: hasAtt || (existing?.hasAttachments ?? false),
+            hasSentMail: isSent || (existing?.hasSentMail ?? false),
           });
         } else {
           existing.messageCount++;
           if (isUnread) existing.hasUnread = true;
           if (hasAtt) existing.hasAttachments = true;
+          if (isSent) existing.hasSentMail = true;
         }
       }
 
@@ -1246,6 +1248,8 @@ export async function registerRoutes(httpServer: Server, app: Express) {
 
         const promoKeywords = ['unsubscribe','discount','sale','offer','otp','verify your','confirm your email','password reset','your order','shipping update','delivery','track your','limited time','expires soon','click here'];
         if (promoKeywords.some(k => subject.includes(k)) && c.messageCount <= 1) isImportant = false;
+
+        if (c.hasSentMail) isImportant = true;
 
         return { ...c, isImportant, score: isImportant ? 10 : 0 };
       });
