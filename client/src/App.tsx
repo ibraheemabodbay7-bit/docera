@@ -24,7 +24,7 @@ type View =
   | { name: "home" }
   | { name: "scanner"; folderId?: string; clientId?: string; entryMode?: "camera" | "gallery"; preCapturedFileUris?: string[]; sharedFileUris?: string[] }
   | { name: "editor"; docId: string }
-  | { name: "viewer"; docId: string }
+  | { name: "viewer"; docId: string; returnTo?: View }
   | { name: "folder"; folderId: string; folderName: string }
   | { name: "profile" }
   | { name: "themePicker" }
@@ -346,8 +346,8 @@ function AppWithAuth() {
     setView({ name: "editor", docId });
   };
 
-  const goViewer = (docId: string) => {
-    setView({ name: "viewer", docId });
+  const goViewer = (docId: string, returnTo?: View) => {
+    setView({ name: "viewer", docId, returnTo });
   };
 
   const goFolder = (folderId: string, folderName: string) => {
@@ -398,7 +398,7 @@ function AppWithAuth() {
   }
 
   if (view.name === "allDocs") {
-    return <AllDocumentsPage onBack={goHome} onOpenDoc={goViewer} onEditDoc={goEditor} />;
+    return <AllDocumentsPage onBack={goHome} onOpenDoc={(id) => goViewer(id, { name: "allDocs" })} onEditDoc={goEditor} />;
   }
 
   if (view.name === "scanner") {
@@ -427,7 +427,7 @@ function AppWithAuth() {
     return (
       <ViewerPage
         docId={view.docId}
-        onBack={goHome}
+        onBack={() => setView(view.returnTo ?? { name: "home" })}
         onDeleted={goHome}
         onEdit={goEditor}
         onEditText={() => {}}
