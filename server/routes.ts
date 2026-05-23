@@ -1448,7 +1448,6 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       // Phase 1: fetch metadata for up to 100 messages (headers only, fast)
       // Use in:anywhere so SENT messages (not in INBOX) are also returned
       const q = `(from:${contactEmail} OR to:${contactEmail}) in:anywhere`;
-      console.log(`[thread-messages] query: "${q}", olderThan: ${parsed.data.olderThan ?? "none"}`);
       const list = await gmail.users.messages.list({
         userId: "me",
         q,
