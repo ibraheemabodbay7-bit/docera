@@ -634,66 +634,95 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     <span class="logo">Docera</span>
   </header>
   <div class="container">
-    <h1>Terms of Service</h1>
-    <p class="updated">Last updated: May 2026</p>
+    <h1>Terms of Service — Docera</h1>
+    <p><strong>Last updated: May 22, 2026</strong></p>
 
-    <p>These terms govern your use of Docera ("the app"), operated by Ibraheem Abodbay ("we", "our", or "us"). By using Docera, you agree to these terms.</p>
+    <p>Welcome to Docera. These terms govern your use of the Docera iOS app ("Docera", "the app"), operated by Ibrahim Abu Dbay ("we", "us", or "our"). By using Docera you agree to these terms.</p>
 
-    <h2>1. Acceptance of Terms</h2>
-    <p>By creating an account or using Docera, you confirm that you have read, understood, and agreed to these Terms of Service and our Privacy Policy. If you do not agree, do not use the app.</p>
+    <h2>1. Acceptance</h2>
+    <p>By installing, opening, or using Docera, you agree to be bound by these Terms of Service and our <a href="/privacy">Privacy Policy</a>. If you do not agree, do not use the app.</p>
 
     <h2>2. Eligibility</h2>
-    <p>You must be at least 18 years old to use Docera. By using the app, you represent that you meet this requirement and have the legal capacity to enter into these terms.</p>
+    <p>You must be at least <strong>13 years old</strong> (or 16 if you are located in the European Union) to use Docera. If you are under the legal age of majority in your country, you confirm that a parent or legal guardian has agreed to these terms on your behalf.</p>
+    <p>Docera is intended for adults and older minors who can independently manage their documents. It is not designed for, marketed to, or intended for children under these age thresholds.</p>
 
-    <h2>3. Your Account</h2>
-    <p>You are responsible for maintaining the confidentiality of your account credentials and for all activity that occurs under your account. You agree to notify us immediately of any unauthorised access. We are not liable for any loss resulting from your failure to safeguard your account.</p>
+    <h2>3. How accounts work</h2>
+    <p>Docera does not require you to create a username or password. When you first open the app, a guest account is automatically created and linked to your device. This account tracks your trial and subscription state on our server but contains no personally identifying information unless you choose to enter your name.</p>
+    <p>If you connect a Google account to use Gmail features inside Docera, you do so via Google's standard OAuth 2.0 flow. We never see your Google password. You can disconnect at any time inside the app, and we will revoke your tokens.</p>
+    <p>You are responsible for the security of the device on which you use Docera, since most of your data is stored locally.</p>
 
-    <h2>4. Acceptable Use</h2>
-    <p>You agree to use Docera only for lawful purposes. You will not:</p>
+    <h2>4. Acceptable use</h2>
+    <p>You agree NOT to use Docera to:</p>
     <ul>
-      <li>Use the app to send spam, harassment, or unlawful communications</li>
-      <li>Attempt to gain unauthorised access to our systems or other users' accounts</li>
-      <li>Reverse engineer, decompile, or attempt to extract source code from the app</li>
-      <li>Use the app to store or transmit illegal content</li>
-      <li>Use the app in violation of applicable export controls or sanctions</li>
+      <li>Violate any applicable law or regulation</li>
+      <li>Send spam, harassment, threats, or illegal content</li>
+      <li>Access another person's data without authorization</li>
+      <li>Reverse engineer, decompile, or otherwise attempt to extract the source code of the app, except to the extent expressly permitted by applicable law</li>
+      <li>Interfere with or disrupt our servers or networks</li>
+      <li>Use the app in jurisdictions where it is prohibited or subject to trade sanctions</li>
+      <li>Misrepresent your identity or impersonate others when sending documents</li>
     </ul>
-    <p>We reserve the right to suspend or terminate accounts that violate these rules.</p>
 
-    <h2>5. Subscriptions and Payments</h2>
-    <p>Docera offers a free tier and paid subscription tiers. Paid subscriptions are billed through Apple's App Store and managed under Apple's terms. Subscription fees are non-refundable except where required by law. You can cancel your subscription at any time through your Apple ID account settings; cancellation takes effect at the end of the current billing period.</p>
-    <p>Pricing and feature availability may change. We will provide reasonable notice of material changes to existing subscribers.</p>
+    <h2>5. Subscriptions and payments</h2>
+    <p>Docera offers a free trial period followed by an optional paid subscription. Subscriptions are managed by Apple via the App Store:</p>
+    <ul>
+      <li>All payments are processed by Apple. We do not see or store your payment information.</li>
+      <li>Your subscription renews automatically until cancelled.</li>
+      <li>You can view, pause, or cancel your subscription at any time in your Apple ID settings (Settings → [your name] → Subscriptions on your iPhone).</li>
+      <li>Subscription fees are non-refundable except where required by law. Refund requests must be made directly to Apple.</li>
+      <li>Pricing and features may change over time. Material changes that affect existing subscribers will be communicated before they take effect.</li>
+    </ul>
+    <p>Cancelling your subscription will not delete your Docera account. To delete your account, see section 11.</p>
 
-    <h2>6. Your Data</h2>
-    <p>Your use of Docera and our handling of your data is governed by our <a href="/privacy">Privacy Policy</a>, which is incorporated into these terms by reference. You retain ownership of all content you scan, store, or send through the app.</p>
+    <h2>6. Your content and data</h2>
+    <p>Documents you scan, photos you import, and emails you send through Docera remain yours. We do not claim ownership of your content.</p>
+    <p>Most of your content stays on your device. Some content briefly passes through our servers in memory only — for example, when you send a document by Gmail, the recipient address and PDF file pass through our server on their way to Google's Gmail API. These items are not stored, logged, or retained by us.</p>
+    <p>Emails you send through Docera are sent from your own Gmail account using Google's Gmail API. Once sent, those emails are governed by Google's terms and the recipient's policies, not ours. We do not retain copies of the emails you send.</p>
+    <p>For full details on what data we handle and how, see our <a href="/privacy">Privacy Policy</a>.</p>
 
-    <h2>7. Intellectual Property</h2>
-    <p>Docera, including its design, code, branding, and content, is owned by us and protected by intellectual property law. We grant you a limited, non-exclusive, non-transferable, revocable license to use the app for its intended purpose. You may not copy, modify, distribute, or create derivative works without our written permission.</p>
+    <h2>7. Intellectual property</h2>
+    <p>The Docera app, brand, design, and code are owned by us and protected by copyright, trademark, and other laws. We grant you a limited, revocable, non-transferable, non-exclusive license to use Docera on devices you own or control, for personal or business use, subject to these terms.</p>
+    <p>You may not copy, modify, distribute, sell, or create derivative works of Docera or any part of it without our written permission.</p>
 
-    <h2>8. Third-Party Services</h2>
-    <p>Docera integrates with Google (Gmail), Apple (App Store, in-app purchases), OpenAI (AI features), and RevenueCat (subscription management). Your use of these integrations is also subject to their respective terms. We are not responsible for the availability or behaviour of third-party services.</p>
+    <h2>8. Third-party services</h2>
+    <p>Docera works with a small number of third-party services:</p>
+    <ul>
+      <li><strong>Google Gmail API</strong> — used to read and send Gmail messages when you connect your Google account</li>
+      <li><strong>Apple</strong> — used for in-app subscriptions and platform services</li>
+      <li><strong>RevenueCat</strong> — used to verify and manage your subscription status</li>
+    </ul>
+    <p>Your use of these services is also subject to their own terms and privacy policies:</p>
+    <ul>
+      <li><a href="https://policies.google.com/terms" target="_blank" rel="noopener">Google Terms of Service</a></li>
+      <li><a href="https://www.apple.com/legal/internet-services/itunes/" target="_blank" rel="noopener">Apple Media Services Terms</a></li>
+      <li><a href="https://www.revenuecat.com/terms/" target="_blank" rel="noopener">RevenueCat Terms</a></li>
+    </ul>
+    <p>We are not responsible for the practices or content of these third-party services.</p>
 
     <h2>9. Disclaimers</h2>
-    <p>Docera is provided "as is" and "as available" without warranties of any kind, whether express or implied. We do not warrant that the app will be uninterrupted, error-free, secure, or meet your specific requirements. To the maximum extent permitted by law, we disclaim all implied warranties of merchantability, fitness for a particular purpose, and non-infringement.</p>
+    <p>Docera is provided "as is" and "as available" without warranties of any kind, express or implied, including but not limited to merchantability, fitness for a particular purpose, or non-infringement. We do not guarantee that the app will be uninterrupted, error-free, or that it will meet your specific needs.</p>
+    <p>To the maximum extent permitted by law, we disclaim all implied warranties.</p>
 
-    <h2>10. Limitation of Liability</h2>
-    <p>To the maximum extent permitted by law, we will not be liable for any indirect, incidental, special, consequential, or punitive damages, including lost profits, data loss, or business interruption, arising from your use of Docera. Our total liability to you for any claim arising from these terms or your use of the app will not exceed the amount you paid us in the 12 months preceding the claim, or 100 USD, whichever is greater.</p>
+    <h2>10. Limitation of liability</h2>
+    <p>To the maximum extent permitted by law, our total liability to you for any claim arising out of or relating to these terms or your use of Docera is limited to the greater of: (a) the amount you paid us for the app in the 12 months immediately preceding the claim, or (b) USD $100.</p>
+    <p>We will not be liable for indirect, incidental, special, consequential, or punitive damages, including loss of profits, data, or goodwill, even if we have been advised of the possibility of such damages.</p>
 
-    <h2>11. Termination</h2>
-    <p>You may stop using Docera at any time by deleting your account or removing the app. We may suspend or terminate your access if you violate these terms or for any other reason at our discretion, with or without notice. Sections that by their nature should survive termination (including ownership, disclaimers, limitation of liability, and governing law) will survive.</p>
+    <h2>11. Termination and account deletion</h2>
+    <p>You can delete your Docera account and all associated data at any time, directly inside the app: <strong>Profile → Delete Account → type DELETE → confirm</strong>. This permanently removes your server-side data, clears local data on your device, and revokes any connected Gmail access.</p>
+    <p>We may suspend or terminate your access to Docera if you violate these terms or if we are required to do so by law. We will give reasonable notice where possible.</p>
 
-    <h2>12. Changes to These Terms</h2>
-    <p>We may update these terms from time to time. We will notify users of material changes by updating the "Last updated" date at the top of this page and, where appropriate, through the app. Continued use of Docera after changes take effect constitutes acceptance of the updated terms.</p>
+    <h2>12. Changes to these terms</h2>
+    <p>We may update these terms from time to time. The "Last updated" date at the top will change, and significant changes will be communicated inside the app where practical. Continued use of Docera after updates means you accept the new terms.</p>
 
-    <h2>13. Governing Law</h2>
-    <p>These terms are governed by the laws of the State of Israel, without regard to conflict of law principles. Any dispute arising from these terms or your use of Docera will be subject to the exclusive jurisdiction of the competent courts in Israel.</p>
-
-    <hr/>
+    <h2>13. Governing law</h2>
+    <p>These terms are governed by the laws of the State of Israel, without regard to conflict-of-law principles. Any dispute will be resolved exclusively in the courts of Israel, except where local consumer protection laws give you the right to bring the claim in your home jurisdiction.</p>
 
     <h2>14. Contact</h2>
-    <div class="contact-box">
-      <p>If you have any questions about these terms, please contact us at:<br/>
-      <strong><a href="mailto:ibraheemabodbay7@gmail.com">ibraheemabodbay7@gmail.com</a></strong></p>
-    </div>
+    <p>For questions about these terms:</p>
+    <p><strong><a href="mailto:ibraheemabodbay7@gmail.com">ibraheemabodbay7@gmail.com</a></strong></p>
+
+    <hr/>
+    <p><em>These terms apply only to the Docera iOS app.</em></p>
   </div>
 </body>
 </html>`);
