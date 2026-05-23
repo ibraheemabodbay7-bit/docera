@@ -103,7 +103,7 @@ function TrialBanner({ daysLeft, onDismiss, onUpgrade }: {
     >
       <button onClick={onUpgrade} className="flex items-center gap-1.5 flex-1 min-w-0 text-left active:opacity-70">
         <Sparkles className="w-3.5 h-3.5 text-amber-300 flex-shrink-0" />
-        <span className="truncate">{label} · Subscribe — ₪19.90/mo</span>
+        <span className="truncate">{label} · Subscribe — ₪29.90/mo</span>
       </button>
       <button onClick={onDismiss} className="opacity-60 active:opacity-100 ml-3 flex-shrink-0">
         <X className="w-3.5 h-3.5" />

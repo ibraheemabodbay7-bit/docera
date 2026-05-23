@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  ScanLine, FileText, Check, Lock, X, Sparkles, RotateCcw, Loader2,
+  ScanLine, Send, Folder, Star, Check, Lock, X, Sparkles, RotateCcw, Loader2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -12,15 +12,20 @@ import {
 import { queryClient } from "@/lib/queryClient";
 import { isDarkMode } from "@/lib/theme";
 
+const TRIAL_DAYS = 14;
+
 // ── Feature list ──────────────────────────────────────────────────────────────
 const FEATURES = [
-  { icon: ScanLine,   text: "Scan and edit documents" },
-  { icon: FileText,   text: "Export files" },
+  { icon: ScanLine,   text: "Scan and edit any document" },
+  { icon: Send,       text: "Send via Gmail directly in the app" },
+  { icon: Folder,     text: "Client and folder organization" },
+  { icon: Star,       text: "Important contact auto-detection" },
+  { icon: Sparkles,   text: "Unlimited scans, no watermarks" },
 ];
 
 // ── Fallback strings (shown before RevenueCat price loads) ────────────────────
-const FALLBACK_PRICE      = "₪19.90/month";
-const FALLBACK_SUBTITLE   = "7 days free, then ₪19.90/month. Cancel anytime.";
+const FALLBACK_PRICE      = "₪29.90/month";
+const FALLBACK_SUBTITLE   = `${TRIAL_DAYS} days free, then ₪29.90/month. Cancel anytime.`;
 
 const ORB_LIGHT = [
   "radial-gradient(ellipse at 20% 15%, #e8ecf2 0%, #c8d0dc 30%, transparent 60%)",
@@ -79,7 +84,7 @@ export default function PaywallPage({ onBack, lockedFeature }: PaywallPageProps)
 
   const displayPrice    = priceString ? `${priceString}/month` : FALLBACK_PRICE;
   const displaySubtitle = priceString
-    ? `7 days free, then ${priceString}/month. Cancel anytime.`
+    ? `${TRIAL_DAYS} days free, then ${priceString}/month. Cancel anytime.`
     : FALLBACK_SUBTITLE;
 
   // ── Sync purchase to backend after RevenueCat confirms it ─────────────────
@@ -221,7 +226,7 @@ export default function PaywallPage({ onBack, lockedFeature }: PaywallPageProps)
                 <p className="text-xs mt-0.5" style={{ color: textSecondary }}>Cancel anytime · no hidden fees</p>
               </div>
               <div className="text-right">
-                <p className="text-xs text-primary font-semibold">Free for 7 days</p>
+                <p className="text-xs text-primary font-semibold">Free for {TRIAL_DAYS} days</p>
                 <p className="text-sm font-bold" style={{ color: textPrimary }}>then {displayPrice}</p>
               </div>
             </div>
