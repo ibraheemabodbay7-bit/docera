@@ -35,6 +35,7 @@ export interface IStorage {
   // Detail endpoint — returns full document including dataUrl and pages
   getDocument(id: string): Promise<Document | undefined>;
   createDocument(data: InsertDocument): Promise<Document>;
+  getUserDocumentCount(userId: string): Promise<number>;
   // Metadata-only update (name, folderId, status, clientId, notes)
   updateDocument(id: string, data: Partial<{ name: string; folderId: string | null; status: string; clientId: string | null; notes: string | null; isFavorite: boolean }>): Promise<DocumentSummary | undefined>;
   // Full content update — replaces PDF, pages edit data, and optionally name/thumb/status
@@ -235,6 +236,14 @@ export class DatabaseStorage implements IStorage {
   async createDocument(data: InsertDocument): Promise<Document> {
     const [doc] = await db.insert(documents).values(data).returning();
     return doc;
+  }
+
+  async getUserDocumentCount(userId: string): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(documents)
+      .where(eq(documents.userId, userId));
+    return result[0]?.count ?? 0;
   }
 
   async updateDocument(id: string, data: Partial<{ name: string; folderId: string | null; status: string; clientId: string | null; notes: string | null; isFavorite: boolean }>): Promise<DocumentSummary | undefined> {

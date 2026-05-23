@@ -34,6 +34,8 @@ const GMAIL_WEB_CLIENT_ID = process.env.GMAIL_WEB_CLIENT_ID ?? "";
 const GMAIL_WEB_CLIENT_SECRET = process.env.GMAIL_WEB_CLIENT_SECRET ?? "";
 const GMAIL_RAILWAY_REDIRECT = process.env.GMAIL_REDIRECT_URI ?? "https://docera-production.up.railway.app/api/gmail/callback";
 
+const FREE_SCAN_LIMIT = 5;
+
 // Temporary in-memory store for OAuth tokens (keyed by random token, TTL 5 min)
 const gmailTokenStore = new Map<string, { accessToken: string; refreshToken?: string; expiresAt: number }>();
 setInterval(() => {
@@ -988,8 +990,24 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+
+    const userId = (req.session as any).userId!;
+    const sub = await storage.getUserSubscriptionStatus(userId);
+    const isPro = sub.status === "active";
+    if (!isPro) {
+      const docCount = await storage.getUserDocumentCount(userId);
+      if (docCount >= FREE_SCAN_LIMIT) {
+        return res.status(403).json({
+          error: "scan_limit_reached",
+          message: "Free plan is limited to 5 documents. Upgrade to Pro for unlimited scans.",
+          currentCount: docCount,
+          limit: FREE_SCAN_LIMIT,
+        });
+      }
+    }
+
     const doc = await storage.createDocument({
-      userId: (req.session as any).userId!,
+      userId,
       name: parsed.data.name,
       type: parsed.data.type,
       dataUrl: parsed.data.dataUrl,
@@ -1002,7 +1020,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     // Auto-create "created" event
     await storage.createDocumentEvent({
       documentId: doc.id,
-      userId: (req.session as any).userId!,
+      userId,
       type: "created",
       label: "Document created",
     });
