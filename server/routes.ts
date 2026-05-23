@@ -343,7 +343,6 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       <li>Recipient address and PDF binary when you send a document via Gmail</li>
     </ul>
     <p>These are processed in RAM during a single request and discarded.</p>
-    <p>Note: server logs may include contact email addresses when threads are loaded, for debugging purposes. These logs rotate within the standard Railway log retention window.</p>
 
     <h2>Where your data lives geographically</h2>
     <ul>
