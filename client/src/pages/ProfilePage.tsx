@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest, apiFetch } from "@/lib/queryClient";
-import { ArrowLeft, FileText, LogOut, ChevronRight, Check, X, Crown, User, Mail, Sparkles, Palette } from "lucide-react";
+import { ArrowLeft, FileText, LogOut, ChevronRight, Check, X, Crown, User, Mail, Sparkles, Palette, RotateCcw } from "lucide-react";
+import { restorePurchases, isNativePlatform } from "@/lib/purchases";
 import { getSetting, setSetting } from "@/lib/settings";
 import { useToast } from "@/hooks/use-toast";
 import type { Document } from "@shared/schema";
@@ -59,6 +60,7 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deletionComplete, setDeletionComplete] = useState(false);
+  const [restoring, setRestoring] = useState(false);
 
   // App preferences (localStorage)
   const [filenamePrefix, setFilenamePrefix] = useState(() => getSetting("filenamePrefix", "Scan"));
@@ -158,6 +160,35 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
       const msg = err instanceof Error ? err.message : "Failed to delete account";
       toast({ title: "Deletion failed", description: msg, variant: "destructive" });
       setDeleting(false);
+    }
+  };
+
+  const handleRestorePurchases = async () => {
+    if (!isNativePlatform()) {
+      toast({ title: "Available on the mobile app" });
+      return;
+    }
+    setRestoring(true);
+    try {
+      const { status, error } = await restorePurchases();
+      if (status === "pro") {
+        await fetch("/api/subscription/native-activate", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        }).catch(() => {});
+        queryClient.invalidateQueries({ queryKey: ["/api/subscription"] });
+        toast({ title: "Purchases restored!", description: "Your subscription is active again." });
+      } else if (error) {
+        toast({ title: "Restore failed", description: error, variant: "destructive" });
+      } else {
+        toast({ title: "No purchases found", description: "No previous subscription was found for your account." });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Restore failed";
+      toast({ title: "Couldn't restore purchases", description: msg, variant: "destructive" });
+    } finally {
+      setRestoring(false);
     }
   };
 
@@ -270,6 +301,23 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
                 </button>
               )}
             </div>
+            <button
+              data-testid="button-restore-purchases"
+              onClick={handleRestorePurchases}
+              disabled={restoring}
+              className="w-full flex items-center gap-3 px-4 py-3.5 active:opacity-60 disabled:opacity-40"
+            >
+              <div className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
+                {restoring
+                  ? <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground animate-spin" />
+                  : <RotateCcw className="w-4 h-4 text-muted-foreground" />}
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-medium text-foreground">{restoring ? "Restoring…" : "Restore Purchases"}</p>
+                <p className="text-xs text-muted-foreground">Already paid? Tap to restore</p>
+              </div>
+              <ChevronRight className="w-4 h-4 opacity-40 flex-shrink-0" />
+            </button>
           </div>
         </div>
 

@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
 import {
-  ScanLine, Send, Folder, Star, Check, Lock, X, Sparkles, RotateCcw, Loader2,
+  ScanLine, Send, Folder, Star, Inbox, Check, Lock, X, Sparkles, Loader2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   purchaseMonthlyPlan,
-  restorePurchases,
   getMonthlyPackage,
   isNativePlatform,
 } from "@/lib/purchases";
@@ -20,6 +19,7 @@ const FEATURES = [
   { icon: Send,       text: "Send via Gmail directly in the app" },
   { icon: Folder,     text: "Client and folder organization" },
   { icon: Star,       text: "Important contact auto-detection" },
+  { icon: Inbox,      text: "Browse Gmail attachments by client" },
   { icon: Sparkles,   text: "Unlimited scans, no watermarks" },
 ];
 
@@ -60,7 +60,6 @@ interface PaywallPageProps {
 export default function PaywallPage({ onBack, lockedFeature }: PaywallPageProps) {
   const { toast } = useToast();
   const [purchasing, setPurchasing] = useState(false);
-  const [restoring,  setRestoring]  = useState(false);
   const [priceString, setPriceString] = useState<string | null>(null);
 
   const dark = isDarkMode();
@@ -123,30 +122,7 @@ export default function PaywallPage({ onBack, lockedFeature }: PaywallPageProps)
     }
   };
 
-  // ── Restore ───────────────────────────────────────────────────────────────
-  const handleRestore = async () => {
-    if (!isNativePlatform()) {
-      toast({ title: "Available on the mobile app" });
-      return;
-    }
-    setRestoring(true);
-    try {
-      const { status, error } = await restorePurchases();
-      if (status === "pro") {
-        await activateOnServer();
-        toast({ title: "Purchases restored!", description: "Your subscription is active again." });
-        onBack?.();
-      } else if (error) {
-        toast({ title: "Restore failed", description: error, variant: "destructive" });
-      } else {
-        toast({ title: "No purchases found", description: "No previous subscription was found for your account." });
-      }
-    } finally {
-      setRestoring(false);
-    }
-  };
-
-  const busy = purchasing || restoring;
+  const busy = purchasing;
 
   return (
     <>
@@ -270,20 +246,6 @@ export default function PaywallPage({ onBack, lockedFeature }: PaywallPageProps)
                 ? <Loader2 className="w-5 h-5 animate-spin" />
                 : <Sparkles className="w-4 h-4" />}
               {purchasing ? "Processing…" : "Start Free Trial"}
-            </button>
-
-            {/* Restore Purchases — required by Apple App Store */}
-            <button
-              data-testid="button-restore-purchases"
-              onClick={handleRestore}
-              disabled={busy}
-              className="w-full h-12 rounded-2xl text-sm font-semibold active:opacity-60 flex items-center justify-center gap-2 disabled:opacity-40"
-              style={{ background: dark ? "rgba(255,255,255,0.06)" : "rgba(26,31,42,0.06)", color: textPrimary, border: dark ? "0.5px solid rgba(255,255,255,0.08)" : "0.5px solid rgba(26,31,42,0.12)" }}
-            >
-              {restoring
-                ? <Loader2 className="w-4 h-4 animate-spin" />
-                : <RotateCcw className="w-3.5 h-3.5" style={{ color: textSecondary }} />}
-              {restoring ? "Restoring…" : "Restore Purchases"}
             </button>
 
             {/* Legal */}
