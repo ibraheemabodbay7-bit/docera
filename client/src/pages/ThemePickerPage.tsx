@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, Lock } from "lucide-react";
+import { ArrowLeft, Check } from "lucide-react";
 import {
   type ThemeMode,
   getThemeMode,
@@ -6,7 +6,6 @@ import {
   isDarkMode,
 } from "@/lib/theme";
 import { useReducer, useEffect } from "react";
-import { useSubscription } from "@/hooks/use-subscription";
 
 type Option = {
   mode: ThemeMode;
@@ -22,11 +21,10 @@ const OPTIONS: Option[] = [
   { mode: "pro",    label: "Pro",    description: "Deep navy and gold — for members", swatches: ["#0a0f1e", "#c9a84c"] },
 ];
 
-export default function ThemePickerPage({ onBack, onUpgrade }: { onBack: () => void; onUpgrade?: () => void }) {
+export default function ThemePickerPage({ onBack }: { onBack: () => void }) {
   const [, force] = useReducer((x: number) => x + 1, 0);
   const current = getThemeMode();
   const dark = isDarkMode();
-  const subscription = useSubscription();
 
   // Re-render when theme changes (e.g. user switches and we want immediate visual feedback)
   useEffect(() => {
@@ -37,10 +35,6 @@ export default function ThemePickerPage({ onBack, onUpgrade }: { onBack: () => v
   }, []);
 
   const select = (mode: ThemeMode) => {
-    if (mode === "pro" && !subscription.active) {
-      onUpgrade?.();
-      return;
-    }
     setThemeMode(mode);
     force();
   };
@@ -124,13 +118,9 @@ export default function ThemePickerPage({ onBack, onUpgrade }: { onBack: () => v
                   <div style={{ fontSize: 16, fontWeight: 500 }}>{opt.label}</div>
                   <div style={{ fontSize: 13, color: sub, marginTop: 1 }}>{opt.description}</div>
                 </div>
-                {/* Check / Lock */}
+                {/* Check */}
                 <div style={{ width: 24, display: "flex", justifyContent: "flex-end" }}>
-                  {selected
-                    ? <Check size={20} color="var(--text)" />
-                    : opt.mode === "pro" && !subscription.active
-                      ? <Lock size={16} color={sub} />
-                      : null}
+                  {selected && <Check size={20} color="var(--text)" />}
                 </div>
               </button>
             );

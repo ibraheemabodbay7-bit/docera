@@ -34,9 +34,6 @@ const GMAIL_WEB_CLIENT_ID = process.env.GMAIL_WEB_CLIENT_ID ?? "";
 const GMAIL_WEB_CLIENT_SECRET = process.env.GMAIL_WEB_CLIENT_SECRET ?? "";
 const GMAIL_RAILWAY_REDIRECT = process.env.GMAIL_REDIRECT_URI ?? "https://docera-production.up.railway.app/api/gmail/callback";
 
-const FREE_SCAN_LIMIT = 5;
-const FREE_THREAD_LIMIT = 15;
-
 // Temporary in-memory store for OAuth tokens (keyed by random token, TTL 5 min)
 const gmailTokenStore = new Map<string, { accessToken: string; refreshToken?: string; expiresAt: number }>();
 setInterval(() => {
@@ -862,9 +859,17 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     }
     const userId = (req.session as any).userId!;
 
+    // Auto-start 3-day trial on first use if no trial exists yet
+    const userBeforeCheck = await storage.getUser(userId);
+    if (userBeforeCheck && !userBeforeCheck.trialStartedAt && !userBeforeCheck.isSubscribed && !userBeforeCheck.stripeSubscriptionId) {
+      await storage.startTrial(userId);
+    }
+
     const { status, currentPeriodEnd } = await storage.getUserSubscriptionStatus(userId);
-    const active = status === "active";
-    res.json({ status, active, currentPeriodEnd, trialEnd: null, hasStripeCustomer: false });
+    const active = status === "active" || status === "trialing";
+    const isTrialing = status === "trialing";
+    const trialEnd = (isTrialing || status === "expired") ? currentPeriodEnd : null;
+    res.json({ status, active, currentPeriodEnd, trialEnd, hasStripeCustomer: false });
   });
 
   // ── Native IAP activation (called from client after RevenueCat confirms purchase) ──
@@ -983,24 +988,8 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
-
-    const userId = (req.session as any).userId!;
-    const sub = await storage.getUserSubscriptionStatus(userId);
-    const isPro = sub.status === "active";
-    if (!isPro) {
-      const docCount = await storage.getUserDocumentCount(userId);
-      if (docCount >= FREE_SCAN_LIMIT) {
-        return res.status(403).json({
-          error: "scan_limit_reached",
-          message: "Free plan is limited to 5 documents. Upgrade to Pro for unlimited scans.",
-          currentCount: docCount,
-          limit: FREE_SCAN_LIMIT,
-        });
-      }
-    }
-
     const doc = await storage.createDocument({
-      userId,
+      userId: (req.session as any).userId!,
       name: parsed.data.name,
       type: parsed.data.type,
       dataUrl: parsed.data.dataUrl,
@@ -1013,7 +1002,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     // Auto-create "created" event
     await storage.createDocumentEvent({
       documentId: doc.id,
-      userId,
+      userId: (req.session as any).userId!,
       type: "created",
       label: "Document created",
     });
@@ -1269,17 +1258,6 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid input" });
 
-    const userId = (req.session as any).userId;
-    const isPro = userId
-      ? (await storage.getUserSubscriptionStatus(userId)).status === "active"
-      : false;
-    if (!isPro) {
-      return res.status(403).json({
-        error: "pro_required",
-        message: "Sending via Gmail requires Docera Pro.",
-      });
-    }
-
     const { accessToken, to, subject, message, pdfBase64, documentName } = parsed.data;
     const oauth2Client = new google.auth.OAuth2(GMAIL_WEB_CLIENT_ID, GMAIL_WEB_CLIENT_SECRET);
     oauth2Client.setCredentials({ access_token: accessToken });
@@ -1329,11 +1307,6 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
-
-    const userId = (req.session as any).userId;
-    const isPro = userId
-      ? (await storage.getUserSubscriptionStatus(userId)).status === "active"
-      : false;
 
     const oauth2Client = new google.auth.OAuth2(GMAIL_WEB_CLIENT_ID, GMAIL_WEB_CLIENT_SECRET, GMAIL_RAILWAY_REDIRECT);
     oauth2Client.setCredentials({
@@ -1414,9 +1387,6 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         .sort((a, b) => new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime());
 
       const scoredContacts = contacts.map(c => {
-        if (!isPro) {
-          return { ...c, isImportant: false, score: 0 };
-        }
         const emailLower = c.email.toLowerCase();
         const subject = (c.lastSubject ?? '').toLowerCase();
         let isImportant = false;
@@ -1439,7 +1409,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         return { ...c, isImportant, score: isImportant ? 10 : 0 };
       });
 
-      res.json({ myEmail, contacts: scoredContacts, importantGatedByFreeTier: !isPro });
+      res.json({ myEmail, contacts: scoredContacts });
     } catch (err: unknown) {
       const e = err as Record<string, unknown>;
       const status = (e?.response as Record<string, unknown>)?.status as number ?? 500;
@@ -1459,11 +1429,6 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
-
-    const userId = (req.session as any).userId;
-    const isPro = userId
-      ? (await storage.getUserSubscriptionStatus(userId)).status === "active"
-      : false;
 
     const { accessToken, contactEmail } = parsed.data;
     const oauth2Client = new google.auth.OAuth2(GMAIL_WEB_CLIENT_ID, GMAIL_WEB_CLIENT_SECRET, GMAIL_RAILWAY_REDIRECT);
@@ -1515,17 +1480,15 @@ export async function registerRoutes(httpServer: Server, app: Express) {
 
       // Phase 2: filter and paginate on metadata
       const limit = 15;
-      const effectiveLimit = isPro ? limit : FREE_THREAD_LIMIT;
-      const effectiveOlderThan = isPro ? parsed.data.olderThan : undefined;
-      const olderThanTime = effectiveOlderThan ? new Date(effectiveOlderThan).getTime() : null;
+      const olderThanTime = parsed.data.olderThan ? new Date(parsed.data.olderThan).getTime() : null;
       const filtered = olderThanTime
         ? allMeta.filter(m => m.internalDate < olderThanTime)
         : allMeta;
 
-      console.log(`[thread-messages] filtered: ${filtered.length}, hasMore: ${filtered.length > effectiveLimit}`);
+      console.log(`[thread-messages] filtered: ${filtered.length}, hasMore: ${filtered.length > limit}`);
 
-      const hasMore = filtered.length > effectiveLimit;
-      const toFetch = filtered.slice(Math.max(0, filtered.length - effectiveLimit));
+      const hasMore = filtered.length > limit;
+      const toFetch = filtered.slice(Math.max(0, filtered.length - limit));
 
       // Phase 3: fetch full details only for the 15 messages we need
       const fullDetails: Array<unknown> = await Promise.all(
@@ -1557,13 +1520,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         };
       }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-      res.json({
-        myEmail,
-        messages: paginated,
-        hasMore: isPro ? hasMore : filtered.length > FREE_THREAD_LIMIT,
-        total: filtered.length,
-        limitedByFreeTier: !isPro && filtered.length > FREE_THREAD_LIMIT,
-      });
+      res.json({ myEmail, messages: paginated, hasMore, total: filtered.length });
     } catch (err: unknown) {
       const e = err as Record<string, unknown>;
       const status = (e?.response as Record<string, unknown>)?.status as number ?? 500;
@@ -1699,17 +1656,6 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid input" });
-
-    const userId = (req.session as any).userId;
-    const isPro = userId
-      ? (await storage.getUserSubscriptionStatus(userId)).status === "active"
-      : false;
-    if (!isPro) {
-      return res.status(403).json({
-        error: "pro_required",
-        message: "Sending via Gmail requires Docera Pro.",
-      });
-    }
 
     const { accessToken, to, senderEmail, body, attachmentBase64, attachmentName, attachmentMimeType } = parsed.data;
     const subject = parsed.data.subject ?? `New message from ${senderEmail}`;

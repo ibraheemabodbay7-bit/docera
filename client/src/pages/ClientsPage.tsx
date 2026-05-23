@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useSubscription } from "@/hooks/use-subscription";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, apiFetch, API_BASE } from "@/lib/queryClient";
 import ClientEmailSuggest from "@/components/ClientEmailSuggest";
@@ -42,7 +41,6 @@ interface ClientsPageProps {
   onBack: () => void;
   onOpenDoc: (docId: string) => void;
   onScan: (clientId: string) => void;
-  onUpgrade?: () => void;
 }
 
 const STATUS_META: Record<DocStatus, { label: string; dot: string; text: string; bg: string }> = {
@@ -210,8 +208,7 @@ function BottomSheet({ title, onClose, children }: { title: string; onClose: () 
   );
 }
 
-export default function ClientsPage({ onBack, onOpenDoc, onScan, onUpgrade }: ClientsPageProps) {
-  const subscription = useSubscription();
+export default function ClientsPage({ onBack, onOpenDoc, onScan }: ClientsPageProps) {
   const { toast } = useToast();
   const dark = isDarkMode();
   const orbBg = dark ? ORB_DARK : ORB_LIGHT;
@@ -346,10 +343,6 @@ export default function ClientsPage({ onBack, onOpenDoc, onScan, onUpgrade }: Cl
     },
     onError: (err: unknown) => {
       const msg = err instanceof Error ? err.message : "Failed to send email";
-      if (msg.includes("403") && msg.includes("pro_required")) {
-        onUpgrade?.();
-        return;
-      }
       setSendEmailError(msg);
       if (msg.includes("401") || msg.includes("invalid_grant") || msg.includes("expired")) {
         localStorage.removeItem("gmail_access_token");
@@ -462,7 +455,6 @@ export default function ClientsPage({ onBack, onOpenDoc, onScan, onUpgrade }: Cl
               <button
                 data-testid="button-client-send-email"
                 onClick={() => {
-                  if (!subscription.active) { onUpgrade?.(); return; }
                   if (clientDocs.length > 0) {
                     openSendModal(clientDocs[0]);
                   } else {

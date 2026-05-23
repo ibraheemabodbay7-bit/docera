@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect } from "react";
-import { useSubscription } from "@/hooks/use-subscription";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, apiFetch, API_BASE } from "@/lib/queryClient";
 import { Capacitor } from "@capacitor/core";
@@ -41,14 +40,12 @@ interface AllDocumentsPageProps {
   onBack: () => void;
   onOpenDoc: (docId: string) => void;
   onEditDoc: (docId: string) => void;
-  onUpgrade?: () => void;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
 
-export default function AllDocumentsPage({ onBack, onOpenDoc, onEditDoc, onUpgrade }: AllDocumentsPageProps) {
+export default function AllDocumentsPage({ onBack, onOpenDoc, onEditDoc }: AllDocumentsPageProps) {
   const { toast } = useToast();
-  const subscription = useSubscription();
   const dark = isDarkMode();
   const orbBg = getAppliedTheme() === "pro" ? ORB_PRO : (dark ? ORB_DARK : ORB_LIGHT);
   const isPro = getAppliedTheme() === "pro";
@@ -229,10 +226,6 @@ export default function AllDocumentsPage({ onBack, onOpenDoc, onEditDoc, onUpgra
     },
     onError: (err: unknown) => {
       const msg = err instanceof Error ? err.message : "Failed to send email";
-      if (msg.includes("403") && msg.includes("pro_required")) {
-        onUpgrade?.();
-        return;
-      }
       setCardEmailError(msg);
       if (msg.includes("401") || msg.includes("invalid_grant") || msg.includes("expired")) {
         localStorage.removeItem("gmail_access_token");
@@ -394,7 +387,6 @@ export default function AllDocumentsPage({ onBack, onOpenDoc, onEditDoc, onUpgra
                   onShare={() => handleCardShare(doc.id)}
                   onDownload={() => handleCardDownload(doc.id)}
                   onSendEmail={(clientEmail) => {
-                    if (!subscription.active) { onUpgrade?.(); return; }
                     setCardEmailError("");
                     setCardEmailTo(clientEmail || "");
                     setSendingDoc({ id: doc.id, name: doc.name, clientId: doc.clientId ?? null });
