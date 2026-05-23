@@ -6,7 +6,7 @@ import type {
   User, Folder, Document, DocumentSummary, DocumentEvent, Client,
 } from "@shared/schema";
 
-const TRIAL_DAYS = 14;
+const TRIAL_DAYS = 7;
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
