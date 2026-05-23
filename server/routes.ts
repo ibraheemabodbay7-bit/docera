@@ -35,6 +35,7 @@ const GMAIL_WEB_CLIENT_SECRET = process.env.GMAIL_WEB_CLIENT_SECRET ?? "";
 const GMAIL_RAILWAY_REDIRECT = process.env.GMAIL_REDIRECT_URI ?? "https://docera-production.up.railway.app/api/gmail/callback";
 
 const FREE_SCAN_LIMIT = 5;
+const FREE_THREAD_LIMIT = 15;
 
 // Temporary in-memory store for OAuth tokens (keyed by random token, TTL 5 min)
 const gmailTokenStore = new Map<string, { accessToken: string; refreshToken?: string; expiresAt: number }>();
@@ -1276,6 +1277,17 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid input" });
 
+    const userId = (req.session as any).userId;
+    const isPro = userId
+      ? (await storage.getUserSubscriptionStatus(userId)).status === "active"
+      : false;
+    if (!isPro) {
+      return res.status(403).json({
+        error: "pro_required",
+        message: "Sending via Gmail requires Docera Pro.",
+      });
+    }
+
     const { accessToken, to, subject, message, pdfBase64, documentName } = parsed.data;
     const oauth2Client = new google.auth.OAuth2(GMAIL_WEB_CLIENT_ID, GMAIL_WEB_CLIENT_SECRET);
     oauth2Client.setCredentials({ access_token: accessToken });
@@ -1325,6 +1337,11 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+
+    const userId = (req.session as any).userId;
+    const isPro = userId
+      ? (await storage.getUserSubscriptionStatus(userId)).status === "active"
+      : false;
 
     const oauth2Client = new google.auth.OAuth2(GMAIL_WEB_CLIENT_ID, GMAIL_WEB_CLIENT_SECRET, GMAIL_RAILWAY_REDIRECT);
     oauth2Client.setCredentials({
@@ -1405,6 +1422,9 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         .sort((a, b) => new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime());
 
       const scoredContacts = contacts.map(c => {
+        if (!isPro) {
+          return { ...c, isImportant: false, score: 0 };
+        }
         const emailLower = c.email.toLowerCase();
         const subject = (c.lastSubject ?? '').toLowerCase();
         let isImportant = false;
@@ -1427,7 +1447,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         return { ...c, isImportant, score: isImportant ? 10 : 0 };
       });
 
-      res.json({ myEmail, contacts: scoredContacts });
+      res.json({ myEmail, contacts: scoredContacts, importantGatedByFreeTier: !isPro });
     } catch (err: unknown) {
       const e = err as Record<string, unknown>;
       const status = (e?.response as Record<string, unknown>)?.status as number ?? 500;
@@ -1447,6 +1467,11 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+
+    const userId = (req.session as any).userId;
+    const isPro = userId
+      ? (await storage.getUserSubscriptionStatus(userId)).status === "active"
+      : false;
 
     const { accessToken, contactEmail } = parsed.data;
     const oauth2Client = new google.auth.OAuth2(GMAIL_WEB_CLIENT_ID, GMAIL_WEB_CLIENT_SECRET, GMAIL_RAILWAY_REDIRECT);
@@ -1498,15 +1523,17 @@ export async function registerRoutes(httpServer: Server, app: Express) {
 
       // Phase 2: filter and paginate on metadata
       const limit = 15;
-      const olderThanTime = parsed.data.olderThan ? new Date(parsed.data.olderThan).getTime() : null;
+      const effectiveLimit = isPro ? limit : FREE_THREAD_LIMIT;
+      const effectiveOlderThan = isPro ? parsed.data.olderThan : undefined;
+      const olderThanTime = effectiveOlderThan ? new Date(effectiveOlderThan).getTime() : null;
       const filtered = olderThanTime
         ? allMeta.filter(m => m.internalDate < olderThanTime)
         : allMeta;
 
-      console.log(`[thread-messages] filtered: ${filtered.length}, hasMore: ${filtered.length > limit}`);
+      console.log(`[thread-messages] filtered: ${filtered.length}, hasMore: ${filtered.length > effectiveLimit}`);
 
-      const hasMore = filtered.length > limit;
-      const toFetch = filtered.slice(Math.max(0, filtered.length - limit));
+      const hasMore = filtered.length > effectiveLimit;
+      const toFetch = filtered.slice(Math.max(0, filtered.length - effectiveLimit));
 
       // Phase 3: fetch full details only for the 15 messages we need
       const fullDetails: Array<unknown> = await Promise.all(
@@ -1538,7 +1565,13 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         };
       }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-      res.json({ myEmail, messages: paginated, hasMore, total: filtered.length });
+      res.json({
+        myEmail,
+        messages: paginated,
+        hasMore: isPro ? hasMore : filtered.length > FREE_THREAD_LIMIT,
+        total: filtered.length,
+        limitedByFreeTier: !isPro && filtered.length > FREE_THREAD_LIMIT,
+      });
     } catch (err: unknown) {
       const e = err as Record<string, unknown>;
       const status = (e?.response as Record<string, unknown>)?.status as number ?? 500;
@@ -1674,6 +1707,17 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid input" });
+
+    const userId = (req.session as any).userId;
+    const isPro = userId
+      ? (await storage.getUserSubscriptionStatus(userId)).status === "active"
+      : false;
+    if (!isPro) {
+      return res.status(403).json({
+        error: "pro_required",
+        message: "Sending via Gmail requires Docera Pro.",
+      });
+    }
 
     const { accessToken, to, senderEmail, body, attachmentBase64, attachmentName, attachmentMimeType } = parsed.data;
     const subject = parsed.data.subject ?? `New message from ${senderEmail}`;
