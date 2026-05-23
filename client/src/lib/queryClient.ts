@@ -17,6 +17,16 @@ export function apiFetch(url: string, init?: RequestInit): Promise<Response> {
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
+    if (res.status === 403) {
+      try {
+        const body = await res.clone().json();
+        if (body?.error === "scan_limit_reached") {
+          window.dispatchEvent(new CustomEvent("docera:scan_limit_reached", { detail: body }));
+        }
+      } catch {
+        // Body not JSON — fall through to standard throw
+      }
+    }
     const text = (await res.text()) || res.statusText;
     throw new Error(`${res.status}: ${text}`);
   }

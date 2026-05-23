@@ -606,6 +606,10 @@ export default function ViewerPage({ docId, onBack, onDeleted, onEdit, onEditTex
     },
     onError: (err: unknown) => {
       const msg = err instanceof Error ? err.message : "Failed to send email";
+      if (msg.includes("403") && msg.includes("pro_required")) {
+        onPaywall?.("Sending via Gmail");
+        return;
+      }
       setEmailError(msg);
       if (msg.includes("401") || msg.includes("invalid_grant") || msg.includes("expired")) {
         localStorage.removeItem("gmail_access_token");

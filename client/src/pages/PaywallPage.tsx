@@ -11,7 +11,7 @@ import {
 import { queryClient } from "@/lib/queryClient";
 import { isDarkMode } from "@/lib/theme";
 
-const TRIAL_DAYS = 14;
+const TRIAL_DAYS = 7;
 
 // ── Feature list ──────────────────────────────────────────────────────────────
 const FEATURES = [

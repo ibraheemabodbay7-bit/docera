@@ -89,12 +89,9 @@ async function ensureGuestSession(): Promise<AppUser | null> {
 }
 
 /** Top banner shown while the user is on a free trial. */
-function TrialBanner({ daysLeft, onDismiss, onUpgrade }: {
-  daysLeft: number; onDismiss: () => void; onUpgrade: () => void;
+function TrialBanner({ onDismiss, onUpgrade }: {
+  onDismiss: () => void; onUpgrade: () => void;
 }) {
-  const label = daysLeft <= 1
-    ? "Last day of your free trial"
-    : `${daysLeft} day${daysLeft !== 1 ? "s" : ""} left in your free trial`;
   return (
     <div
       data-testid="trial-banner"
@@ -103,7 +100,7 @@ function TrialBanner({ daysLeft, onDismiss, onUpgrade }: {
     >
       <button onClick={onUpgrade} className="flex items-center gap-1.5 flex-1 min-w-0 text-left active:opacity-70">
         <Sparkles className="w-3.5 h-3.5 text-amber-300 flex-shrink-0" />
-        <span className="truncate">{label} · Subscribe — ₪29.90/mo</span>
+        <span className="truncate">Upgrade to Pro — ₪29.90/mo</span>
       </button>
       <button onClick={onDismiss} className="opacity-60 active:opacity-100 ml-3 flex-shrink-0">
         <X className="w-3.5 h-3.5" />
@@ -191,6 +188,15 @@ function AppWithAuth() {
     const tid = setTimeout(() => setSubscriptionTimedOut(true), 2000);
     return () => clearTimeout(tid);
   }, [subscription.loading]);
+
+  // Open paywall when ScannerPage hits the server-side scan limit
+  useEffect(() => {
+    const handler = () => {
+      setView({ name: "paywall", lockedFeature: "Scan limit reached", returnTo: view });
+    };
+    window.addEventListener("docera:scan_limit_reached", handler);
+    return () => window.removeEventListener("docera:scan_limit_reached", handler);
+  }, [view]);
 
   useEffect(() => {
     async function initAuth() {
@@ -369,7 +375,7 @@ function AppWithAuth() {
 
   if (view.name === "clients") {
     return (
-      <ClientsPage onBack={goHome} onOpenDoc={goViewer} onScan={(clientId) => goScanner(undefined, clientId)} />
+      <ClientsPage onBack={goHome} onOpenDoc={goViewer} onScan={(clientId) => goScanner(undefined, clientId)} onUpgrade={() => setView({ name: "paywall", returnTo: view })} />
     );
   }
 
@@ -378,7 +384,7 @@ function AppWithAuth() {
   }
 
   if (view.name === "allDocs") {
-    return <AllDocumentsPage onBack={goHome} onOpenDoc={(id) => goViewer(id, { name: "allDocs" })} onEditDoc={goEditor} />;
+    return <AllDocumentsPage onBack={goHome} onOpenDoc={(id) => goViewer(id, { name: "allDocs" })} onEditDoc={goEditor} onUpgrade={() => setView({ name: "paywall", returnTo: view })} />;
   }
 
   if (view.name === "scanner") {
@@ -417,15 +423,15 @@ function AppWithAuth() {
     );
   }
 
-  // Trial banner — shown on main nav views when user is trialing
+  // Upgrade banner — shown on main nav views for free (non-Pro) users
   const showTrialBanner =
-    subscription.isTrialing &&
+    !subscription.loading &&
+    !subscription.active &&
     !trialBannerDismissed &&
     (view.name === "home" || view.name === "folder" || view.name === "profile");
 
-  const trialBannerEl = showTrialBanner && subscription.trialDaysLeft !== null ? (
+  const trialBannerEl = showTrialBanner ? (
     <TrialBanner
-      daysLeft={subscription.trialDaysLeft}
       onDismiss={() => setTrialBannerDismissed(true)}
       onUpgrade={() => setView({ name: "paywall", returnTo: view })}
     />
@@ -451,7 +457,7 @@ function AppWithAuth() {
     return (
       <>
         {trialBannerEl}
-        <ThemePickerPage onBack={() => setView({ name: "profile" })} />
+        <ThemePickerPage onBack={() => setView({ name: "profile" })} onUpgrade={() => setView({ name: "paywall", returnTo: view })} />
       </>
     );
   }
