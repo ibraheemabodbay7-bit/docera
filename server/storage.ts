@@ -6,7 +6,6 @@ import type {
   User, Folder, Document, DocumentSummary, DocumentEvent, Client,
 } from "@shared/schema";
 
-const TRIAL_DAYS = 14;
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -133,16 +132,6 @@ export class DatabaseStorage implements IStorage {
     // 2. Simulated in-app subscription (only when no real Stripe subscription exists)
     if (user.isSubscribed) {
       return { status: "active", currentPeriodEnd: null };
-    }
-
-    // 3. In-app free trial
-    if (user.trialStartedAt) {
-      const trialEndMs = new Date(user.trialStartedAt).getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000;
-      const trialEndSec = Math.floor(trialEndMs / 1000);
-      if (Date.now() < trialEndMs) {
-        return { status: "trialing", currentPeriodEnd: trialEndSec };
-      }
-      return { status: "expired", currentPeriodEnd: trialEndSec };
     }
 
     return { status: "none", currentPeriodEnd: null };

@@ -862,17 +862,9 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     }
     const userId = (req.session as any).userId!;
 
-    // Auto-start 3-day trial on first use if no trial exists yet
-    const userBeforeCheck = await storage.getUser(userId);
-    if (userBeforeCheck && !userBeforeCheck.trialStartedAt && !userBeforeCheck.isSubscribed && !userBeforeCheck.stripeSubscriptionId) {
-      await storage.startTrial(userId);
-    }
-
     const { status, currentPeriodEnd } = await storage.getUserSubscriptionStatus(userId);
-    const active = status === "active" || status === "trialing";
-    const isTrialing = status === "trialing";
-    const trialEnd = (isTrialing || status === "expired") ? currentPeriodEnd : null;
-    res.json({ status, active, currentPeriodEnd, trialEnd, hasStripeCustomer: false });
+    const active = status === "active";
+    res.json({ status, active, currentPeriodEnd, trialEnd: null, hasStripeCustomer: false });
   });
 
   // ── Native IAP activation (called from client after RevenueCat confirms purchase) ──
