@@ -1,15 +1,19 @@
 import { useState, useEffect } from "react";
+import ProUnlockCelebration from "@/components/ProUnlockCelebration";
 import {
   ScanLine, Send, Folder, Star, Inbox, Check, Lock, X, Sparkles, Loader2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Browser } from "@capacitor/browser";
 import {
   purchaseMonthlyPlan,
   getMonthlyPackage,
+  getSubscriptionStatus,
+  getManageSubscriptionUrl,
   isNativePlatform,
 } from "@/lib/purchases";
 import { queryClient } from "@/lib/queryClient";
-import { isDarkMode } from "@/lib/theme";
+import { isDarkMode, setTheme } from "@/lib/theme";
 
 const TRIAL_DAYS = 7;
 
@@ -60,6 +64,9 @@ interface PaywallPageProps {
 export default function PaywallPage({ onBack, lockedFeature }: PaywallPageProps) {
   const { toast } = useToast();
   const [purchasing, setPurchasing] = useState(false);
+  const [celebrating, setCelebrating] = useState(false);
+  const [alreadyPro, setAlreadyPro] = useState(false);
+  const [checkingPro, setCheckingPro] = useState(true);
   const [priceString, setPriceString] = useState<string | null>(null);
 
   const dark = isDarkMode();
@@ -73,6 +80,17 @@ export default function PaywallPage({ onBack, lockedFeature }: PaywallPageProps)
     const prev = document.body.style.backgroundColor;
     document.body.style.backgroundColor = "transparent";
     return () => { document.body.style.backgroundColor = prev; };
+  }, []);
+
+  useEffect(() => {
+    if (!isNativePlatform()) { setCheckingPro(false); return; }
+    (async () => {
+      try {
+        const status = await getSubscriptionStatus();
+        if (status === "pro") setAlreadyPro(true);
+      } catch {}
+      finally { setCheckingPro(false); }
+    })();
   }, []);
 
   useEffect(() => {
@@ -111,8 +129,7 @@ export default function PaywallPage({ onBack, lockedFeature }: PaywallPageProps)
       const status = await purchaseMonthlyPlan();
       if (status === "pro") {
         await activateOnServer();
-        toast({ title: "Welcome to Docera Pro!" });
-        onBack?.();
+        setCelebrating(true);
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Purchase failed. Please try again.";
@@ -122,7 +139,63 @@ export default function PaywallPage({ onBack, lockedFeature }: PaywallPageProps)
     }
   };
 
-  const busy = purchasing;
+  const busy = purchasing || celebrating;
+
+  if (checkingPro) {
+    return (
+      <>
+        <div style={{ position: "fixed", inset: 0, zIndex: 0, background: orbBg, pointerEvents: "none" }} />
+        <div className="min-h-screen flex items-center justify-center" style={{ position: "relative", zIndex: 1 }}>
+          <Loader2 className="w-6 h-6 animate-spin" style={{ color: textSecondary }} />
+        </div>
+      </>
+    );
+  }
+
+  if (alreadyPro) {
+    const manageUrl = getManageSubscriptionUrl();
+    return (
+      <>
+        <div style={{ position: "fixed", inset: 0, zIndex: 0, background: orbBg, pointerEvents: "none" }} />
+        <div className="min-h-screen flex flex-col items-center justify-center px-5" style={{ position: "relative", zIndex: 1 }}>
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="absolute right-4 w-9 h-9 rounded-full flex items-center justify-center active:opacity-60"
+              style={{ background: dark ? "rgba(255,255,255,0.12)" : "rgba(26,31,42,0.1)", top: "max(1rem, env(safe-area-inset-top))" }}
+            >
+              <X className="w-4 h-4" style={{ color: textPrimary }} />
+            </button>
+          )}
+          <div className="max-w-sm w-full flex flex-col items-center gap-5 text-center rounded-3xl p-8"
+               style={{ background: cardBg, ...glassStyle(dark) }}>
+            <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: "rgba(201,168,76,0.15)", border: "1px solid rgba(201,168,76,0.35)" }}>
+              <Sparkles className="w-6 h-6" style={{ color: "#c9a84c" }} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold mb-2" style={{ color: textPrimary }}>You're on Docera Pro</h1>
+              <p className="text-sm" style={{ color: textSecondary }}>Your subscription is active. Enjoy full access to all Pro features.</p>
+            </div>
+            {manageUrl ? (
+              <button
+                onClick={() => Browser.open({ url: manageUrl })}
+                className="w-full h-12 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+                style={{ background: dark ? "rgba(255,255,255,0.1)" : "rgba(26,31,42,0.08)", color: textPrimary, border: dark ? "0.5px solid rgba(255,255,255,0.12)" : "0.5px solid rgba(26,31,42,0.12)" }}
+              >
+                Manage Subscription
+              </button>
+            ) : null}
+            <button
+              onClick={onBack}
+              className="w-full h-12 rounded-2xl font-semibold text-sm active:scale-[0.98] transition-all bg-primary text-primary-foreground"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -255,6 +328,11 @@ export default function PaywallPage({ onBack, lockedFeature }: PaywallPageProps)
           </div>
         </div>
       </div>
+
+      <ProUnlockCelebration
+        playing={celebrating}
+        onComplete={() => { setTheme("pro"); onBack?.(); }}
+      />
     </>
   );
 }

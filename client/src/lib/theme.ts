@@ -59,6 +59,8 @@ export function setThemeMode(mode: ThemeMode) {
   listeners.forEach((fn) => fn(applied, mode));
 }
 
+export const setTheme = setThemeMode;
+
 export function subscribeToTheme(fn: Listener): () => void {
   listeners.add(fn);
   return () => listeners.delete(fn);

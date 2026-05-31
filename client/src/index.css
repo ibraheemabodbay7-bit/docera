@@ -531,3 +531,44 @@ button, a, input, select, textarea, [role="button"] {
 .thread-slide-in {
   animation: slideInFromRight 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
+
+/* ===== Pro Unlock celebration keyframes ===== */
+@keyframes glowPulse {
+  0%   { transform: translate(-50%, -50%) scale(0.6); opacity: 0; }
+  25%  { transform: translate(-50%, -50%) scale(1.05); opacity: 1; }
+  60%  { transform: translate(-50%, -50%) scale(1.0); opacity: 0.95; }
+  100% { transform: translate(-50%, -50%) scale(0.95); opacity: 0.85; }
+}
+
+@keyframes ringDraw {
+  0%   { stroke-dashoffset: 365; }
+  100% { stroke-dashoffset: 0; }
+}
+
+@keyframes markIn {
+  0%   { opacity: 0; transform: scale(0.6); filter: blur(4px); }
+  60%  { opacity: 1; transform: scale(1.05); filter: blur(0); }
+  100% { opacity: 1; transform: scale(1); filter: blur(0); }
+}
+
+@keyframes proIn {
+  0%   { opacity: 0; transform: translateY(6px); letter-spacing: 4px; }
+  100% { opacity: 1; transform: translateY(0); letter-spacing: 8px; }
+}
+
+@keyframes ruleDraw {
+  0%   { transform: scaleX(0); opacity: 0; }
+  100% { transform: scaleX(1); opacity: 1; }
+}
+
+@keyframes sweep {
+  0%   { transform: translateX(-60%); }
+  100% { transform: translateX(350%); }
+}
+
+@keyframes particleRise {
+  0%   { opacity: 0; transform: translate(0, 0) scale(0.3); }
+  15%  { opacity: 1; }
+  85%  { opacity: 0.8; }
+  100% { opacity: 0; transform: translate(var(--drift), -480px) scale(1); }
+}

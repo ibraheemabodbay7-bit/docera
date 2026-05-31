@@ -62,7 +62,26 @@
       "Bash(echo \"ClientProfile EXIT:$?\")",
       "Bash(echo \"exit:$?\")",
       "Bash(grep *)",
-      "Bash(npm audit *)"
+      "Bash(npm audit *)",
+      "Bash(npm ls *)",
+      "Bash(railway status *)",
+      "Bash(gh run *)",
+      "Bash(curl -sI https://docera-production.up.railway.app)",
+      "Bash(npm view *)",
+      "Bash(gtimeout 5 npm run dev)",
+      "Bash(curl *)",
+      "Bash(pkill -f \"tsx server/index.ts\")",
+      "Bash(xargs kill *)",
+      "Bash(tee -a /tmp/d6.txt)",
+      "Bash(echo \"\")",
+      "Bash(echo \"=== BUILD: success ===\")",
+      "Bash(echo \"=== TS CHECK: 2 errors, both pre-existing \\(toast.tsx:50, ScannerPage.tsx:1108\\) — no new errors ===\")",
+      "Read(//private/tmp/**)",
+      "Bash(tee -a /tmp/d7.txt)",
+      "Bash(railway --version)",
+      "Bash(railway whoami *)",
+      "Bash(brew install *)",
+      "Bash(sh)"
     ]
   }
 }

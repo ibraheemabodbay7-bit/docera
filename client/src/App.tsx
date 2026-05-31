@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient, API_BASE } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
-import { initPurchases } from "@/lib/purchases";
+import { initPurchases, getSubscriptionStatus, isNativePlatform } from "@/lib/purchases";
+import { getThemeMode, setThemeMode } from "@/lib/theme";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
 import HomePage from "./pages/HomePage";
@@ -123,6 +124,17 @@ function AppWithAuth() {
   const subscription = useSubscription();
 
   try { localStorage.removeItem('__bootCount'); } catch {}
+
+  // Revoke pro theme if entitlement is no longer active (lapsed subscription).
+  useEffect(() => {
+    if (!isNativePlatform()) return;
+    (async () => {
+      try {
+        const status = await getSubscriptionStatus();
+        if (status !== "pro" && getThemeMode() === "pro") setThemeMode("system");
+      } catch {}
+    })();
+  }, []);
 
   // Proactive Gmail token refresh — fires on every cold-launch so the
   // access token is fresh regardless of which surface the user lands on.
