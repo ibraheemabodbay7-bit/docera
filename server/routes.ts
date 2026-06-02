@@ -803,8 +803,38 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     res.json({ id: user.id, name: user.name, username: user.username, senderName: user.senderName ?? null });
   });
 
-  app.delete("/api/auth/account", requireAuth, async (req, res) => {
-    const userId = (req.session as any).userId!;
+  app.delete("/api/auth/account", async (req, res) => {
+    // Path 1 — session (web): userId set by login/guest-device flow.
+    let userId: string | null = (req.session as any)?.userId ?? null;
+
+    // Path 2 — deviceId (native): the native app never establishes a server
+    // session (SameSite=Lax blocks cookies on cross-origin DELETE), so we
+    // derive the user from the guest username convention instead.
+    // Never trust a raw userId from the body — only derive from validated deviceId.
+    if (!userId) {
+      const deviceSchema = z.object({
+        deviceId: z.string().min(8).max(128).regex(/^[a-zA-Z0-9_-]+$/),
+      });
+      const deviceParsed = deviceSchema.safeParse(req.body ?? {});
+      if (deviceParsed.success) {
+        const guestEmail = `guest_${deviceParsed.data.deviceId}@docera.guest`;
+        try {
+          const user = await storage.getUserByEmail(guestEmail);
+          if (!user) {
+            // Idempotent — no server record for this device, nothing to delete.
+            return res.json({ ok: true });
+          }
+          userId = user.id;
+        } catch (lookupErr: unknown) {
+          const msg = lookupErr instanceof Error ? lookupErr.message : "Lookup failed";
+          console.error("[delete-account] device lookup failed:", msg);
+          return res.status(500).json({ error: "deletion_failed", message: msg });
+        }
+      }
+    }
+
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
     const schema = z.object({
       gmailRefreshToken: z.string().optional(),
       gmailAccessToken: z.string().optional(),

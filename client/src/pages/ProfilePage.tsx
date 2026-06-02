@@ -117,11 +117,12 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
     try {
       const gmailRefreshToken = localStorage.getItem("gmail_refresh_token") || undefined;
       const gmailAccessToken = localStorage.getItem("gmail_access_token") || undefined;
+      const deviceId = localStorage.getItem("docera_guest_device_id") || undefined;
 
       const res = await apiFetch("/api/auth/account", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gmailRefreshToken, gmailAccessToken }),
+        body: JSON.stringify({ gmailRefreshToken, gmailAccessToken, deviceId }),
       });
 
       if (!res.ok) {
