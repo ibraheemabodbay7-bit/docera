@@ -118,9 +118,10 @@ export default function ProfilePage({ user, onBack, onLogout, subscription, onUp
       const gmailRefreshToken = localStorage.getItem("gmail_refresh_token") || undefined;
       const gmailAccessToken = localStorage.getItem("gmail_access_token") || undefined;
 
-      const res = await apiRequest("DELETE", "/api/auth/account", {
-        gmailRefreshToken,
-        gmailAccessToken,
+      const res = await apiFetch("/api/auth/account", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gmailRefreshToken, gmailAccessToken }),
       });
 
       if (!res.ok) {

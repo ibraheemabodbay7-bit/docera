@@ -43,13 +43,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
+
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>CFBundleURLTypes</key>
@@ -81,5 +75,7 @@
 	<string>Used to import documents from your library</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Used to save scanned documents to your photo library</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>

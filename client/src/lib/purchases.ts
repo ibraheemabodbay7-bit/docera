@@ -134,7 +134,18 @@ export async function purchaseMonthlyPlan(): Promise<SubscriptionStatus> {
 
   try {
     const { customerInfo } = await PurchasesModule.Purchases.purchasePackage({ aPackage: pkg });
-    return customerInfo.entitlements.active[ENTITLEMENT_ID] ? "pro" : "free";
+    if (customerInfo.entitlements.active[ENTITLEMENT_ID]) return "pro";
+
+    // RevenueCat can return stale customerInfo on the first call after purchase.
+    // Poll getCustomerInfo up to 3x (~1s apart) before concluding "free."
+    for (let i = 0; i < 3; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      try {
+        const { customerInfo: refreshed } = await PurchasesModule.Purchases.getCustomerInfo();
+        if (refreshed.entitlements.active[ENTITLEMENT_ID]) return "pro";
+      } catch {}
+    }
+    return "free";
   } catch (e: unknown) {
     // User cancelled — not an error, return silently
     if (typeof e === "object" && e !== null && "userCancelled" in e &&
@@ -178,6 +189,23 @@ export function getManageSubscriptionUrl(): string {
   if (platform === "ios")     return "https://apps.apple.com/account/subscriptions";
   if (platform === "android") return "https://play.google.com/store/account/subscriptions";
   return "";
+}
+
+export async function addCustomerInfoUpdateListener(
+  listener: (customerInfo: { entitlements: { active: Record<string, unknown> } }) => void
+): Promise<(() => Promise<void>) | null> {
+  const ready = await ensureInitialized();
+  if (!ready || !PurchasesModule) return null;
+  try {
+    const callbackId = await PurchasesModule.Purchases.addCustomerInfoUpdateListener(listener);
+    return async () => {
+      try {
+        await PurchasesModule!.Purchases.removeCustomerInfoUpdateListener({ listenerToRemove: callbackId });
+      } catch {}
+    };
+  } catch {
+    return null;
+  }
 }
 
 export const FREE_TIER_LIMIT = 5;

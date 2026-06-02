@@ -1,21 +1,29 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import ProUnlockCelebration from "@/components/ProUnlockCelebration";
 import {
-  ScanLine, Send, Folder, Star, Inbox, Check, Lock, X, Sparkles, Loader2,
+  ScanLine, Send, Folder, Star, Inbox, Check, Lock, X, Sparkles, Loader2, ExternalLink,
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 import { Browser } from "@capacitor/browser";
+import { useToast } from "@/hooks/use-toast";
 import {
   purchaseMonthlyPlan,
   getMonthlyPackage,
   getSubscriptionStatus,
-  getManageSubscriptionUrl,
   isNativePlatform,
+  addCustomerInfoUpdateListener,
+  ENTITLEMENT_ID,
 } from "@/lib/purchases";
 import { queryClient } from "@/lib/queryClient";
-import { isDarkMode, setTheme } from "@/lib/theme";
+import { setTheme } from "@/lib/theme";
 
 const TRIAL_DAYS = 7;
+
+const EULA_URL    = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/";
+const PRIVACY_URL = "https://docera-production.up.railway.app/privacy";
+
+function openUrl(url: string) {
+  Browser.open({ url, windowName: "_blank" });
+}
 
 // ── Feature list ──────────────────────────────────────────────────────────────
 const FEATURES = [
@@ -28,21 +36,14 @@ const FEATURES = [
 ];
 
 // ── Fallback strings (shown before RevenueCat price loads) ────────────────────
-const FALLBACK_PRICE      = "₪29.90/month";
-const FALLBACK_SUBTITLE   = `${TRIAL_DAYS} days free, then ₪29.90/month. Cancel anytime.`;
+const FALLBACK_PRICE = "₪29.90/month";
 
-const ORB_LIGHT = [
-  "radial-gradient(ellipse at 20% 15%, #e8ecf2 0%, #c8d0dc 30%, transparent 60%)",
-  "radial-gradient(ellipse at 80% 85%, #d8dee8 0%, #a8b0c0 35%, transparent 65%)",
-  "radial-gradient(ellipse at 50% 50%, #6a7388 0%, transparent 50%)",
-  "#b8c0cc",
-].join(", ");
-
-const ORB_DARK = [
-  "radial-gradient(ellipse at 20% 15%, #1a1a1f 0%, #0e0e12 30%, transparent 60%)",
-  "radial-gradient(ellipse at 80% 85%, #16161a 0%, #0a0a0c 35%, transparent 65%)",
-  "radial-gradient(ellipse at 50% 50%, #000000 0%, transparent 50%)",
-  "#050507",
+// Paywall always shows the Pro navy background — it's selling Pro.
+const ORB_PRO = [
+  "radial-gradient(ellipse at 20% 15%, #1a2444 0%, #0d1530 30%, transparent 60%)",
+  "radial-gradient(ellipse at 80% 85%, #15203c 0%, #0a0f1e 35%, transparent 65%)",
+  "radial-gradient(ellipse at 50% 50%, #0a0f1e 0%, transparent 50%)",
+  "#0a0f1e",
 ].join(", ");
 
 function glassStyle(dark: boolean): React.CSSProperties {
@@ -69,12 +70,13 @@ export default function PaywallPage({ onBack, lockedFeature }: PaywallPageProps)
   const [checkingPro, setCheckingPro] = useState(true);
   const [priceString, setPriceString] = useState<string | null>(null);
 
-  const dark = isDarkMode();
-  const orbBg = dark ? ORB_DARK : ORB_LIGHT;
-  const cardBg = dark ? "rgba(28,28,32,0.65)" : "rgba(255,255,255,0.55)";
-  const heroBg = dark ? "rgba(14,14,18,0.88)" : "rgba(232,236,242,0.82)";
-  const textPrimary = dark ? "#ececef" : "#1a1f2a";
-  const textSecondary = dark ? "#a0a8b8" : "#4a5262";
+  // Paywall is always navy/gold regardless of system theme.
+  const orbBg         = ORB_PRO;
+  const cardBg        = "rgba(13,20,45,0.65)";
+  const heroBg        = "rgba(10,15,30,0.88)";
+  const textPrimary   = "#e8dfc8";
+  const textSecondary = "#8a96b0";
+  const gold          = "#c9a84c";
 
   useEffect(() => {
     const prev = document.body.style.backgroundColor;
@@ -99,12 +101,27 @@ export default function PaywallPage({ onBack, lockedFeature }: PaywallPageProps)
     });
   }, []);
 
-  const displayPrice    = priceString ? `${priceString}/month` : FALLBACK_PRICE;
-  const displaySubtitle = priceString
-    ? `${TRIAL_DAYS} days free, then ${priceString}/month. Cancel anytime.`
-    : FALLBACK_SUBTITLE;
+  const displayPrice = priceString ? `${priceString}/month` : FALLBACK_PRICE;
 
-  // ── Sync purchase to backend after RevenueCat confirms it ─────────────────
+  // Guards against: double-fire, and listener triggering on launch (not during a purchase).
+  const purchaseAttemptedRef  = useRef(false);
+  const celebratedRef         = useRef(false);
+  const triggerCelebrationRef = useRef<() => void>(() => {});
+
+  // RevenueCat listener — catches the delayed entitlement update that purchasePackage can miss.
+  // purchaseAttemptedRef guards against replaying the celebration on launch for existing Pro users.
+  useEffect(() => {
+    let removeFn: (() => Promise<void>) | null = null;
+    addCustomerInfoUpdateListener((info) => {
+      if (!purchaseAttemptedRef.current) return;
+      if (info.entitlements.active[ENTITLEMENT_ID]) {
+        triggerCelebrationRef.current();
+      }
+    }).then((fn) => { removeFn = fn; });
+    return () => { removeFn?.(); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Sync purchase to backend — fire-and-forget, never blocks animation ────
   const activateOnServer = async () => {
     try {
       await fetch("/api/subscription/native-activate", {
@@ -118,20 +135,34 @@ export default function PaywallPage({ onBack, lockedFeature }: PaywallPageProps)
     queryClient.invalidateQueries({ queryKey: ["/api/subscription"] });
   };
 
+  // Called from both the purchase promise and the listener — whichever fires first.
+  const triggerCelebration = () => {
+    if (celebratedRef.current) return;
+    celebratedRef.current = true;
+    activateOnServer(); // intentionally not awaited — server sync must not gate the animation
+    setCelebrating(true);
+  };
+
+  // Keep the ref pointing at the latest render's closure (safe to call from the stable listener).
+  triggerCelebrationRef.current = triggerCelebration;
+
   // ── Subscribe ─────────────────────────────────────────────────────────────
   const handleSubscribe = async () => {
     if (!isNativePlatform()) {
       toast({ title: "Available on the mobile app" });
       return;
     }
+    purchaseAttemptedRef.current = true;
     setPurchasing(true);
     try {
       const status = await purchaseMonthlyPlan();
       if (status === "pro") {
-        await activateOnServer();
-        setCelebrating(true);
+        triggerCelebration();
+        // If status is still "free" here (RC delay), the listener will catch the
+        // entitlement update and call triggerCelebration when it arrives.
       }
     } catch (e: unknown) {
+      purchaseAttemptedRef.current = false; // don't let the listener misfire on next open
       const msg = e instanceof Error ? e.message : "Purchase failed. Please try again.";
       toast({ title: "Purchase failed", description: msg, variant: "destructive" });
     } finally {
@@ -153,7 +184,6 @@ export default function PaywallPage({ onBack, lockedFeature }: PaywallPageProps)
   }
 
   if (alreadyPro) {
-    const manageUrl = getManageSubscriptionUrl();
     return (
       <>
         <div style={{ position: "fixed", inset: 0, zIndex: 0, background: orbBg, pointerEvents: "none" }} />
@@ -162,29 +192,20 @@ export default function PaywallPage({ onBack, lockedFeature }: PaywallPageProps)
             <button
               onClick={onBack}
               className="absolute right-4 w-9 h-9 rounded-full flex items-center justify-center active:opacity-60"
-              style={{ background: dark ? "rgba(255,255,255,0.12)" : "rgba(26,31,42,0.1)", top: "max(1rem, env(safe-area-inset-top))" }}
+              style={{ background: "rgba(255,255,255,0.12)", top: "max(1rem, env(safe-area-inset-top))" }}
             >
               <X className="w-4 h-4" style={{ color: textPrimary }} />
             </button>
           )}
           <div className="max-w-sm w-full flex flex-col items-center gap-5 text-center rounded-3xl p-8"
-               style={{ background: cardBg, ...glassStyle(dark) }}>
+               style={{ background: cardBg, ...glassStyle(true) }}>
             <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: "rgba(201,168,76,0.15)", border: "1px solid rgba(201,168,76,0.35)" }}>
-              <Sparkles className="w-6 h-6" style={{ color: "#c9a84c" }} />
+              <Sparkles className="w-6 h-6" style={{ color: gold }} />
             </div>
             <div>
               <h1 className="text-2xl font-bold mb-2" style={{ color: textPrimary }}>You're on Docera Pro</h1>
               <p className="text-sm" style={{ color: textSecondary }}>Your subscription is active. Enjoy full access to all Pro features.</p>
             </div>
-            {manageUrl ? (
-              <button
-                onClick={() => Browser.open({ url: manageUrl })}
-                className="w-full h-12 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
-                style={{ background: dark ? "rgba(255,255,255,0.1)" : "rgba(26,31,42,0.08)", color: textPrimary, border: dark ? "0.5px solid rgba(255,255,255,0.12)" : "0.5px solid rgba(26,31,42,0.12)" }}
-              >
-                Manage Subscription
-              </button>
-            ) : null}
             <button
               onClick={onBack}
               className="w-full h-12 rounded-2xl font-semibold text-sm active:scale-[0.98] transition-all bg-primary text-primary-foreground"
@@ -207,7 +228,7 @@ export default function PaywallPage({ onBack, lockedFeature }: PaywallPageProps)
           className="flex-shrink-0 relative px-5 pb-10 text-center"
           style={{
             background: heroBg,
-            ...glassStyle(dark),
+            ...glassStyle(true),
             borderRadius: 0,
             boxShadow: "none",
             paddingTop: "max(3.5rem, env(safe-area-inset-top))",
@@ -219,7 +240,7 @@ export default function PaywallPage({ onBack, lockedFeature }: PaywallPageProps)
               onClick={onBack}
               disabled={busy}
               className="absolute right-4 w-9 h-9 rounded-full flex items-center justify-center active:opacity-60 disabled:opacity-40"
-              style={{ background: dark ? "rgba(255,255,255,0.12)" : "rgba(26,31,42,0.1)", top: "max(1rem, env(safe-area-inset-top))" }}
+              style={{ background: "rgba(255,255,255,0.12)", top: "max(1rem, env(safe-area-inset-top))" }}
             >
               <X className="w-4 h-4" style={{ color: textPrimary }} />
             </button>
@@ -228,20 +249,28 @@ export default function PaywallPage({ onBack, lockedFeature }: PaywallPageProps)
           {lockedFeature && (
             <div
               className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 mb-5"
-              style={{ background: dark ? "rgba(255,255,255,0.12)" : "rgba(26,31,42,0.08)", border: dark ? "1px solid rgba(255,255,255,0.15)" : "1px solid rgba(26,31,42,0.12)" }}
+              style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)" }}
             >
-              <Lock className="w-3 h-3 text-amber-400" />
+              <Lock className="w-3 h-3" style={{ color: gold }} />
               <span className="text-xs font-semibold" style={{ color: textPrimary }}>
                 {lockedFeature} requires a subscription
               </span>
             </div>
           )}
 
-          <h1 className="text-[30px] font-extrabold leading-tight mb-3" style={{ color: textPrimary }}>
-            Start your free trial
+          {/* Subscription identity */}
+          <p className="text-xs font-bold tracking-widest uppercase mb-3" style={{ color: gold }}>
+            Docera Pro · Monthly
+          </p>
+
+          {/* Billed price — most prominent element per Apple 3.1.2(c) */}
+          <h1 className="text-[46px] font-extrabold leading-none mb-3" style={{ color: textPrimary }}>
+            {displayPrice}
           </h1>
-          <p className="text-base font-medium" style={{ color: textSecondary }}>
-            {displaySubtitle}
+
+          {/* Trial — visually subordinate: smaller, lighter, below price */}
+          <p className="text-sm font-medium" style={{ color: textSecondary }}>
+            {TRIAL_DAYS}-day free trial, then {displayPrice}. Cancel anytime.
           </p>
         </div>
 
@@ -252,15 +281,15 @@ export default function PaywallPage({ onBack, lockedFeature }: PaywallPageProps)
             {/* Feature list */}
             <div
               className="rounded-3xl p-5 flex flex-col gap-4"
-              style={{ background: cardBg, ...glassStyle(dark) }}
+              style={{ background: cardBg, ...glassStyle(true) }}
             >
               {FEATURES.map(({ icon: Icon, text }) => (
                 <div key={text} className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: dark ? "rgba(255,255,255,0.08)" : "rgba(26,31,42,0.06)" }}>
-                    <Icon className="w-4 h-4 text-primary" />
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.08)" }}>
+                    <Icon className="w-4 h-4" style={{ color: gold }} />
                   </div>
                   <span className="text-sm font-medium flex-1" style={{ color: textPrimary }}>{text}</span>
-                  <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
                 </div>
               ))}
             </div>
@@ -268,14 +297,14 @@ export default function PaywallPage({ onBack, lockedFeature }: PaywallPageProps)
             {/* Pricing summary */}
             <div
               className="rounded-2xl px-5 py-4 flex items-center justify-between"
-              style={{ background: cardBg, ...glassStyle(dark) }}
+              style={{ background: cardBg, ...glassStyle(true) }}
             >
               <div>
-                <p className="text-sm font-semibold" style={{ color: textPrimary }}>Monthly plan</p>
+                <p className="text-sm font-semibold" style={{ color: textPrimary }}>Docera Pro · Monthly</p>
                 <p className="text-xs mt-0.5" style={{ color: textSecondary }}>Cancel anytime · no hidden fees</p>
               </div>
               <div className="text-right">
-                <p className="text-xs text-primary font-semibold">Free for {TRIAL_DAYS} days</p>
+                <p className="text-xs font-medium" style={{ color: textSecondary }}>{TRIAL_DAYS}-day free trial</p>
                 <p className="text-sm font-bold" style={{ color: textPrimary }}>then {displayPrice}</p>
               </div>
             </div>
@@ -299,10 +328,10 @@ export default function PaywallPage({ onBack, lockedFeature }: PaywallPageProps)
           className="flex-shrink-0 px-5 pt-4"
           style={{
             background: heroBg,
-            ...glassStyle(dark),
+            ...glassStyle(true),
             borderRadius: 0,
             paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))",
-            boxShadow: dark ? "0 -1px 0 rgba(255,255,255,0.06)" : "0 -1px 0 rgba(255,255,255,0.6)",
+            boxShadow: "0 -1px 0 rgba(255,255,255,0.06)",
           }}
         >
           <div className="max-w-sm mx-auto w-full flex flex-col gap-2">
@@ -312,8 +341,8 @@ export default function PaywallPage({ onBack, lockedFeature }: PaywallPageProps)
               data-testid="button-subscribe"
               onClick={handleSubscribe}
               disabled={busy}
-              className="w-full h-14 rounded-2xl font-bold text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-all bg-primary text-primary-foreground disabled:opacity-60"
-              style={{ boxShadow: "0 4px 20px rgba(17,62,97,0.35)" }}
+              className="w-full h-14 rounded-2xl font-bold text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-60"
+              style={{ background: "linear-gradient(180deg, #c9a84c, #b08a30)", color: "#0a0f1e", boxShadow: "0 4px 20px rgba(201,168,76,0.35)" }}
             >
               {purchasing
                 ? <Loader2 className="w-5 h-5 animate-spin" />
@@ -321,10 +350,31 @@ export default function PaywallPage({ onBack, lockedFeature }: PaywallPageProps)
               {purchasing ? "Processing…" : "Start Free Trial"}
             </button>
 
-            {/* Legal */}
-            <p className="text-center text-[11px] pt-1 pb-1" style={{ color: textSecondary }}>
-              Subscription renews automatically. Cancel anytime.
+            {/* Renewal notice — explicit price per Apple guidelines */}
+            <p className="text-center text-[11px] pt-1" style={{ color: textSecondary }}>
+              Subscription renews automatically at {displayPrice}. Cancel anytime.
             </p>
+
+            {/* Legal links — tappable, required by Apple 3.1.2(c) */}
+            <div className="flex items-center justify-center gap-4 pb-1">
+              <button
+                onClick={() => openUrl(EULA_URL)}
+                className="flex items-center gap-1 text-[12px] font-medium active:opacity-60"
+                style={{ color: gold }}
+              >
+                <ExternalLink className="w-3 h-3" />
+                Terms of Use
+              </button>
+              <span style={{ color: textSecondary, opacity: 0.4 }}>·</span>
+              <button
+                onClick={() => openUrl(PRIVACY_URL)}
+                className="flex items-center gap-1 text-[12px] font-medium active:opacity-60"
+                style={{ color: gold }}
+              >
+                <ExternalLink className="w-3 h-3" />
+                Privacy Policy
+              </button>
+            </div>
           </div>
         </div>
       </div>
