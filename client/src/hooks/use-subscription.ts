@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
-import { FREE_TIER_LIMIT } from "@/lib/purchases";
+import { FREE_TIER_LIMIT, getSubscriptionStatus } from "@/lib/purchases";
 
 export type SubscriptionStatus = "active" | "trialing" | "expired" | "past_due" | "canceled" | "unpaid" | "incomplete" | "incomplete_expired" | "none";
 
@@ -72,10 +72,22 @@ export function useSubscription(): SubscriptionInfo {
     retry: false,
   });
 
-  const isPro = active;
+  // Native: read Pro status from RevenueCat directly, mirroring PaywallPage.
+  // Web: nativeIsPro unused; isPro comes from the server query's active field.
+  const [nativeIsPro, setNativeIsPro] = useState(false);
+  const [nativeProLoading, setNativeProLoading] = useState(isNative);
+  useEffect(() => {
+    if (!isNative) { setNativeProLoading(false); return; }
+    getSubscriptionStatus()
+      .then(s => setNativeIsPro(s === "pro"))
+      .catch(() => {})
+      .finally(() => setNativeProLoading(false));
+  }, [isNative]);
+
+  const isPro = isNative ? nativeIsPro : active;
   const scanCount = allDocs?.length ?? 0;
-  // While docs are loading, treat count as 0 — never block during the loading race.
-  const scanLimitReached = !isPro && !docsLoading && scanCount >= FREE_TIER_LIMIT;
+  // Block only once both the doc count AND the native Pro status have resolved.
+  const scanLimitReached = !isPro && !docsLoading && !nativeProLoading && scanCount >= FREE_TIER_LIMIT;
 
   return {
     status,
