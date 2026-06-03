@@ -208,4 +208,4 @@ export async function addCustomerInfoUpdateListener(
   }
 }
 
-export const FREE_TIER_LIMIT = 5;
+export const FREE_TIER_LIMIT = 3;

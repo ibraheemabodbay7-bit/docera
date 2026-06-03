@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
+import { FREE_TIER_LIMIT } from "@/lib/purchases";
 
 export type SubscriptionStatus = "active" | "trialing" | "expired" | "past_due" | "canceled" | "unpaid" | "incomplete" | "incomplete_expired" | "none";
 
@@ -16,6 +17,10 @@ export interface SubscriptionInfo {
   trialDaysLeft: number | null;
   isTrialing: boolean;
   loading: boolean;
+  /** Number of documents the user currently has */
+  scanCount: number;
+  /** true when a free user is at or over FREE_TIER_LIMIT; false while count is still loading */
+  scanLimitReached: boolean;
 }
 
 export function useSubscription(): SubscriptionInfo {
@@ -51,9 +56,26 @@ export function useSubscription(): SubscriptionInfo {
     ? Math.max(0, Math.ceil((trialEnd * 1000 - Date.now()) / 86_400_000))
     : null;
   const active = data?.active ?? false;
-  // FIX: guests (no subscription) can still use all features.
-  // Only block when we have confirmed subscription data showing it's expired/canceled.
+  // Unchanged — governs the Gmail send gate in ViewerPage (Gmail is free under Model B).
   const canUseGatedFeatures = active || status === "none";
+
+  // Share the ["/api/documents"] cache that ScannerPage already invalidates on every save,
+  // so no ScannerPage edits are needed. On native, override queryFn to read IndexedDB.
+  const { data: allDocs, isLoading: docsLoading } = useQuery<Array<unknown>>({
+    queryKey: ["/api/documents"],
+    ...(isNative ? {
+      queryFn: async () => {
+        const { listLocalDocs } = await import("@/lib/localDocs");
+        return listLocalDocs();
+      },
+    } : {}),
+    retry: false,
+  });
+
+  const isPro = active;
+  const scanCount = allDocs?.length ?? 0;
+  // While docs are loading, treat count as 0 — never block during the loading race.
+  const scanLimitReached = !isPro && !docsLoading && scanCount >= FREE_TIER_LIMIT;
 
   return {
     status,
@@ -64,5 +86,7 @@ export function useSubscription(): SubscriptionInfo {
     trialDaysLeft,
     isTrialing,
     loading: effectivelyLoading,
+    scanCount,
+    scanLimitReached,
   };
 }

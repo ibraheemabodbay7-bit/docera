@@ -125,13 +125,17 @@ function AppWithAuth() {
 
   try { localStorage.removeItem('__bootCount'); } catch {}
 
-  // Revoke pro theme if entitlement is no longer active (lapsed subscription).
+  // Sync pro theme with entitlement on launch: grant when active, revoke when lapsed.
   useEffect(() => {
     if (!isNativePlatform()) return;
     (async () => {
       try {
         const status = await getSubscriptionStatus();
-        if (status !== "pro" && getThemeMode() === "pro") setThemeMode("system");
+        if (status === "pro") {
+          setThemeMode("pro");
+        } else if (getThemeMode() === "pro") {
+          setThemeMode("system");
+        }
       } catch {}
     })();
   }, []);
@@ -297,7 +301,7 @@ function AppWithAuth() {
   const goHome = () => setView({ name: "home" });
 
   const goScanner = (folderId?: string, clientId?: string) => {
-    if (!subscription.canUseGatedFeatures) {
+    if (subscription.scanLimitReached) {
       setView({ name: "paywall", returnTo: { name: "home" }, lockedFeature: "Scanning" });
       return;
     }
@@ -306,7 +310,7 @@ function AppWithAuth() {
   };
 
   const goScannerGallery = () => {
-    if (!subscription.canUseGatedFeatures) {
+    if (subscription.scanLimitReached) {
       setView({ name: "paywall", returnTo: { name: "home" }, lockedFeature: "Scanning" });
       return;
     }
@@ -315,7 +319,7 @@ function AppWithAuth() {
   };
 
   const goScannerNative = async () => {
-    if (!subscription.canUseGatedFeatures) {
+    if (subscription.scanLimitReached) {
       setView({ name: "paywall", returnTo: { name: "home" }, lockedFeature: "Scanning" });
       return;
     }
@@ -331,10 +335,6 @@ function AppWithAuth() {
   };
 
   const goEditor = (docId: string) => {
-    if (!subscription.canUseGatedFeatures) {
-      setView({ name: "paywall", returnTo: { name: "home" }, lockedFeature: "Editing" });
-      return;
-    }
     setView({ name: "editor", docId });
   };
 
