@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient, API_BASE } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
@@ -171,17 +171,39 @@ function AppWithAuth() {
     initPurchases().catch(() => {});
   }, []);
 
+  // Signature of the last URI batch we dispatched to the scanner. Stops the
+  // cold-launch effect and the appUrlOpen listener from double-processing the
+  // same share. Reset to null once the import succeeds (see clearSharedFilesPending).
+  const processedSharedSignatureRef = useRef<string | null>(null);
+
   const handleSharedFiles = async () => {
     try {
       const { SharedFiles } = await import("shared-files");
       const { paths } = await SharedFiles.getPendingFiles();
       if (!paths.length) return;
-      await SharedFiles.clearPendingFiles();
       const fileUris = paths.map((p) => (p.startsWith("file://") ? p : "file://" + p));
+      const signature = fileUris.join("|");
+      if (processedSharedSignatureRef.current === signature) return;
+      processedSharedSignatureRef.current = signature;
+      // NOTE: do NOT call clearPendingFiles() here — if the import crashes or the
+      // app is killed before the scanner consumes these URIs, the share would be
+      // lost. Clearing now happens in clearSharedFilesPending(), invoked by
+      // ScannerPage only after the import effect builds at least one page.
       setView({ name: "scanner", sharedFileUris: fileUris });
     } catch (e) {
       console.error("[Docera] Failed to handle shared files:", e);
     }
+  };
+
+  // Called by ScannerPage once the shared URIs have been successfully turned
+  // into in-memory pages. Safe at this point to drop the UserDefaults entry,
+  // because the canvases now live in React state independent of the inbox files.
+  const clearSharedFilesPending = async () => {
+    try {
+      const { SharedFiles } = await import("shared-files");
+      await SharedFiles.clearPendingFiles();
+    } catch {}
+    processedSharedSignatureRef.current = null;
   };
 
   // Warm-launch: app was backgrounded, user shares → appUrlOpen fires
@@ -195,11 +217,22 @@ function AppWithAuth() {
     return () => { listener.then((h) => h.remove()); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Cold-launch: app was killed, Capacitor may not fire appUrlOpen in time
+  // Cold-launch: gated on loading === false so handleSharedFiles never dispatches
+  // into the spinner window (where ScannerPage isn't mounted yet). Also warms
+  // IndexedDB so the eventual createLocalDoc() in exportMutation has _db open
+  // before the user taps Save. The signature dedupe inside handleSharedFiles
+  // ensures this is a no-op if the appUrlOpen listener already processed.
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
-    handleSharedFiles();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (loading) return;
+    (async () => {
+      try {
+        const { listLocalDocs } = await import("@/lib/localDocs");
+        await listLocalDocs();
+      } catch {}
+      handleSharedFiles();
+    })();
+  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Safety net: if subscription query hangs for more than 5 seconds, stop blocking the UI
   useEffect(() => {
@@ -401,6 +434,7 @@ function AppWithAuth() {
         entryMode={view.entryMode}
         preCapturedFileUris={view.preCapturedFileUris}
         sharedFileUris={view.sharedFileUris}
+        onSharedFilesImported={clearSharedFilesPending}
         onSaved={goHome}
         onCancel={goHome}
       />

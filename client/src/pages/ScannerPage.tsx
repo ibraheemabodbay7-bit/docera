@@ -58,6 +58,12 @@ interface ScannerPageProps {
    * PDFs: each page rendered via PDF.js, loaded as pre-cropped pages.
    */
   sharedFileUris?: string[];
+  /**
+   * Called by ScannerPage after the shared URIs have been successfully turned
+   * into in-memory pages. App.tsx uses this to clear UserDefaults — we hold off
+   * on clearing until the import is committed so a crash mid-import is recoverable.
+   */
+  onSharedFilesImported?: () => void;
 }
 
 /** Serializable form of a ScanPage stored in the DB for later re-editing */
@@ -417,6 +423,7 @@ const PageDots = memo(function PageDots({ count, current, onSelect }: PageDotsPr
 export default function ScannerPage({
   folderId, editDocId, clientId, onSaved, onCancel,
   singleImageCanvas, onEditedImage, entryMode, preCapturedFileUris, sharedFileUris,
+  onSharedFilesImported,
 }: ScannerPageProps) {
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -473,6 +480,11 @@ export default function ScannerPage({
   activeQuadRef.current = activeQuad;
   const currentIndexRef = useRef(0);
   currentIndexRef.current = currentIndex;
+  // Sentinel: signature of the URI batch we've already imported. Lets the import
+  // effect's deps change to [sharedFileUris] without re-processing the same files
+  // when App.tsx re-dispatches the same URIs (e.g. cold-launch effect firing
+  // after the appUrlOpen listener already set the view).
+  const processedSharedSignatureRef = useRef<string | null>(null);
   const draggingCorner = useRef<string | null>(null);
   const isDraggingHandle = useRef(false);
   const prevCropModeRef = useRef(false);
@@ -1048,10 +1060,16 @@ export default function ScannerPage({
     return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Shared-file URIs entry — fires once on mount when sharedFileUris is set ──
+  // ── Shared-file URIs entry — runs when sharedFileUris arrive (mount or after) ─
   // Images: gallery-style load with auto-detection. PDFs: PDF.js page rendering.
+  // Deps are [sharedFileUris] (not []) so URIs that arrive AFTER mount (cold-start
+  // race where App.tsx's setView lands after ScannerPage is already mounted) still
+  // get processed. The signature ref guards against re-processing the same batch.
   useEffect(() => {
     if (!sharedFileUris || sharedFileUris.length === 0) return;
+    const signature = sharedFileUris.join("|");
+    if (processedSharedSignatureRef.current === signature) return;
+    processedSharedSignatureRef.current = signature;
     let cancelled = false;
     (async () => {
       const newPages: ScanPage[] = [];
@@ -1116,10 +1134,19 @@ export default function ScannerPage({
       }
 
       if (cancelled) return;
-      if (!newPages.length) { onCancel(); return; }
+      if (!newPages.length) {
+        // Recovery: roll back the sentinel and leave UserDefaults untouched so a
+        // retry (next cold-launch / appUrlOpen) can attempt this share again.
+        processedSharedSignatureRef.current = null;
+        onCancel();
+        return;
+      }
 
       setPages(newPages);
       setStage("editor");
+
+      // Import committed to React state — now safe to clear UserDefaults pending.
+      onSharedFilesImported?.();
 
       // Run JS detection fallback on image pages where native detection didn't fire
       newPages.forEach((p, i) => {
@@ -1127,7 +1154,7 @@ export default function ScannerPage({
       });
     })();
     return () => { cancelled = true; };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sharedFileUris]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
